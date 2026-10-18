@@ -1,0 +1,154 @@
+/* The Mochi look: sage dotted paper by day, moss by night, Mochi the cat. */
+
+:root[data-look="mochi"] {
+  --ground: #dde6d6;
+  --surface: #ffffff;
+  --sunken: #eaf0e5;
+  --soft: #f1f4ee;
+  --raised: #eaf0e5;
+  --line: #cfdbc8;
+  --text: #23362c;
+  --muted: #556b5e;
+  --placeholder: #6e8475;
+  --seed: #c2cfba;
+  --petal: #eaf0e5;
+  --track: #dfe7d9;
+  --ink: #23362c;
+  --ink-lip: #142219;
+  --on-ink: #ffffff;
+  --on-pastel: #23362c;
+  --apricot: #edb66b;
+  --apricot-lip: #c98b3a;
+  --peri: #a9cde3;
+  --peri-lip: #5e8fb0;
+  --matcha: #9fcba4;
+  --matcha-lip: #6fa27a;
+  --lemon: #f3cb8b;
+  --lemon-lip: #c98b3a;
+  --bubblegum: #e7a3b5;
+  --bubblegum-lip: #c27389;
+  --sky: #a9cde3;
+  --danger: #b4475f;
+  --scrim: rgb(35 54 44 / 0.38);
+  --break-stage: #d3e6d2;
+  --break-text: #2f4a3a;
+  --break-eyebrow: #3d6b4a;
+  --break-petal: #c3ddc4;
+  --break-track: #a8d0ab;
+  --heading: "Fraunces Variable", Georgia, serif;
+  --body: "Manrope Variable", "Segoe UI", system-ui, sans-serif;
+  --sticker: #ffffff;
+  --dots: #c2cfba;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look="mochi"]:not([data-theme="light"]) {
+    --ground: #1e2e26;
+    --surface: #263a30;
+    --sunken: #22342b;
+    --soft: #2f4539;
+    --raised: #2f4539;
+    --line: #3a5045;
+    --text: #eef2e8;
+    --muted: #b7c6b6;
+    --placeholder: #93a596;
+    --seed: #3a5045;
+    --petal: #2f4539;
+    --track: #3a5045;
+    --ink: #eef2e8;
+    --ink-lip: #b7c6b6;
+    --on-ink: #23362c;
+    --danger: #e98ea3;
+    --scrim: rgb(8 16 12 / 0.6);
+    --break-stage: #23382c;
+    --break-text: #d3e6d2;
+    --break-eyebrow: #9fcba4;
+    --break-petal: #2c4636;
+    --break-track: #3f6149;
+    --sticker: #3a5045;
+    --dots: #2c3f35;
+  }
+}
+
+:root[data-look="mochi"][data-theme="dark"],
+:root[data-look="mochi"] .shell[data-mode="focus"] {
+  --ground: #1e2e26;
+  --surface: #263a30;
+  --sunken: #22342b;
+  --soft: #2f4539;
+  --raised: #2f4539;
+  --line: #3a5045;
+  --text: #eef2e8;
+  --muted: #b7c6b6;
+  --placeholder: #93a596;
+  --seed: #3a5045;
+  --petal: #2f4539;
+  --track: #3a5045;
+  --ink: #eef2e8;
+  --ink-lip: #b7c6b6;
+  --on-ink: #23362c;
+  --danger: #e98ea3;
+  --scrim: rgb(8 16 12 / 0.6);
+  --break-stage: #23382c;
+  --break-text: #d3e6d2;
+  --break-eyebrow: #9fcba4;
+  --break-petal: #2c4636;
+  --break-track: #3f6149;
+  --sticker: #3a5045;
+  --dots: #2c3f35;
+}
+
+:root[data-look="mochi"] .shell {
+  background-image: radial-gradient(var(--dots) 1.3px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+
+/* Fraunces at its softest and wonkiest, as in the Mochi design. */
+:root[data-look="mochi"] h1,
+:root[data-look="mochi"] h2,
+:root[data-look="mochi"] .brand {
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+}
+
+/* Squishy buttons become stickers: a white edge with a soft drop. */
+:root[data-look="mochi"] .squishy.apricot,
+:root[data-look="mochi"] .squishy.matcha,
+:root[data-look="mochi"] .squishy.ink {
+  box-shadow: 0 0 0 4px var(--sticker), 0 5px 0 4px rgb(35 54 44 / 0.14);
+}
+
+:root[data-look="mochi"] .squishy:active:not(:disabled) {
+  box-shadow: 0 0 0 4px var(--sticker), 0 1px 0 4px rgb(35 54 44 / 0.14) !important;
+}
+
+/* The dial's stitched edge. */
+.dial-stitch {
+  fill: none;
+  stroke: var(--sticker);
+  stroke-width: 3;
+  stroke-dasharray: 1 11;
+  stroke-linecap: round;
+}
+
+.dial-sun {
+  fill: none;
+  stroke-width: 4;
+  stroke-dasharray: 2.5 4.8;
+  stroke-linecap: round;
+}
+
+:root[data-look="mochi"] .theme-swatch span {
+  background: #edb66b;
+}
+
+:root[data-look="mochi"] .theme-option.light .theme-swatch {
+  background: #dde6d6;
+}
+
+:root[data-look="mochi"] .theme-option.dark .theme-swatch {
+  background: #1e2e26;
+}
+
+:root[data-look="mochi"] .theme-option.system .theme-swatch {
+  background: linear-gradient(135deg, #dde6d6 50%, #1e2e26 50%);
+}

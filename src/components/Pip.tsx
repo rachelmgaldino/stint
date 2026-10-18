@@ -1,6 +1,7 @@
 // Pip, Stint's mascot: a soft blob with a sprout on top.
 
 import { t } from "../i18n";
+import { look, type Look } from "../look";
 
 export type Mood = "awake" | "asleep" | "break" | "cheer";
 
@@ -33,16 +34,81 @@ function Sprout({ leaves }: { leaves: number }) {
   );
 }
 
+
+const isMochi = () => look() === "mochi";
+
+const FUR = "#edb66b";
+const STRIPE = "#c98b3a";
+const BLUSH = "#e7a3b5";
+const MOSS = "#23362c";
+
+// Mochi, the ginger cat who stands in for Pip in the Mochi look. Hours on the
+// dial still show as leaves, tucked between Mochi's ears.
+function MochiHead({ children }: { children?: React.ReactNode }) {
+  return (
+    <>
+      <path d="M14 58 L20 14 L50 38 Z" fill={FUR} />
+      <path d="M106 58 L100 14 L70 38 Z" fill={FUR} />
+      <path d="M22 46 L25 24 L40 37 Z" fill={BLUSH} />
+      <path d="M98 46 L95 24 L80 37 Z" fill={BLUSH} />
+      <ellipse cx="60" cy="72" rx="50" ry="42" fill={FUR} />
+      <path d="M50 32 q4 8 0 14 M60 30 v14 M70 32 q-4 8 0 14" stroke={STRIPE} strokeWidth="4" strokeLinecap="round" fill="none" />
+      {children}
+    </>
+  );
+}
+
+function Mochi({ mood, size, a11y, leaves }: { mood: Mood; size: number; a11y: object; leaves: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
+      <MochiHead>
+        {LEAVES.slice(0, leaves).map((l, i) => (
+          <ellipse key={l.cx} cx={i ? 70 : 50} cy={i ? 24 : 26} rx="8" ry="4" fill="#9fcba4" transform={`rotate(${i ? -30 : 30} ${i ? 70 : 50} ${i ? 24 : 26})`} />
+        ))}
+        {mood === "awake" && (
+          <>
+            <circle cx="44" cy="72" r="6" fill={MOSS} />
+            <circle cx="76" cy="72" r="6" fill={MOSS} />
+            <circle cx="46" cy="70" r="2" fill="#fff" />
+            <circle cx="78" cy="70" r="2" fill="#fff" />
+          </>
+        )}
+        {mood === "asleep" && <path d="M37 72 Q44 78 51 72 M69 72 Q76 78 83 72" stroke={MOSS} strokeWidth="4" strokeLinecap="round" fill="none" />}
+        {(mood === "break" || mood === "cheer") && <path d="M37 72 Q44 65 51 72 M69 72 Q76 65 83 72" stroke={MOSS} strokeWidth="4" strokeLinecap="round" fill="none" />}
+        <path d="M56 82 h8 l-4 4 Z" fill={MOSS} />
+        {mood === "cheer" ? (
+          <path d="M52 88 Q60 98 68 88 Z" fill={MOSS} />
+        ) : (
+          <path d="M60 86 q-4 5 -8 2 M60 86 q4 5 8 2" stroke={MOSS} strokeWidth="2.4" strokeLinecap="round" fill="none" />
+        )}
+        <path d="M6 76 h20 M8 86 l18 -4 M114 76 h-20 M112 86 l-18 -4" stroke={STRIPE} strokeWidth="2" strokeLinecap="round" />
+        <ellipse cx="30" cy="86" rx="8" ry="4.5" fill={BLUSH} />
+        <ellipse cx="90" cy="86" rx="8" ry="4.5" fill={BLUSH} />
+        {mood === "break" && (
+          <>
+            <path d="M44 96 h30 v10 a10 10 0 0 1 -10 10 h-10 a10 10 0 0 1 -10 -10 Z" fill="#fff" />
+            <path d="M74 99 h4 a5 5 0 0 1 0 10 h-4" stroke="#fff" strokeWidth="4" fill="none" />
+            <path d="M52 102 h14" stroke="#9fcba4" strokeWidth="4" strokeLinecap="round" />
+          </>
+        )}
+      </MochiHead>
+    </svg>
+  );
+}
+
 type PipProps = {
   mood?: Mood;
   size?: number;
   label?: string;
+  /** Draws this look's mascot instead of the current one, for the look picker. */
+  as?: Look;
   /** Extra leaves on the sprout, one per full hour on the timer dial. */
   extraLeaves?: number;
 };
 
-export function Pip({ mood = "awake", size = 80, label, extraLeaves = 0 }: PipProps) {
+export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0 }: PipProps) {
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
+  if ((as ?? look()) === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} />;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
       <Sprout leaves={Math.max(extraLeaves, mood === "cheer" ? 1 : 0)} />
@@ -91,6 +157,18 @@ const faces: Record<number, { body: string; eyes: string; eyeWidth: number; mout
 
 export function RatingFace({ value, size = 36 }: { value: number; size?: number }) {
   const f = faces[value] ?? faces[2];
+  if (isMochi()) {
+    const fur = value === 1 ? "#d9c3a0" : value === 2 ? "#e8c58f" : FUR;
+    return (
+      <svg width={size} height={size} viewBox="0 8 120 112" aria-hidden="true">
+        <path d="M14 58 L20 14 L50 38 Z" fill={fur} />
+        <path d="M106 58 L100 14 L70 38 Z" fill={fur} />
+        <ellipse cx="60" cy="72" rx="50" ry="42" fill={fur} />
+        <path d={f.eyes} stroke={MOSS} strokeWidth={f.eyeWidth} strokeLinecap="round" fill="none" />
+        <path d={f.mouth} stroke={MOSS} strokeWidth="5" strokeLinecap="round" fill="none" />
+      </svg>
+    );
+  }
   return (
     <svg width={size} height={size} viewBox="0 12 120 108" aria-hidden="true">
       <path d={BODY} fill={f.body} />
@@ -107,7 +185,17 @@ export function GoalSprouts({ done, goal }: { done: number; goal: number }) {
     <div className="goal" aria-label={t().goalAria(done, goal)}>
       <span className="goal-sprouts" aria-hidden="true">
         {Array.from({ length: total }, (_, i) =>
-          i < done ? (
+          isMochi() ? (
+            <svg key={i} width="22" height="22" viewBox="0 0 24 24">
+              <g fill={i < done ? STRIPE : "var(--seed)"}>
+                <ellipse cx="12" cy="15.5" rx="5" ry="4.2" />
+                <circle cx="5.5" cy="10" r="2.2" />
+                <circle cx="9.5" cy="6.5" r="2.2" />
+                <circle cx="14.5" cy="6.5" r="2.2" />
+                <circle cx="18.5" cy="10" r="2.2" />
+              </g>
+            </svg>
+          ) : i < done ? (
             <svg key={i} width="22" height="22" viewBox="0 0 24 24">
               <path d="M12 21V11" stroke="#86b374" strokeWidth="2.4" strokeLinecap="round" />
               <path d="M12 12C12 7 8 5 4 5c0 5 3 7 8 7Z" fill="#b9d9a9" />

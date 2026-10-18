@@ -7,6 +7,8 @@ import { RatingFace } from "./Pip";
 import { palette, soft } from "../colors";
 import { BellIcon, CalendarIcon, ClockIcon, GlobeIcon, SparkIcon, SunMoonIcon, TagIcon, XIcon } from "./icons";
 import { languages, t } from "../i18n";
+import type { Look } from "../look";
+import { Pip } from "./Pip";
 
 type Props = {
   settings: Settings;
@@ -19,6 +21,7 @@ type Props = {
 };
 
 const themes: Theme[] = ["system", "light", "dark"];
+const looks: Look[] = ["lavender", "mochi"];
 
 function Stepper({
   label,
@@ -211,7 +214,23 @@ export function SettingsView(p: Props) {
         </div>
 
         <div className="settings-column">
-          <Card title={text.theme} sub={text.themeSub} tone="peri" icon={<SunMoonIcon />}>
+          <Card
+            title={text.theme}
+            sub={settings.look === "mochi" ? text.themeSubMochi : text.themeSub}
+            tone="peri"
+            icon={<SunMoonIcon />}
+          >
+            <div className="look-picker" role="group" aria-label={text.look}>
+              {looks.map((id) => (
+                <button key={id} className="look-option" aria-pressed={settings.look === id} onClick={() => set("look", id)}>
+                  <Pip size={36} as={id} />
+                  <span>
+                    {text.looks[id].name}
+                    <small>{text.looks[id].sub}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
             <div className="theme-picker">
               {themes.map((id) => (
                 <button
@@ -223,7 +242,7 @@ export function SettingsView(p: Props) {
                   <span className="theme-swatch">
                     <span />
                   </span>
-                  {text.themes[id]}
+                  {(settings.look === "mochi" ? text.themesMochi : text.themes)[id]}
                 </button>
               ))}
             </div>
