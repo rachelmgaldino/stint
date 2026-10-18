@@ -13,8 +13,11 @@ export type SessionRecord = {
   plannedMs: number;
   focusedMs: number;
   reflection: string;
-  /** 1 = rough, 2 = okay, 3 = great. 0 when not rated. */
+  /** 1 = distracted, 2 = neutral, 3 = focused. 0 when not rated. */
   rating: number;
+  /** The Google Calendar event made for this session, once synced. */
+  googleEventId?: string | null;
+  googleCalendarId?: string | null;
 };
 
 export type Theme = "system" | "light" | "dark";
@@ -28,6 +31,28 @@ export type Settings = {
   autoBreak: boolean;
   /** Focus sessions per day, shown as dots above the timer. */
   dailyGoal: number;
+  /** Open the reflection dialog when a focus session ends. */
+  askReflection: boolean;
+  /** The mood a session gets when it isn't rated, and the dialog's preset. */
+  defaultRating: number;
+  notifyFocusEnd: boolean;
+  notifyBreakEnd: boolean;
+  calendar: CalendarSettings;
+};
+
+export type CalendarSettings = {
+  /** Add each finished session to Google Calendar. */
+  syncSessions: boolean;
+  /** Also add breaks, not only focus sessions. */
+  syncBreaks: boolean;
+  /** The Google calendar sessions are added to. */
+  targetId: string | null;
+  /** Sessions from this time on are synced; earlier ones are left alone. */
+  syncSince: number;
+  /** Show Google Calendar events on the day timeline. */
+  showEvents: boolean;
+  /** Calendars whose events are not shown. */
+  hidden: string[];
 };
 
 export const defaultSettings: Settings = {
@@ -37,7 +62,16 @@ export const defaultSettings: Settings = {
   sound: true,
   autoBreak: false,
   dailyGoal: 4,
+  askReflection: true,
+  defaultRating: 2,
+  notifyFocusEnd: true,
+  notifyBreakEnd: true,
+  calendar: { syncSessions: false, syncBreaks: false, targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
+
+function withDefaults(saved: Partial<Settings> | undefined): Settings {
+  return { ...defaultSettings, ...saved, calendar: { ...defaultSettings.calendar, ...saved?.calendar } };
+}
 
 export interface Store {
   categories(): Promise<Category[]>;
@@ -48,6 +82,9 @@ export interface Store {
   updateSession(s: SessionRecord): Promise<void>;
   deleteSession(id: number): Promise<void>;
   sessionsBetween(from: number, to: number): Promise<SessionRecord[]>;
+  /** Sessions started since `since` that have no calendar event yet. */
+  unsynced(since: number): Promise<SessionRecord[]>;
+  setGoogleEvent(id: number, calendarId: string | null, eventId: string | null): Promise<void>;
   settings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<void>;
 }
@@ -63,6 +100,8 @@ type SessionRow = {
   focused_ms: number;
   reflection: string;
   rating: number;
+  google_event_id: string | null;
+  google_calendar_id: string | null;
 };
 
 function fromRow(r: SessionRow): SessionRecord {
@@ -77,6 +116,8 @@ function fromRow(r: SessionRow): SessionRecord {
     focusedMs: r.focused_ms,
     reflection: r.reflection,
     rating: r.rating,
+    googleEventId: r.google_event_id,
+    googleCalendarId: r.google_calendar_id,
   };
 }
 
@@ -144,11 +185,25 @@ async function sqliteStore(): Promise<Store> {
       );
       return rows.map(fromRow);
     },
+    async unsynced(since) {
+      const rows = await db.select<SessionRow[]>(
+        "SELECT * FROM sessions WHERE started_at >= $1 AND google_event_id IS NULL ORDER BY started_at",
+        [since],
+      );
+      return rows.map(fromRow);
+    },
+    async setGoogleEvent(id, calendarId, eventId) {
+      await db.execute("UPDATE sessions SET google_calendar_id = $1, google_event_id = $2 WHERE id = $3", [
+        calendarId,
+        eventId,
+        id,
+      ]);
+    },
     async settings() {
       const rows = await db.select<{ value: string }[]>(
         "SELECT value FROM settings WHERE key = 'app'",
       );
-      return rows[0] ? { ...defaultSettings, ...JSON.parse(rows[0].value) } : defaultSettings;
+      return withDefaults(rows[0] ? JSON.parse(rows[0].value) : undefined);
     },
     async saveSettings(s) {
       await db.execute(
@@ -218,7 +273,7 @@ function browserStore(): Store {
     },
     async updateSession(s) {
       const d = load();
-      d.sessions = d.sessions.map((x) => (x.id === s.id ? s : x));
+      d.sessions = d.sessions.map((x) => (x.id === s.id ? { ...x, ...s } : x));
       save(d);
     },
     async deleteSession(id) {
@@ -231,8 +286,18 @@ function browserStore(): Store {
         .sessions.filter((s) => s.startedAt >= from && s.startedAt < to)
         .sort((a, b) => b.startedAt - a.startedAt);
     },
+    async unsynced(since) {
+      return load()
+        .sessions.filter((s) => s.startedAt >= since && !s.googleEventId)
+        .sort((a, b) => a.startedAt - b.startedAt);
+    },
+    async setGoogleEvent(id, calendarId, eventId) {
+      const d = load();
+      d.sessions = d.sessions.map((x) => (x.id === id ? { ...x, googleCalendarId: calendarId, googleEventId: eventId } : x));
+      save(d);
+    },
     async settings() {
-      return { ...defaultSettings, ...load().settings };
+      return withDefaults(load().settings);
     },
     async saveSettings(s) {
       const d = load();

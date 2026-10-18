@@ -703,12 +703,109 @@ button:disabled {
 
 .settings-page {
   flex: 1;
-  overflow-y: auto;
-  padding: 28px 32px;
+  min-height: 0;
+  display: flex;
+}
+
+.settings-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px 12px;
+  border-right: 1px solid var(--border);
+}
+
+.settings-nav button {
+  padding: 9px 14px;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.settings-nav button:hover {
+  background: var(--surface);
+}
+
+.settings-nav button.active {
+  background: var(--surface);
+  font-weight: 600;
 }
 
 .settings {
-  max-width: 520px;
+  overflow-y: auto;
+  padding: 20px 28px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings > * {
+  width: 100%;
+  max-width: 620px;
+}
+
+.settings-card {
+  padding: 6px 20px;
+}
+
+.settings-card .row + .row {
+  border-top: 1px solid var(--grid);
+}
+
+.card-heading {
+  margin: 12px 0 4px;
+  font-size: 15px;
+}
+
+.hint {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.toggle.bare {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 14px;
+}
+
+.stack label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stack .error {
+  margin: 0;
+}
+
+.stack .primary {
+  align-self: flex-start;
+}
+
+.calendar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px 12px;
+  border-top: 1px solid var(--grid);
 }
 
 .settings h2 {
@@ -1383,4 +1480,83 @@ button:disabled {
   place-items: center;
   border-radius: 8px;
   color: var(--muted);
+}
+
+/* Google Calendar events share the timeline: events on the left, sessions on the right. */
+.timeline-inner.split .block {
+  left: calc(72px + (100% - 72px) * 0.45);
+}
+
+.event {
+  --col: calc((100% - 72px) * 0.43);
+  position: absolute;
+  left: calc(72px + var(--col) / var(--lanes) * var(--lane));
+  width: calc(var(--col) / var(--lanes) - 2px);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  border-left: 3px solid var(--event);
+  background: color-mix(in srgb, var(--event) 18%, var(--bg));
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.event.compact {
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.event:not(:disabled):hover {
+  background: color-mix(in srgb, var(--event) 28%, var(--bg));
+}
+
+.event:disabled {
+  cursor: default;
+}
+
+.event .block-time {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.all-day {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0 16px 8px 72px;
+  list-style: none;
+}
+
+.all-day li {
+  padding: 2px 8px;
+  border-left: 3px solid;
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mini-finish {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--grid);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mini-finish:hover {
+  background: var(--surface);
+}
+
+.calendar-list .row-name {
+  font-weight: 400;
 }

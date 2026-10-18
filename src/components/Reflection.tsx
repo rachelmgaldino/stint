@@ -20,7 +20,7 @@ export function Reflection({
   onSkip(): void;
 }) {
   const [text, setText] = useState("");
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(pending.rating);
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="reflect-title">
