@@ -7,18 +7,19 @@ your day.
 Built with [Tauri 2](https://tauri.app) (Rust shell) and React + TypeScript.
 Everything is stored locally in SQLite.
 
-## Phase 1 features
+## Features
 
-- Focus and break timers with custom lengths, presets and a duration slider
-- Add or remove time while a timer runs (±1 and ±5 minutes)
+- Two-pane desktop layout: the timer on the left, your day on the right
+- Drag the dial to set a session's length, or to change the time left while it runs
 - Pause and resume; a focus session keeps counting into overtime until you finish it
-- A focus goal and a category (editable, with colours) for each session
+- A category and an intention for each session, and daily goal dots
 - A reflection after each session: what you got done and how it went
-- Today view with total focused time and the session log
+- Day timeline with a week strip, daily totals and rating counts
+- Click a session to edit or delete it; add a session you forgot to time with +
 - Notification and chime when time is up
 - Tray icon: hover for the time left; closing the window keeps the timer running
 - Light, dark or match-Windows theme
-- Space starts, pauses and resumes the timer
+- Space starts, pauses and resumes the timer; arrow keys adjust the dial
 
 ## Install on Windows
 
@@ -26,6 +27,11 @@ Each push builds an installer in GitHub Actions. Open the latest run of the
 **Build** workflow, download the `stint-windows-installer` artifact, unzip it
 and run the `.exe` (or the `.msi`). Windows SmartScreen may warn because the
 installer is not code-signed; choose "More info" then "Run anyway".
+
+## Updating
+
+Run a newer installer over the installed app. It updates in place and keeps
+your sessions, which live in your user folder (see below).
 
 ## Develop
 
@@ -47,7 +53,7 @@ by the migrations in `src-tauri/src/lib.rs`.
 
 ## Roadmap
 
-1. Timer, focus goal, reflection, dark mode (this release)
+1. Timer, focus goal, reflection, dark mode, desktop layout (done)
 2. Full history and analytics
 3. App and website blocking
 4. Global hotkeys, Do Not Disturb, calendar, Slack and music

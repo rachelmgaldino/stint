@@ -9,12 +9,15 @@ import {
   type Store,
 } from "./store";
 import * as T from "./timer";
-import { TimerView } from "./components/TimerView";
-import { TodayView } from "./components/TodayView";
+import { addDays, startOfDay, startOfWeek } from "./dates";
+import { TimerPane } from "./components/TimerPane";
+import { DayPane, type LiveBlock } from "./components/DayPane";
 import { SettingsView } from "./components/SettingsView";
 import { Reflection, type PendingReflection } from "./components/Reflection";
+import { SessionDialog } from "./components/SessionDialog";
+import { ClockIcon, GearIcon } from "./components/icons";
 
-type Tab = "timer" | "today" | "settings";
+type View = "timer" | "settings";
 
 // The running timer and what it's for, kept in localStorage so a restart of
 // the app doesn't lose a session in progress.
@@ -39,22 +42,19 @@ function saveLive(l: Live) {
   }
 }
 
-function startOfDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
 export default function App() {
   const [store, setStore] = useState<Store | null>(null);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [today, setToday] = useState<SessionRecord[]>([]);
-  const [tab, setTab] = useState<Tab>("timer");
+  const [view, setView] = useState<View>("timer");
   const [live, setLive] = useState<Live>(loadLive);
   const [plannedMin, setPlannedMin] = useState(defaultSettings.focusMinutes);
   const [idleKind, setIdleKind] = useState<T.Kind>("focus");
   const [pending, setPending] = useState<PendingReflection | null>(null);
+  const [editing, setEditing] = useState<SessionRecord | null>(null);
+  const [day, setDay] = useState(() => startOfDay(Date.now()));
+  const [week, setWeek] = useState<SessionRecord[]>([]);
+  const [today, setToday] = useState<SessionRecord[]>([]);
   const [now, setNow] = useState(Date.now());
   const endedNotified = useRef(false);
 
@@ -66,20 +66,28 @@ export default function App() {
       setSettings(st);
       setPlannedMin(st.focusMinutes);
       setCategories(cats);
-      setLive((l) => (l.categoryId === null && cats[0] ? { ...l, categoryId: cats[0].id } : l));
+      setLive((l) =>
+        cats[0] && !cats.some((c) => c.id === l.categoryId) ? { ...l, categoryId: cats[0].id } : l,
+      );
       setStore(s);
     });
   }, []);
 
-  const refreshToday = useCallback(async () => {
+  const refresh = useCallback(async () => {
     if (!store) return;
-    const from = startOfDay(Date.now());
-    setToday(await store.sessionsBetween(from, from + 86_400_000));
-  }, [store]);
+    const from = startOfWeek(day);
+    const t = startOfDay(Date.now());
+    const [w, td] = await Promise.all([
+      store.sessionsBetween(from, addDays(from, 7)),
+      store.sessionsBetween(t, addDays(t, 1)),
+    ]);
+    setWeek(w);
+    setToday(td);
+  }, [store, day]);
 
   useEffect(() => {
-    refreshToday();
-  }, [refreshToday]);
+    refresh();
+  }, [refresh]);
 
   useEffect(() => saveLive(live), [live]);
 
@@ -111,6 +119,14 @@ export default function App() {
     setLive((l) => ({ ...l, timer: T.start(kind, minutes * 60_000, Date.now()) }));
   };
 
+  const chooseKind = useCallback(
+    (k: T.Kind) => {
+      setIdleKind(k);
+      setPlannedMin(k === "focus" ? settings.focusMinutes : settings.breakMinutes);
+    },
+    [settings],
+  );
+
   const finish = useCallback(async () => {
     if (timer.status === "idle" || !store) return;
     const end = Date.now();
@@ -127,16 +143,11 @@ export default function App() {
     };
     setLive((l) => ({ ...l, timer: T.idle }));
     const id = await store.addSession(record);
-    if (record.kind === "focus") {
-      setPending({ id, intention: record.intention, focusedMs: record.focusedMs });
-      setIdleKind("break");
-      setPlannedMin(settings.breakMinutes);
-    } else {
-      setIdleKind("focus");
-      setPlannedMin(settings.focusMinutes);
-    }
-    refreshToday();
-  }, [timer, store, live, settings, refreshToday]);
+    if (record.kind === "focus") setPending({ ...record, id });
+    chooseKind(record.kind === "focus" ? "break" : "focus");
+    setDay(startOfDay(end));
+    refresh();
+  }, [timer, store, live, chooseKind, refresh]);
 
   // Fire once when the countdown reaches zero. A focus session keeps counting
   // into overtime until it is finished; a break ends on its own.
@@ -152,16 +163,57 @@ export default function App() {
     }
   }, [timer, left, settings.sound, live.intention, finish]);
 
-  const discard = () => {
-    setLive((l) => ({ ...l, timer: T.idle }));
+  const setRemaining = (minutes: number) => {
+    const n = Date.now();
+    const delta = minutes * 60_000 - T.remaining(timer, n);
+    if (minutes * 60_000 > 0) endedNotified.current = false;
+    setLive((l) => ({ ...l, timer: T.scrub(l.timer, delta, n) }));
   };
 
   const saveReflection = async (reflection: string, rating: number) => {
     if (!store || !pending) return;
-    await store.updateReflection(pending.id, reflection, rating);
+    await store.updateSession({ ...pending, reflection, rating });
     setPending(null);
-    refreshToday();
+    refresh();
     if (settings.autoBreak) startTimer("break", settings.breakMinutes);
+  };
+
+  const saveSession = async (s: SessionRecord) => {
+    if (!store) return;
+    if (s.id === 0) {
+      const { id: _new, ...rest } = s;
+      await store.addSession(rest);
+    } else {
+      await store.updateSession(s);
+    }
+    setEditing(null);
+    refresh();
+  };
+
+  const deleteSession = async (id: number) => {
+    if (!store) return;
+    await store.deleteSession(id);
+    setEditing(null);
+    refresh();
+  };
+
+  const newSession = (): SessionRecord => {
+    // Default to the hour before now on today, or 9:00 on another day.
+    const n = Date.now();
+    const start = day === startOfDay(n) ? Math.max(day, Math.floor((n - 3_600_000) / 60_000) * 60_000) : day + 9 * 3_600_000;
+    const end = Math.min(start + settings.focusMinutes * 60_000, addDays(day, 1) - 60_000);
+    return {
+      id: 0,
+      kind: "focus",
+      intention: "",
+      categoryId: live.categoryId ?? categories[0]?.id ?? null,
+      startedAt: start,
+      endedAt: end,
+      plannedMs: end - start,
+      focusedMs: end - start,
+      reflection: "",
+      rating: 0,
+    };
   };
 
   const updateSettings = async (s: Settings) => {
@@ -171,15 +223,18 @@ export default function App() {
   };
 
   const reloadCategories = async () => {
-    if (store) setCategories(await store.categories());
+    if (!store) return;
+    const cats = await store.categories();
+    setCategories(cats);
+    setLive((l) => (cats[0] && !cats.some((c) => c.id === l.categoryId) ? { ...l, categoryId: cats[0].id } : l));
   };
 
-  // Space starts, pauses and resumes, unless the user is typing.
+  // Space starts, pauses and resumes, unless the user is typing or a dialog is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (e.code !== "Space" || pending || tab !== "timer") return;
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
+      if (e.code !== "Space" || pending || editing || view !== "timer") return;
+      if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(el.tagName)) return;
       e.preventDefault();
       const n = Date.now();
       if (timer.status === "idle") startTimer(idleKind, plannedMin);
@@ -192,24 +247,45 @@ export default function App() {
 
   if (!store) return <div className="loading">Loading…</div>;
 
+  const category = categories.find((c) => c.id === live.categoryId);
+  const liveBlock: LiveBlock | null =
+    timer.status === "idle"
+      ? null
+      : {
+          startedAt: timer.startedAt,
+          kind: timer.kind,
+          title: timer.kind === "break" ? "Break" : category?.name ?? "Focus",
+          color: timer.kind === "break" ? "var(--break-block)" : category?.color ?? "var(--accent)",
+        };
+
   return (
-    <div className="app">
-      <nav className="tabs" aria-label="Sections">
-        {(["timer", "today", "settings"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            className={tab === t ? "tab active" : "tab"}
-            onClick={() => setTab(t)}
-            aria-current={tab === t ? "page" : undefined}
-          >
-            {t === "timer" ? "Timer" : t === "today" ? "Today" : "Settings"}
-          </button>
-        ))}
+    <div className="shell">
+      <nav className="sidebar" aria-label="Sections">
+        <button
+          className={view === "timer" ? "side-button active" : "side-button"}
+          onClick={() => setView("timer")}
+          aria-current={view === "timer" ? "page" : undefined}
+          title="Timer"
+          aria-label="Timer"
+        >
+          <ClockIcon />
+          {timer.status !== "idle" && <span className="side-dot" />}
+        </button>
+        <span className="side-spacer" />
+        <button
+          className={view === "settings" ? "side-button active" : "side-button"}
+          onClick={() => setView("settings")}
+          aria-current={view === "settings" ? "page" : undefined}
+          title="Settings"
+          aria-label="Settings"
+        >
+          <GearIcon />
+        </button>
       </nav>
 
-      <main>
-        {tab === "timer" && (
-          <TimerView
+      {view === "timer" ? (
+        <div className="panes">
+          <TimerPane
             timer={timer}
             now={now}
             intention={live.intention}
@@ -217,27 +293,32 @@ export default function App() {
             categories={categories}
             idleKind={idleKind}
             plannedMin={plannedMin}
-            todayFocusMs={today.filter((s) => s.kind === "focus").reduce((a, s) => a + s.focusedMs, 0)}
+            todayCount={today.filter((s) => s.kind === "focus").length}
+            dailyGoal={settings.dailyGoal}
             onIntention={(intention) => setLive((l) => ({ ...l, intention }))}
             onCategory={(categoryId) => setLive((l) => ({ ...l, categoryId }))}
-            onIdleKind={(k) => {
-              setIdleKind(k);
-              setPlannedMin(k === "focus" ? settings.focusMinutes : settings.breakMinutes);
-            }}
+            onIdleKind={chooseKind}
             onPlannedMin={setPlannedMin}
             onStart={() => startTimer(idleKind, plannedMin)}
             onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
             onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
-            onScrub={(minutes) => {
-              if (T.remaining(timer, Date.now()) + minutes * 60_000 > 0) endedNotified.current = false;
-              setLive((l) => ({ ...l, timer: T.scrub(l.timer, minutes * 60_000, Date.now()) }));
-            }}
+            onSetRemaining={setRemaining}
             onFinish={finish}
-            onDiscard={discard}
+            onDiscard={() => setLive((l) => ({ ...l, timer: T.idle }))}
           />
-        )}
-        {tab === "today" && <TodayView sessions={today} categories={categories} />}
-        {tab === "settings" && (
+          <DayPane
+            day={day}
+            now={now}
+            week={week}
+            categories={categories}
+            live={liveBlock}
+            onDay={setDay}
+            onOpen={setEditing}
+            onAdd={() => setEditing(newSession())}
+          />
+        </div>
+      ) : (
+        <main className="settings-page">
           <SettingsView
             settings={settings}
             categories={categories}
@@ -245,11 +326,18 @@ export default function App() {
             onSettings={updateSettings}
             onCategoriesChanged={reloadCategories}
           />
-        )}
-      </main>
+        </main>
+      )}
 
-      {pending && (
-        <Reflection pending={pending} onSave={saveReflection} onSkip={() => setPending(null)} />
+      {pending && <Reflection pending={pending} onSave={saveReflection} onSkip={() => setPending(null)} />}
+      {editing && (
+        <SessionDialog
+          session={editing}
+          categories={categories}
+          onSave={saveSession}
+          onDelete={deleteSession}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   );

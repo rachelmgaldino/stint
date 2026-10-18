@@ -1,12 +1,13 @@
 import { useState } from "react";
+import type { SessionRecord } from "../store";
 import { formatDuration } from "../timer";
 
-export type PendingReflection = { id: number; intention: string; focusedMs: number };
+export type PendingReflection = SessionRecord;
 
-const ratings = [
-  { value: 1, label: "Rough" },
-  { value: 2, label: "Okay" },
-  { value: 3, label: "Great" },
+export const ratings = [
+  { value: 1, label: "↓ Rough" },
+  { value: 2, label: "→ Okay" },
+  { value: 3, label: "↑ Great" },
 ];
 
 export function Reflection({
