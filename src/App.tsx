@@ -502,6 +502,7 @@ export default function App() {
           week={rangeData.week}
           categories={categories}
           now={now}
+          dailyGoal={settings.dailyGoal}
           onRange={setRange}
           onOpen={setEditing}
           onAdd={() => setEditing(newSession(range.kind === "day" ? range.from : startOfDay(Date.now())))}

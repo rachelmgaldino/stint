@@ -2477,3 +2477,427 @@ select.select-pill {
     font-size: 34px;
   }
 }
+
+/* Day analytics: the week as a strip, the day told in order. */
+
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-radius: 28px;
+  background: var(--surface);
+}
+
+.strip-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px 10px;
+  border-radius: 20px;
+  font-weight: 800;
+}
+
+.strip-day:hover:not(:disabled) {
+  background: var(--soft);
+}
+
+.strip-day:disabled {
+  opacity: 0.45;
+}
+
+.strip-day.today {
+  background: var(--soft);
+}
+
+.strip-day.selected {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.strip-name {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.strip-bar {
+  position: relative;
+  width: 14px;
+  height: 34px;
+  border-radius: 7px;
+  background: var(--sunken);
+  overflow: hidden;
+}
+
+.strip-bar span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 7px;
+  background: var(--peri);
+}
+
+.strip-day.selected .strip-bar {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.strip-day.selected .strip-bar span {
+  background: var(--apricot);
+}
+
+.strip-total {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-goal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* On the apricot tile the goal reads in the tile's own ink, in both themes. */
+.tile-goal .goal-label {
+  color: var(--on-pastel);
+}
+
+.felt-faces {
+  display: flex;
+  gap: 4px;
+  min-height: 30px;
+}
+
+.story-card-wrap {
+  flex: 999 1 560px;
+  min-width: 0;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.story {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+/* The rail the sessions hang from. */
+.story::before {
+  content: "";
+  position: absolute;
+  left: 61px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--sunken);
+}
+
+.story-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.story-gap {
+  margin-left: 90px;
+  padding: 6px 12px;
+  align-self: flex-start;
+  border-radius: 999px;
+  border: 2px dashed var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.story-row {
+  display: grid;
+  grid-template-columns: 46px 16px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 14px;
+  position: relative;
+}
+
+.story-time {
+  padding-top: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.story-dot {
+  margin-top: 14px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--surface);
+  position: relative;
+}
+
+.story-row.break .story-time,
+.story-row.break .story-dot {
+  padding-top: 0;
+  margin-top: 8px;
+}
+
+.story-row.break .story-time {
+  margin-top: 6px;
+}
+
+.story-card {
+  padding: 12px 16px;
+  border-radius: 20px;
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.story-card:hover {
+  background: var(--sunken);
+}
+
+.story-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.story-title {
+  font-family: var(--heading);
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.story-len {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.story-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.story-tag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: var(--on-pastel);
+  font-weight: 800;
+}
+
+.story-note {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.story-break {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--break-stage);
+  color: var(--break-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.story-break svg {
+  width: 14px;
+  height: 14px;
+}
+
+.went-card {
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.went-bar {
+  display: flex;
+  gap: 3px;
+  height: 18px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.went-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.went-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 70px;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.went-list strong {
+  text-align: right;
+}
+
+.went-sub {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.went-pip {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Week chart: the best day gets a tag, each column a dot per session of the goal. */
+
+.when-total.best {
+  align-self: center;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--lemon);
+  color: var(--on-pastel);
+}
+
+.when-goal {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.when-goal span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--seed);
+}
+
+.when-goal span.on {
+  background: var(--matcha-lip);
+}
+
+.t-short {
+  display: none;
+}
+
+.show-all {
+  height: 44px;
+  border-radius: 16px;
+  background: var(--soft);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* The Day view shows the week as a list on a desktop and as a strip on a phone. */
+
+.phone-only {
+  display: none;
+}
+
+.day-side {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day-side .went-card {
+  flex: 1 1 auto;
+}
+
+.week-list {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.week-list .card-head {
+  padding: 0 6px 8px;
+}
+
+.wl-day {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 70px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.wl-day:hover:not(:disabled) {
+  background: var(--soft);
+}
+
+.wl-day:disabled {
+  opacity: 0.45;
+}
+
+.wl-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--soft);
+  overflow: hidden;
+}
+
+.wl-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--peri);
+}
+
+.wl-total {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-day.selected {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.wl-day.selected .wl-bar {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.wl-day.selected .wl-bar span {
+  background: var(--apricot);
+}
