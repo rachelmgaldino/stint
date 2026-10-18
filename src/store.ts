@@ -2,6 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import type { Kind } from "./timer";
 import type { Language } from "./i18n";
 import type { Look } from "./look";
+import { DEMO, DEMO_KEY, demoData } from "./demo";
 
 export type Category = { id: number; name: string; color: string };
 
@@ -228,16 +229,21 @@ const seedCategories: Category[] = [
   { id: 3, name: "Personal", color: "#52b788" },
 ];
 
-// Used when the UI runs in a plain browser (npm run dev), so the app can be
-// tried without the desktop shell.
+// Used when the UI runs in a plain browser (npm run dev, or the web demo), so
+// the app can be tried without the desktop shell.
 function browserStore(): Store {
-  const key = "stint-data";
+  const key = DEMO ? DEMO_KEY : "stint-data";
   const load = (): Saved => {
     try {
       const raw = localStorage.getItem(key);
       if (raw) return JSON.parse(raw);
     } catch {
       // Fall through to a fresh store.
+    }
+    if (DEMO) {
+      const fresh = demoData(defaultSettings);
+      save(fresh);
+      return fresh;
     }
     return { categories: seedCategories, sessions: [], settings: defaultSettings };
   };
