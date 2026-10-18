@@ -3081,3 +3081,52 @@ select.select-pill {
     min-height: 120px;
   }
 }
+
+/* Scrollbars: a slim rounded thumb in the look's colours that only shows
+   while the pointer is over the area, instead of the grey Windows bar. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background: transparent;
+  background-clip: padding-box;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: var(--seed);
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--muted);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--seed) transparent;
+  }
+}
+
+/* The bar sits in its own slim gutter so it never covers a card's edge. */
+@media (min-width: 641px) {
+  .analytics,
+  .settings-page {
+    scrollbar-gutter: stable;
+    margin-right: -14px;
+    padding-right: 4px;
+  }
+}
