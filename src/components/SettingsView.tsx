@@ -3,6 +3,9 @@ import type { CalendarSettings, Category, Settings, Store, Theme } from "../stor
 import * as G from "../google";
 import { testNotification } from "../platform";
 import { ratings } from "./Reflection";
+import { RatingFace } from "./Pip";
+import { palette, soft } from "../colors";
+import { CalendarIcon } from "./icons";
 
 type Props = {
   settings: Settings;
@@ -14,23 +17,18 @@ type Props = {
   onCategoriesChanged(): void;
 };
 
-type Section = "general" | "notifications" | "calendar" | "categories" | "display";
-
-const sections: { id: Section; label: string }[] = [
-  { id: "general", label: "General" },
-  { id: "notifications", label: "Notifications" },
-  { id: "calendar", label: "Calendar" },
-  { id: "categories", label: "Categories" },
-  { id: "display", label: "Display" },
+const themes: { id: Theme; name: string }[] = [
+  { id: "system", name: "Match Windows" },
+  { id: "light", name: "Lavender day" },
+  { id: "dark", name: "Plum night" },
 ];
 
-const palette = ["#e8594f", "#f2a541", "#52b788", "#4f8ee8", "#9b6ee8", "#e86fb0", "#6c757d"];
-
-function Number_({
+function Stepper({
   label,
   value,
   min,
   max,
+  step = 1,
   unit,
   onChange,
 }: {
@@ -38,26 +36,26 @@ function Number_({
   value: number;
   min: number;
   max: number;
+  step?: number;
   unit: string;
   onChange(v: number): void;
 }) {
+  const go = (d: number) => onChange(Math.min(max, Math.max(min, value + d)));
   return (
-    <label className="row">
+    <div className="row">
       <span>{label}</span>
-      <span>
-        <input
-          type="number"
-          min={min}
-          max={max}
-          value={value}
-          onChange={(e) => {
-            const v = Math.round(Number(e.target.value));
-            if (v >= min && v <= max) onChange(v);
-          }}
-        />{" "}
-        {unit}
+      <span className="stepper">
+        <button type="button" aria-label={`Less ${label.toLowerCase()}`} disabled={value <= min} onClick={() => go(-step)}>
+          −
+        </button>
+        <span className="stepper-value" aria-live="polite">
+          {value} {unit}
+        </span>
+        <button type="button" aria-label={`More ${label.toLowerCase()}`} disabled={value >= max} onClick={() => go(step)}>
+          +
+        </button>
       </span>
-    </label>
+    </div>
   );
 }
 
@@ -68,111 +66,103 @@ function Switch({ label, hint, checked, onChange }: { label: string; hint?: stri
         {label}
         {hint && <span className="hint">{hint}</span>}
       </span>
-      <span className="toggle bare">
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="toggle">
+        <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
         <span className="switch" aria-hidden="true" />
       </span>
     </label>
   );
 }
 
-function Card({ children }: { children: ReactNode }) {
-  return <div className="card settings-card">{children}</div>;
+function Card({ title, children, icon }: { title: string; children: ReactNode; icon?: ReactNode }) {
+  return (
+    <section className="card settings-card" aria-label={title}>
+      <div className="settings-card-head">
+        {icon}
+        <h2>{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function SettingsView(p: Props) {
   const { settings } = p;
-  const [section, setSection] = useState<Section>("general");
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => p.onSettings({ ...settings, [k]: v });
 
   return (
-    <div className="settings-layout">
-      <nav className="settings-nav" aria-label="Settings sections">
-        {sections.map((s) => (
-          <button
-            key={s.id}
-            className={section === s.id ? "active" : ""}
-            aria-current={section === s.id ? "page" : undefined}
-            onClick={() => setSection(s.id)}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
+    <>
+      <h1 className="page-title">Settings</h1>
+      <div className="settings-grid">
+        <Card title="Timer">
+          <Stepper label="Focus length" value={settings.focusMinutes} min={1} max={180} step={5} unit="min" onChange={(v) => set("focusMinutes", v)} />
+          <Stepper label="Break length" value={settings.breakMinutes} min={1} max={60} unit="min" onChange={(v) => set("breakMinutes", v)} />
+          <Stepper label="Daily goal" value={settings.dailyGoal} min={1} max={20} unit="sessions" onChange={(v) => set("dailyGoal", v)} />
+          <p className="card-note">Sessions and breaks never end on their own. They keep counting until you end them.</p>
+        </Card>
 
-      <section className="settings" aria-label={sections.find((s) => s.id === section)?.label}>
-        {section === "general" && (
-          <>
-            <Card>
-              <Number_ label="Focus length" value={settings.focusMinutes} min={1} max={240} unit="min" onChange={(v) => set("focusMinutes", v)} />
-              <Number_ label="Break length" value={settings.breakMinutes} min={1} max={240} unit="min" onChange={(v) => set("breakMinutes", v)} />
-              <Number_ label="Daily goal" value={settings.dailyGoal} min={1} max={20} unit="sessions" onChange={(v) => set("dailyGoal", v)} />
-            </Card>
-            <Card>
-              <Switch label="Start break automatically" checked={settings.autoBreak} onChange={(v) => set("autoBreak", v)} />
-            </Card>
-            <Card>
-              <Switch
-                label="Ask for a reflection when a session ends"
-                hint="When off, sessions are saved with the default mood."
-                checked={settings.askReflection}
-                onChange={(v) => set("askReflection", v)}
-              />
-              <label className="row">
-                <span>Default mood</span>
-                <select value={settings.defaultRating} onChange={(e) => set("defaultRating", Number(e.target.value))}>
-                  <option value={0}>Not rated</option>
-                  {[...ratings].reverse().map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </Card>
-            <p className="muted small">
-              When the time is up, a session keeps counting into overtime until you finish it. Your sessions are saved on
-              this computer.
-            </p>
-          </>
-        )}
+        <Card title="When time's up">
+          <Switch label="Notify me when a session's time is up" checked={settings.notifyFocusEnd} onChange={(v) => set("notifyFocusEnd", v)} />
+          <Switch label="Notify me when a break is over" checked={settings.notifyBreakEnd} onChange={(v) => set("notifyBreakEnd", v)} />
+          <Switch label="Play a sound" checked={settings.sound} onChange={(v) => set("sound", v)} />
+          <TestButton />
+        </Card>
 
-        {section === "notifications" && (
-          <>
-            <Card>
-              <Switch label="When a session's time is up" checked={settings.notifyFocusEnd} onChange={(v) => set("notifyFocusEnd", v)} />
-              <Switch label="When a break is over" checked={settings.notifyBreakEnd} onChange={(v) => set("notifyBreakEnd", v)} />
-              <Switch label="Play a sound" checked={settings.sound} onChange={(v) => set("sound", v)} />
-            </Card>
-            <TestButton />
-          </>
-        )}
+        <Card title="After a session">
+          <Switch
+            label="Ask how it went"
+            hint="When off, sessions are saved with the default mood."
+            checked={settings.askReflection}
+            onChange={(v) => set("askReflection", v)}
+          />
+          <div className="row">
+            <span>Default mood</span>
+            <span className="segmented small" role="group" aria-label="Default mood">
+              <button aria-pressed={settings.defaultRating === 0} onClick={() => set("defaultRating", 0)}>
+                None
+              </button>
+              {ratings.map((r) => (
+                <button
+                  key={r.value}
+                  aria-pressed={settings.defaultRating === r.value}
+                  aria-label={r.label}
+                  title={r.label}
+                  onClick={() => set("defaultRating", r.value)}
+                >
+                  <RatingFace value={r.value} size={24} />
+                </button>
+              ))}
+            </span>
+          </div>
+          <Switch label="Start a break automatically" checked={settings.autoBreak} onChange={(v) => set("autoBreak", v)} />
+        </Card>
 
-        {section === "calendar" && <CalendarSection {...p} set={(c) => set("calendar", c)} />}
+        <Card title="Theme">
+          <div className="theme-picker">
+            {themes.map((t) => (
+              <button key={t.id} className={`theme-option ${t.id}`} aria-pressed={settings.theme === t.id} onClick={() => set("theme", t.id)}>
+                <span className="theme-swatch">
+                  <span />
+                </span>
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </Card>
 
-        {section === "categories" && <Categories {...p} />}
+        <CalendarSection {...p} set={(c) => set("calendar", c)} />
 
-        {section === "display" && (
-          <Card>
-            <label className="row">
-              <span>Theme</span>
-              <select value={settings.theme} onChange={(e) => set("theme", e.target.value as Theme)}>
-                <option value="system">Match Windows</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
-          </Card>
-        )}
-      </section>
-    </div>
+        <Categories {...p} />
+      </div>
+      <p className="muted small page-foot">Your sessions are saved on this computer.</p>
+    </>
   );
 }
 
 function TestButton() {
   const [state, setState] = useState<"" | "sent" | "failed">("");
   return (
-    <div className="row">
+    <div className="row test-row">
       <span className="muted small">
         {state === "sent"
           ? "Sent. If nothing appeared, check that notifications are on for Stint in Windows settings."
@@ -181,7 +171,7 @@ function TestButton() {
             : "Notifications show even while Stint is in the tray."}
       </span>
       <button
-        className="secondary"
+        className="soft-button small"
         onClick={() =>
           testNotification()
             .then(() => setState("sent"))
@@ -210,7 +200,7 @@ function CalendarSection({
 
   if (!G.googleAvailable()) {
     return (
-      <Card>
+      <Card title="Google Calendar" icon={<span className="settings-icon matcha"><CalendarIcon /></span>}>
         <p className="muted">Google Calendar works in the Stint desktop app.</p>
       </Card>
     );
@@ -219,8 +209,7 @@ function CalendarSection({
   if (!google.connected) {
     return (
       <>
-        <Card>
-          <h3 className="card-heading">Connect Google Calendar</h3>
+        <Card title="Google Calendar" icon={<span className="settings-icon matcha"><CalendarIcon /></span>}>
           <p className="muted small">
             Stint talks to Google with your own Google Cloud app, so your calendar stays between you and Google. Follow
             “Google Calendar setup” in the Stint README once, then paste the two values here.
@@ -251,7 +240,7 @@ function CalendarSection({
               Client secret
               <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} />
             </label>
-            <button className="primary" type="submit" disabled={busy || !clientId.trim() || !secret.trim()}>
+            <button className="squishy matcha" type="submit" disabled={busy || !clientId.trim() || !secret.trim()}>
               {busy ? "Waiting for Google in your browser…" : "Connect"}
             </button>
             {error && (
@@ -266,8 +255,7 @@ function CalendarSection({
   }
 
   return (
-    <>
-      <Card>
+    <Card title="Google Calendar" icon={<span className="settings-icon matcha"><CalendarIcon /></span>}>
         <Switch
           label="Show sessions on Google Calendar"
           hint="Each session you finish is added as an event."
@@ -282,8 +270,8 @@ function CalendarSection({
           }
         />
         <label className="row">
-          <span>Calendar</span>
-          <select value={cal.targetId ?? ""} onChange={(e) => update({ targetId: e.target.value || null })}>
+          <span>Sessions go to</span>
+          <select className="select-pill" value={cal.targetId ?? ""} onChange={(e) => update({ targetId: e.target.value || null })}>
             {cal.targetId === null && <option value="">Choose a calendar</option>}
             {writable.map((c) => (
               <option key={c.id} value={c.id}>
@@ -293,12 +281,9 @@ function CalendarSection({
           </select>
         </label>
         <Switch label="Include breaks" checked={cal.syncBreaks} onChange={(v) => update({ syncBreaks: v })} />
-      </Card>
-
-      <Card>
         <Switch
           label="Show my calendar in Stint"
-          hint="Events appear beside your sessions on the day timeline."
+          hint="Events appear above your sessions on the Today ribbon."
           checked={cal.showEvents}
           onChange={(v) => update({ showEvents: v })}
         />
@@ -308,10 +293,10 @@ function CalendarSection({
               <li key={c.id}>
                 <label className="row">
                   <span className="row-name">
-                    <span className="dot" style={{ background: c.color }} />
+                    <span className="dot" style={{ background: soft(c.color) }} />
                     {c.name}
                   </span>
-                  <span className="toggle bare">
+                  <span className="toggle">
                     <input
                       type="checkbox"
                       aria-label={`Show ${c.name}`}
@@ -327,12 +312,10 @@ function CalendarSection({
             ))}
           </ul>
         )}
-      </Card>
-
       <div className="row">
         <span className="muted small">Connected to Google Calendar.</span>
         <button
-          className="secondary"
+          className="quiet-link"
           onClick={async () => {
             await G.disconnect().catch(() => {});
             update({ syncSessions: false, showEvents: false });
@@ -342,28 +325,30 @@ function CalendarSection({
           Disconnect
         </button>
       </div>
-    </>
+    </Card>
   );
 }
 
 function Categories({ categories, store, onCategoriesChanged }: Props) {
   const [newName, setNewName] = useState("");
   return (
-    <Card>
+    <Card title="Categories">
       <ul className="categories">
         {categories.map((c) => (
-          <li key={c.id} className="row">
+          <li key={c.id} className="category-row">
+            <label className="swatch" style={{ background: soft(c.color) }} title="Change colour">
+              <input
+                type="color"
+                aria-label={`${c.name} colour`}
+                value={c.color}
+                onChange={async (e) => {
+                  await store.updateCategory({ ...c, color: e.target.value });
+                  onCategoriesChanged();
+                }}
+              />
+            </label>
             <input
-              type="color"
-              aria-label={`${c.name} colour`}
-              value={c.color}
-              onChange={async (e) => {
-                await store.updateCategory({ ...c, color: e.target.value });
-                onCategoriesChanged();
-              }}
-            />
-            <input
-              className="grow"
+              className="grow plain-input"
               aria-label="Category name"
               defaultValue={c.name}
               onBlur={async (e) => {
@@ -374,8 +359,23 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
                 }
               }}
             />
+            <span className="swatch-row" role="group" aria-label={`Colours for ${c.name}`}>
+              {palette.map((col) => (
+                <button
+                  key={col}
+                  className="mini-swatch"
+                  style={{ background: col }}
+                  aria-label={`Use ${col}`}
+                  aria-pressed={c.color.toLowerCase() === col}
+                  onClick={async () => {
+                    await store.updateCategory({ ...c, color: col });
+                    onCategoriesChanged();
+                  }}
+                />
+              ))}
+            </span>
             <button
-              className="link"
+              className="quiet-link"
               disabled={categories.length <= 1}
               onClick={async () => {
                 await store.removeCategory(c.id);
@@ -388,7 +388,7 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
         ))}
       </ul>
       <form
-        className="row"
+        className="new-category"
         onSubmit={async (e) => {
           e.preventDefault();
           const name = newName.trim();
@@ -399,8 +399,8 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
         }}
       >
         <input className="grow" placeholder="New category" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <button className="secondary" type="submit">
-          Add
+        <button className="dashed-button" type="submit" disabled={!newName.trim()}>
+          + New
         </button>
       </form>
     </Card>

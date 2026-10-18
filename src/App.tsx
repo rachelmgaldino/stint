@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { cancelAlarm, chime, notify, scheduleAlarm, setTrayTooltip } from "./platform";
 import * as G from "./google";
 import {
@@ -13,13 +13,15 @@ import * as T from "./timer";
 import { addDays, startOfDay, startOfWeek } from "./dates";
 import { previousRange, rangeFor, type Range } from "./analytics";
 import { TimerPane } from "./components/TimerPane";
-import { DayPane, type LiveBlock } from "./components/DayPane";
+import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
 import { SettingsView } from "./components/SettingsView";
 import { Reflection, type PendingReflection } from "./components/Reflection";
 import { SessionDialog } from "./components/SessionDialog";
 import { AnalyticsView } from "./components/AnalyticsView";
 import { MiniTimer } from "./components/MiniTimer";
-import { ChartIcon, ClockIcon, GearIcon } from "./components/icons";
+import { ChartIcon, ClockIcon, SlidersIcon } from "./components/icons";
+import { GoalSprouts, Pip } from "./components/Pip";
+import { soft } from "./colors";
 
 type View = "timer" | "analytics" | "settings";
 
@@ -235,6 +237,13 @@ export default function App() {
     if (record.kind === "focus" && settings.autoBreak) startTimer("break", settings.breakMinutes);
   }, [timer, store, live, settings, chooseKind, refresh, syncPending]);
 
+  const backToFocus = async () => {
+    await finish();
+    setIdleKind("focus");
+    setPlannedMin(settings.focusMinutes);
+    startTimer("focus", settings.focusMinutes);
+  };
+
   const endTitle = (kind: T.Kind) => (kind === "focus" ? "Time's up" : "Break's over");
   const endBody = (kind: T.Kind, intention: string) =>
     kind === "focus"
@@ -383,45 +392,57 @@ export default function App() {
           startedAt: timer.startedAt,
           kind: timer.kind,
           title: timer.kind === "break" ? "Break" : category?.name ?? "Focus",
-          color: timer.kind === "break" ? "var(--break-block)" : category?.color ?? "var(--accent)",
+          color: timer.kind === "break" ? "var(--matcha)" : soft(category?.color ?? "#f4a988"),
         };
+  const focusCount = today.filter((s) => s.kind === "focus").length;
+  // Focus sessions turn the whole window to night; breaks get a green stage.
+  const mode = view === "timer" && timer.status !== "idle" ? timer.kind : "plan";
+  const nextEvent =
+    events
+      .filter((e) => !e.allDay && e.start > now && startOfDay(e.start) === startOfDay(now))
+      .sort((a, b) => a.start - b.start)[0] ?? null;
+
+  const tabs: { id: View; label: string; icon: ReactNode }[] = [
+    { id: "timer", label: "Timer", icon: <ClockIcon /> },
+    { id: "analytics", label: "Analytics", icon: <ChartIcon /> },
+    { id: "settings", label: "Settings", icon: <SlidersIcon /> },
+  ];
 
   return (
-    <div className="shell">
-      <nav className="sidebar" aria-label="Sections">
-        <button
-          className={view === "timer" ? "side-button active" : "side-button"}
-          onClick={() => setView("timer")}
-          aria-current={view === "timer" ? "page" : undefined}
-          title="Timer"
-          aria-label="Timer"
-        >
-          <ClockIcon />
-          {timer.status !== "idle" && <span className="side-dot" />}
-        </button>
-        <button
-          className={view === "analytics" ? "side-button active" : "side-button"}
-          onClick={() => setView("analytics")}
-          aria-current={view === "analytics" ? "page" : undefined}
-          title="Analytics"
-          aria-label="Analytics"
-        >
-          <ChartIcon />
-        </button>
-        <span className="side-spacer" />
-        <button
-          className={view === "settings" ? "side-button active" : "side-button"}
-          onClick={() => setView("settings")}
-          aria-current={view === "settings" ? "page" : undefined}
-          title="Settings"
-          aria-label="Settings"
-        >
-          <GearIcon />
-        </button>
-      </nav>
+    <div className="shell" data-mode={mode}>
+      <header className="topbar">
+        <div className="brand">
+          <Pip size={40} label="Pip" />
+          <span>Stint</span>
+        </div>
+        <nav className="tabs" aria-label="Main">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              className={t.id === "settings" ? "tab settings-tab" : "tab"}
+              aria-current={view === t.id ? "page" : undefined}
+              onClick={() => setView(t.id)}
+            >
+              {t.icon}
+              {t.label}
+              {t.id === "timer" && view !== "timer" && timer.status !== "idle" && <span className="tab-dot" />}
+            </button>
+          ))}
+        </nav>
+        {mode === "focus" ? (
+          <span className="status-pill focus">
+            <span className="dot" />
+            Session {focusCount + 1} of {Math.max(settings.dailyGoal, focusCount + 1)}
+          </span>
+        ) : mode === "break" ? (
+          <span className="status-pill break">On a break</span>
+        ) : (
+          <GoalSprouts done={focusCount} goal={settings.dailyGoal} />
+        )}
+      </header>
 
       {view === "timer" ? (
-        <div className="panes">
+        <main className="timer-page">
           <TimerPane
             timer={timer}
             now={now}
@@ -430,8 +451,7 @@ export default function App() {
             categories={categories}
             idleKind={idleKind}
             plannedMin={plannedMin}
-            todayCount={today.filter((s) => s.kind === "focus").length}
-            dailyGoal={settings.dailyGoal}
+            nextEvent={nextEvent}
             onIntention={(intention) => setLive((l) => ({ ...l, intention }))}
             onCategory={(categoryId) => setLive((l) => ({ ...l, categoryId }))}
             onIdleKind={chooseKind}
@@ -440,22 +460,25 @@ export default function App() {
             onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
             onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
             onSetRemaining={setRemaining}
+            onAdjust={adjust}
             onFinish={finish}
+            onBackToFocus={backToFocus}
             onDiscard={() => setLive((l) => ({ ...l, timer: T.idle }))}
           />
-          <DayPane
+          <TodayRibbon
             day={day}
             now={now}
             week={week}
             categories={categories}
             live={liveBlock}
             events={events}
+            compact={mode !== "plan"}
             onEvent={timer.status === "idle" ? planFromEvent : undefined}
             onDay={setDay}
             onOpen={setEditing}
             onAdd={() => setEditing(newSession(day))}
           />
-        </div>
+        </main>
       ) : view === "analytics" ? (
         <AnalyticsView
           range={range}
@@ -482,15 +505,13 @@ export default function App() {
         </main>
       )}
 
-      {view !== "timer" && (
+      {view !== "timer" && timer.status !== "idle" && (
         <MiniTimer
           timer={timer}
           now={now}
-          kind={timer.status === "idle" ? idleKind : timer.kind}
-          plannedMin={plannedMin}
+          kind={timer.kind}
           intention={live.intention}
           category={category}
-          onStart={() => startTimer(idleKind, plannedMin)}
           onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
           onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
           onAdjust={adjust}
@@ -502,6 +523,9 @@ export default function App() {
       {pending && (
         <Reflection
           pending={pending}
+          category={categories.find((c) => c.id === pending.categoryId)}
+          sessionNumber={today.filter((s) => s.kind === "focus" && s.id !== pending.id && s.startedAt < pending.startedAt).length + 1}
+          dailyGoal={settings.dailyGoal}
           onSave={(reflection, rating) => closeReflection({ reflection, rating })}
           onSkip={() => closeReflection()}
         />
