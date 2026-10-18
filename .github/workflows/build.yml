@@ -1,10 +1,17 @@
 name: Build
 
+# Builds the Windows installer and publishes it on the Releases page:
+# - every push to main makes a release named after the app version (v0.9.0, ...)
+# - every pull request gets a "PR #N test" pre-release, replaced on each push
+#   and removed by release-cleanup.yml when the PR is closed or merged.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   test:
@@ -40,3 +47,54 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+
+  release:
+    needs: windows
+    # Fork PRs get a read-only token, so they keep the Actions artifact only.
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v6
+        with:
+          name: stint-windows-installer
+          path: installer
+      - name: Publish release
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          exe=$(find installer -name '*.exe' | head -n 1)
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pr=${{ github.event.pull_request.number }}
+            tag="pr-$pr"
+            sha=${{ github.event.pull_request.head.sha }}
+            title="v$version · PR #$pr test"
+            notes=$(printf '%s\n\n%s\n\n%s' \
+              "Test build of #$pr: $PR_TITLE" \
+              "Built from commit ${sha:0:7}. This pre-release is replaced on every push to the PR and removed once it is merged or closed." \
+              "Download the .exe below and run it; it upgrades your installed Stint in place.")
+            # Recreate so the tag points at the newest commit and the old installer goes away.
+            gh release delete "$tag" --cleanup-tag --yes 2>/dev/null || true
+            gh release create "$tag" "$exe" --prerelease --target "$sha" \
+              --title "$title" --notes "$notes"
+          else
+            tag="v$version"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "::notice::Release $tag already exists; bump the version to publish a new one."
+              exit 0
+            fi
+            previous=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+            args=(--generate-notes --latest --target "${{ github.sha }}" --title "Stint $tag")
+            if [ -n "$previous" ]; then args+=(--notes-start-tag "$previous"); fi
+            gh release create "$tag" "$exe" "${args[@]}"
+          fi
