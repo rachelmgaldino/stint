@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { chime, notify, setTrayTooltip } from "./platform";
+import { cancelAlarm, chime, notify, scheduleAlarm, setTrayTooltip } from "./platform";
+import * as G from "./google";
 import {
   defaultSettings,
   openStore,
@@ -66,6 +67,9 @@ export default function App() {
   });
   const [now, setNow] = useState(Date.now());
   const endedNotified = useRef(false);
+  const [google, setGoogle] = useState<{ connected: boolean; calendars: G.GoogleCalendar[] }>({ connected: false, calendars: [] });
+  const [events, setEvents] = useState<G.CalendarEvent[]>([]);
+  const syncing = useRef(false);
 
   const { timer } = live;
 
@@ -80,7 +84,67 @@ export default function App() {
       );
       setStore(s);
     });
+    loadGoogle();
   }, []);
+
+  const loadGoogle = useCallback(async () => {
+    const connected = await G.isConnected().catch(() => false);
+    const calendars = connected ? await G.listCalendars().catch(() => []) : [];
+    setGoogle({ connected, calendars });
+  }, []);
+
+  // Adds sessions that have no calendar event yet, oldest first. Running it
+  // again later retries anything that failed, for example while offline.
+  const syncPending = useCallback(async () => {
+    const cal = settings.calendar;
+    if (!store || !google.connected || !cal.syncSessions || !cal.targetId || syncing.current) return;
+    syncing.current = true;
+    try {
+      const since = Math.max(cal.syncSince, Date.now() - 30 * 86_400_000);
+      for (const s of await store.unsynced(since)) {
+        if (s.kind === "break" && !cal.syncBreaks) continue;
+        const c = categories.find((x) => x.id === s.categoryId);
+        const eventId = await G.createEvent(cal.targetId, s, c);
+        await store.setGoogleEvent(s.id, cal.targetId, eventId);
+      }
+    } catch (e) {
+      console.warn("calendar sync failed", e);
+    } finally {
+      syncing.current = false;
+    }
+  }, [store, google.connected, settings.calendar, categories]);
+
+  useEffect(() => {
+    syncPending();
+  }, [syncPending]);
+
+  /** Keeps a session's existing calendar event in step with an edit. */
+  const syncEdit = async (s: SessionRecord) => {
+    if (!google.connected || !s.googleEventId || !s.googleCalendarId) return;
+    const c = categories.find((x) => x.id === s.categoryId);
+    await G.updateEvent(s.googleCalendarId, s.googleEventId, s, c).catch((e) => console.warn("calendar update failed", e));
+  };
+
+  // Events from the visible Google calendars for the day on screen.
+  useEffect(() => {
+    const cal = settings.calendar;
+    if (!google.connected || !cal.showEvents) {
+      setEvents([]);
+      return;
+    }
+    const shown = google.calendars.filter((c) => !cal.hidden.includes(c.id));
+    let stale = false;
+    const load = () =>
+      G.eventsBetween(shown, day, addDays(day, 1)).then((e) => {
+        if (!stale) setEvents(e);
+      });
+    load();
+    const id = setInterval(load, 5 * 60_000);
+    return () => {
+      stale = true;
+      clearInterval(id);
+    };
+  }, [google, settings.calendar.showEvents, settings.calendar.hidden, day]);
 
   const refresh = useCallback(async () => {
     if (!store) return;
@@ -145,6 +209,7 @@ export default function App() {
   const finish = useCallback(async () => {
     if (timer.status === "idle" || !store) return;
     const end = Date.now();
+    const asking = timer.kind === "focus" && settings.askReflection;
     const record = {
       kind: timer.kind,
       intention: timer.kind === "focus" ? live.intention.trim() : "",
@@ -154,29 +219,50 @@ export default function App() {
       plannedMs: timer.plannedMs,
       focusedMs: T.elapsed(timer, end),
       reflection: "",
-      rating: 0,
+      rating: timer.kind === "focus" ? settings.defaultRating : 0,
     };
     setLive((l) => ({ ...l, timer: T.idle }));
     const id = await store.addSession(record);
-    if (record.kind === "focus") setPending({ ...record, id });
     chooseKind(record.kind === "focus" ? "break" : "focus");
     setDay(startOfDay(end));
     refresh();
-  }, [timer, store, live, chooseKind, refresh]);
+    if (asking) {
+      // Synced once the reflection is saved, so the event carries it.
+      setPending({ ...record, id });
+      return;
+    }
+    syncPending();
+    if (record.kind === "focus" && settings.autoBreak) startTimer("break", settings.breakMinutes);
+  }, [timer, store, live, settings, chooseKind, refresh, syncPending]);
 
-  // Fire once when the countdown reaches zero. A focus session keeps counting
-  // into overtime until it is finished; a break ends on its own.
+  const endTitle = (kind: T.Kind) => (kind === "focus" ? "Time's up" : "Break's over");
+  const endBody = (kind: T.Kind, intention: string) =>
+    kind === "focus"
+      ? `${intention ? `${intention}. ` : ""}Keep going, or finish the session when you're ready.`
+      : "Ready for the next session?";
+  const wantsNotice = (kind: T.Kind) => (kind === "focus" ? settings.notifyFocusEnd : settings.notifyBreakEnd);
+
+  // The desktop shell notifies at the planned end, even if this window is
+  // hidden and its timers are throttled. Rescheduled on every change.
+  const alarmAt = timer.status === "running" ? timer.endsAt : null;
+  const alarmKind = timer.status === "idle" ? null : timer.kind;
+  const nativeAlarm = useRef(false);
+  useEffect(() => {
+    if (alarmAt === null || alarmKind === null || !wantsNotice(alarmKind) || alarmAt <= Date.now()) {
+      cancelAlarm();
+      return;
+    }
+    nativeAlarm.current = scheduleAlarm(alarmAt, endTitle(alarmKind), endBody(alarmKind, live.intention));
+  }, [alarmAt, alarmKind, live.intention, settings.notifyFocusEnd, settings.notifyBreakEnd]);
+
+  // Fire once when the countdown reaches zero. Sessions and breaks both keep
+  // counting into overtime until they are ended by hand.
   useEffect(() => {
     if (timer.status !== "running" || left > 0 || endedNotified.current) return;
     endedNotified.current = true;
     if (settings.sound) chime();
-    if (timer.kind === "focus") {
-      notify("Session complete", live.intention || "Time to wrap up and reflect.");
-    } else {
-      notify("Break's over", "Ready for the next session?");
-      finish();
-    }
-  }, [timer, left, settings.sound, live.intention, finish]);
+    if (!nativeAlarm.current && wantsNotice(timer.kind)) notify(endTitle(timer.kind), endBody(timer.kind, live.intention));
+  }, [timer, left, settings, live.intention]);
 
   const setRemaining = (minutes: number) => {
     const n = Date.now();
@@ -185,11 +271,12 @@ export default function App() {
     setLive((l) => ({ ...l, timer: T.scrub(l.timer, delta, n) }));
   };
 
-  const saveReflection = async (reflection: string, rating: number) => {
+  const closeReflection = async (update?: { reflection: string; rating: number }) => {
     if (!store || !pending) return;
-    await store.updateSession({ ...pending, reflection, rating });
+    if (update) await store.updateSession({ ...pending, ...update });
     setPending(null);
     refresh();
+    syncPending();
     if (settings.autoBreak) startTimer("break", settings.breakMinutes);
   };
 
@@ -200,16 +287,33 @@ export default function App() {
       await store.addSession(rest);
     } else {
       await store.updateSession(s);
+      syncEdit(s);
     }
     setEditing(null);
     refresh();
+    syncPending();
   };
 
   const deleteSession = async (id: number) => {
     if (!store) return;
+    const gone = editing?.id === id ? editing : null;
     await store.deleteSession(id);
     setEditing(null);
     refresh();
+    if (google.connected && gone?.googleEventId && gone.googleCalendarId) {
+      G.deleteEvent(gone.googleCalendarId, gone.googleEventId).catch((e) => console.warn("calendar delete failed", e));
+    }
+  };
+
+  // Clicking a calendar event sets up a session for it.
+  const planFromEvent = (e: G.CalendarEvent) => {
+    if (timer.status !== "idle") return;
+    setIdleKind("focus");
+    // An event under way gets the time it has left, any other its full length.
+    const n = Date.now();
+    const from = e.start < n && e.end > n ? n : e.start;
+    setPlannedMin(Math.min(180, Math.max(1, Math.round((e.end - from) / 60_000))));
+    setLive((l) => ({ ...l, intention: e.title }));
   };
 
   const newSession = (day: number): SessionRecord => {
@@ -345,6 +449,8 @@ export default function App() {
             week={week}
             categories={categories}
             live={liveBlock}
+            events={events}
+            onEvent={timer.status === "idle" ? planFromEvent : undefined}
             onDay={setDay}
             onOpen={setEditing}
             onAdd={() => setEditing(newSession(day))}
@@ -368,6 +474,8 @@ export default function App() {
             settings={settings}
             categories={categories}
             store={store}
+            google={google}
+            onGoogleChanged={loadGoogle}
             onSettings={updateSettings}
             onCategoriesChanged={reloadCategories}
           />
@@ -386,11 +494,18 @@ export default function App() {
           onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
           onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
           onAdjust={adjust}
+          onFinish={finish}
           onOpenTimer={() => setView("timer")}
         />
       )}
 
-      {pending && <Reflection pending={pending} onSave={saveReflection} onSkip={() => setPending(null)} />}
+      {pending && (
+        <Reflection
+          pending={pending}
+          onSave={(reflection, rating) => closeReflection({ reflection, rating })}
+          onSkip={() => closeReflection()}
+        />
+      )}
       {editing && (
         <SessionDialog
           session={editing}
