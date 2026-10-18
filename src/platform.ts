@@ -47,3 +47,29 @@ export function chime(): void {
     // No audio device; the notification still fires.
   }
 }
+
+/**
+ * Notifies at a wall-clock time from the desktop shell, which keeps time even
+ * while the window is hidden. Returns false in a plain browser, where the
+ * window has to notify by itself.
+ */
+export function scheduleAlarm(atMs: number, title: string, body: string): boolean {
+  if (!isTauri()) return false;
+  invoke("schedule_alarm", { atMs: Math.round(atMs), title, body }).catch(() => {});
+  return true;
+}
+
+export function cancelAlarm(): void {
+  if (isTauri()) invoke("cancel_alarm").catch(() => {});
+}
+
+export async function testNotification(): Promise<void> {
+  if (isTauri()) {
+    const n = await import("@tauri-apps/plugin-notification");
+    if (!(await n.isPermissionGranted())) await n.requestPermission();
+    await invoke("test_notification");
+    return;
+  }
+  if ("Notification" in window && Notification.permission !== "granted") await Notification.requestPermission();
+  await notify("Stint", "Notifications are working.");
+}
