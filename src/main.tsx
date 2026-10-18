@@ -8,6 +8,7 @@ import App from "./App";
 import "./styles.css";
 import "./mochi.css";
 import "./phone.css";
+import "./phone-fit.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
