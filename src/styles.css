@@ -106,6 +106,18 @@ body,
   height: 100%;
 }
 
+/* src/fit.ts sets --s so the whole app zooms to fit the window. */
+:root {
+  --s: 1;
+}
+
+#root {
+  zoom: var(--s);
+  /* Viewport units get zoomed too, so these are the window's size in app pixels. */
+  --vh: calc(100vh / var(--s));
+  --vw: calc(100vw / var(--s));
+}
+
 body {
   background: var(--ground);
   color: var(--text);
@@ -696,7 +708,7 @@ main {
 }
 
 .dial-card .dial {
-  width: min(400px, 100%, calc(100vh - 400px));
+  width: min(400px, 100%, calc(var(--vh) - 400px));
   min-width: 220px;
 }
 
@@ -887,7 +899,7 @@ main {
 }
 
 .stage-dial .dial {
-  width: min(420px, calc(100vh - 300px), 42vw);
+  width: min(420px, calc(var(--vh) - 300px), calc(var(--vw) * 0.42));
   min-width: 220px;
 }
 
@@ -1430,7 +1442,7 @@ button.ribbon-seg:hover {
 .sheet {
   width: 100%;
   max-width: 460px;
-  max-height: calc(100vh - 32px);
+  max-height: calc(var(--vh) - 32px);
   overflow-y: auto;
   background: var(--surface);
   border-radius: 32px;
@@ -2062,7 +2074,7 @@ select.select-pill {
   min-width: 0;
 }
 
-@media (max-width: 860px) {
+[data-narrower] {
   .settings-columns {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2444,7 +2456,7 @@ select.select-pill {
 
 /* Narrower windows */
 
-@media (max-width: 1080px) {
+[data-narrow] {
   .ribbon-week {
     flex-basis: 170px;
   }
@@ -2459,7 +2471,7 @@ select.select-pill {
   }
 }
 
-@media (max-height: 700px) {
+[data-short] {
   .plan-card h1 {
     font-size: 30px;
   }
@@ -2900,4 +2912,221 @@ select.select-pill {
 
 .wl-day.selected .wl-bar span {
   background: var(--apricot);
+}
+
+/* Fitting the window. The app is zoomed (src/fit.ts) so it is always about
+   760px tall inside; these rules make the timer and the day view use that
+   height exactly, with long lists scrolling inside their own card. */
+
+@media (min-width: 641px) {
+  .shell {
+    gap: 12px;
+    padding: 14px 20px 16px;
+  }
+
+  .timer-page {
+    gap: 12px;
+  }
+
+  .plan-row {
+    gap: 12px;
+  }
+
+  .plan-card {
+    padding: 22px 24px 24px;
+    gap: 14px;
+  }
+
+  .plan-card h1 {
+    font-size: 32px;
+  }
+
+  .plan-card input {
+    height: 48px;
+  }
+
+  .plan-card .chip {
+    height: 40px;
+  }
+
+  /* If a long category list still doesn't fit, the form scrolls and Start stays put. */
+  .plan-card > .squishy.huge {
+    position: sticky;
+    bottom: 0;
+  }
+
+  /* The dial takes whatever height the card has left. */
+  .dial-card {
+    padding: 18px 20px;
+    gap: 12px;
+  }
+
+  .dial-card .dial {
+    flex: 1 1 0;
+    min-height: 0;
+    width: auto;
+    min-width: 0;
+    max-width: min(440px, 100%);
+  }
+
+  .ribbon {
+    padding: 12px 20px 12px;
+  }
+
+  .ribbon-head .add-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .ribbon-body {
+    height: 70px;
+  }
+
+  .ribbon-track {
+    top: 24px;
+    height: 28px;
+  }
+
+  .ribbon-hours {
+    top: 56px;
+  }
+
+  .week-bars {
+    min-height: 60px;
+  }
+}
+
+/* Day analytics fits the window: the day's story and the side column scroll
+   inside their cards instead of the page scrolling. */
+@media (min-width: 641px) {
+  .analytics.day-range {
+    padding-bottom: 4px;
+  }
+
+  .shell:has(.mini-timer) .analytics.day-range {
+    padding-bottom: 84px;
+  }
+
+  .analytics.day-range .top-row {
+    flex: 1 1 0;
+    min-height: 260px;
+  }
+
+  .story-card-wrap {
+    min-height: 0;
+  }
+
+  .story-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    margin-right: -10px;
+    padding-right: 10px;
+  }
+
+  .analytics.day-range .day-side {
+    min-height: 0;
+    overflow-y: auto;
+    border-radius: 32px;
+  }
+
+  .analytics.day-range .day-side .went-card {
+    flex: 1 0 auto;
+  }
+
+  .analytics.day-range .wl-day {
+    padding: 5px 10px;
+  }
+
+  /* A little tighter at the top so the day itself gets the room. */
+  .analytics {
+    gap: 12px;
+  }
+
+  .page-head h1 {
+    font-size: 34px;
+  }
+
+  .tile {
+    padding: 14px 20px;
+  }
+
+  .tile-value {
+    font-size: 30px;
+  }
+}
+
+/* Week and month: the chart and the session list fill the first screen, and
+   the tables below are a scroll away. */
+@media (min-width: 641px) {
+  .analytics.week-range .top-row,
+  .analytics.month-range .top-row {
+    flex: 0 0 calc(100% - 176px);
+    min-height: 360px;
+  }
+
+  .shell:has(.mini-timer) .analytics.week-range .top-row,
+  .shell:has(.mini-timer) .analytics.month-range .top-row {
+    flex-basis: calc(100% - 256px);
+  }
+
+  .analytics.week-range .when-chart {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .analytics.week-range .when-col {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 120px;
+  }
+}
+
+/* Scrollbars: a slim rounded thumb in the look's colours that only shows
+   while the pointer is over the area, instead of the grey Windows bar. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background: transparent;
+  background-clip: padding-box;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: var(--seed);
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--muted);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--seed) transparent;
+  }
+}
+
+/* The bar sits in its own slim gutter so it never covers a card's edge. */
+@media (min-width: 641px) {
+  .analytics,
+  .settings-page {
+    scrollbar-gutter: stable;
+    margin-right: -14px;
+    padding-right: 4px;
+  }
 }
