@@ -1,5 +1,6 @@
-/* Phone layout. Below 640px the window scrolls like a page, the tabs move to a
-   bar along the bottom and every screen stacks into one column. */
+/* Phone layout. Below 640px the tabs move to a bar along the bottom and every
+   screen stacks into one column. The timer fits on one screen; the other pages
+   scroll. */
 
 @media (max-width: 640px) {
   html,
@@ -28,17 +29,53 @@
     padding: 10px 14px calc(96px + env(safe-area-inset-bottom));
   }
 
-  .demo-banner {
-    margin-bottom: 0;
-    padding: 4px 4px 4px 12px;
-    font-size: 11px;
-    flex-wrap: nowrap;
-    text-align: left;
-    border-radius: 16px;
+  /* The demo note shrinks to a pill in the middle of the top bar, so it
+     takes no room of its own. */
+  .shell {
+    position: relative;
   }
 
-  .demo-banner button {
+  .demo-banner {
+    position: absolute;
+    top: calc(20px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    margin: 0;
+    padding: 3px 3px 3px 10px;
+    gap: 6px;
+    flex-wrap: nowrap;
     white-space: nowrap;
+  }
+
+  .demo-banner > span {
+    font-size: 0;
+  }
+
+  .demo-banner > span b {
+    font-size: 12px;
+  }
+
+  /* "Start over" becomes a round arrow; the label stays for screen readers. */
+  .demo-banner button {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    font-size: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  .demo-banner button::before {
+    content: "↻";
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* The top bar shows the session pill while a timer runs. */
+  .shell[data-mode="focus"] .demo-banner,
+  .shell[data-mode="break"] .demo-banner {
+    display: none;
   }
 
   /* Top bar: Pip, the name and today's goal. */
@@ -105,10 +142,26 @@
     flex: 0 0 auto;
   }
 
-  /* Timer: one card, dial first, then what it's for, with Start kept in reach. */
+  /* Timer: exactly one screen. One card holds the plan, and the dial takes
+     whatever height is left. */
+  .shell:has(.plan-row) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .timer-page:has(.plan-row) {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 10px;
+  }
+
   .plan-row {
+    flex: 1 1 auto;
+    min-height: 0;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     padding: 14px 16px 16px;
     border-radius: 32px;
     background: var(--surface);
@@ -124,10 +177,9 @@
     order: 1;
   }
 
+  /* "I'm going to..." already asks it. */
   .plan-card h1 {
-    order: 2;
-    margin-top: 4px;
-    font-size: 24px;
+    display: none;
   }
 
   .plan-card .field,
@@ -146,10 +198,11 @@
   .dial-card > .dial {
     order: 5;
     align-self: center;
-    /* Shrinks on shorter phones so Start stays above the tab bar. */
-    width: clamp(170px, min(66vw, 100dvh - 560px), 250px);
+    flex: 1 1 0;
+    min-height: 120px;
+    width: auto;
+    max-width: 100%;
     min-width: 0;
-    margin: 2px 0 -2px;
   }
 
   .dial-card > .segmented.round {
@@ -194,16 +247,53 @@
     font-size: 20px;
   }
 
-  /* Today: hours on top, the week underneath. */
-  .ribbon {
-    flex-direction: column;
-    gap: 14px;
-    padding: 16px 16px 14px;
-    border-radius: 28px;
+  /* Today and This week share a small tray under the timer card. */
+  .ribbon:not(.compact) {
+    flex-direction: row;
+    gap: 12px;
+    padding: 10px 14px 8px;
+    border-radius: 24px;
+  }
+
+  .ribbon-main {
+    gap: 4px;
   }
 
   .ribbon-head h2 {
-    font-size: 19px;
+    font-size: 15px;
+  }
+
+  .ribbon-sum {
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  /* Adding a past session by hand lives in Analytics on a phone. */
+  .ribbon .add-button {
+    display: none;
+  }
+
+  .ribbon-events {
+    display: none;
+  }
+
+  .ribbon-body {
+    height: 42px;
+  }
+
+  .ribbon-track {
+    top: 2px;
+    height: 22px;
+    border-radius: 8px;
+  }
+
+  .ribbon-seg {
+    border-radius: 6px;
+  }
+
+  .ribbon-hours {
+    top: 28px;
+    font-size: 10px;
   }
 
   .ribbon-hours span:nth-child(even) {
@@ -211,18 +301,26 @@
   }
 
   .ribbon-week {
-    flex: 0 0 auto;
-    padding: 12px 0 0;
-    border-left: none;
-    border-top: 2px dashed var(--line);
+    flex: 0 0 104px;
+    padding: 0 0 0 12px;
+    gap: 2px;
   }
 
-  .ribbon-week::before {
-    display: none;
+  .ribbon-week-title {
+    font-size: 11px;
   }
 
   .week-bars {
-    justify-content: space-between;
+    gap: 3px;
+  }
+
+  .week-bar .bar {
+    width: 9px;
+    max-height: 34px;
+  }
+
+  .week-bar .dow {
+    font-size: 9px;
   }
 
   /* While a session runs the whole screen is the stage. */
@@ -459,25 +557,92 @@
   }
 }
 
+/* Small phones: tighter controls, and Today shrinks to one slim strip above
+   the card so the dial keeps its room. The week stays in Analytics. */
 @media (max-width: 640px) and (max-height: 720px) {
-  .plan-card h1 {
-    display: none;
-  }
-
-  .plan-row {
-    gap: 10px;
+  .shell {
+    gap: 8px;
   }
 
   .tab {
     height: 48px;
   }
 
-  .shell {
+  .shell:has(.plan-row) {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .plan-row {
     gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  .plan-card > .segmented button,
+  .dial-card > .segmented.round button {
+    height: 32px;
+  }
+
+  .plan-card input {
+    height: 42px;
+  }
+
+  .plan-card .chip {
+    height: 34px;
+  }
+
+  .plan-card > .squishy.huge {
+    height: 50px;
+    min-height: 0;
+    font-size: 18px;
   }
 
   .dial-card > .dial {
-    width: clamp(150px, min(66vw, 100dvh - 500px), 250px);
+    min-height: 90px;
+  }
+
+  .ribbon:not(.compact) {
+    order: -1;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+
+  .ribbon:not(.compact) .ribbon-main {
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ribbon:not(.compact) .ribbon-head h2 {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+
+  .ribbon:not(.compact) .ribbon-sum {
+    margin: 0;
+  }
+
+  .ribbon:not(.compact) .ribbon-tools,
+  .ribbon:not(.compact) .ribbon-hours,
+  .ribbon:not(.compact) .ribbon-week {
+    display: none;
+  }
+
+  .ribbon:not(.compact) .ribbon-body {
+    flex: 1;
+    height: 24px;
+  }
+
+  .ribbon:not(.compact) .ribbon-track {
+    top: 0;
+    height: 24px;
+  }
+
+  .ribbon:not(.compact) .ribbon-now {
+    top: -3px;
+    bottom: -3px;
   }
 }
 
