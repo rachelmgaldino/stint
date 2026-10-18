@@ -185,3 +185,11 @@ export function compactDuration(ms: number): string {
   if (h === 0) return `${m}min`;
   return m % 60 === 0 ? `${h}h` : `${h}h${m % 60}min`;
 }
+
+/** "2h33", "24m", "3h" for tight spots like the phone's week chart. */
+export function shortDuration(ms: number): string {
+  const m = Math.round(ms / 60_000);
+  const h = Math.floor(m / 60);
+  if (h === 0) return `${m}m`;
+  return m % 60 === 0 ? `${h}h` : `${h}h${String(m % 60).padStart(2, "0")}`;
+}
