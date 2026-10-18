@@ -42,6 +42,22 @@ export function SettingsView({ settings, categories, store, onSettings, onCatego
       <Minutes label="Focus length" value={settings.focusMinutes} onChange={(v) => set("focusMinutes", v)} />
       <Minutes label="Break length" value={settings.breakMinutes} onChange={(v) => set("breakMinutes", v)} />
       <label className="row">
+        <span>Daily goal</span>
+        <span>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={settings.dailyGoal}
+            onChange={(e) => {
+              const v = Math.round(Number(e.target.value));
+              if (v >= 1 && v <= 20) set("dailyGoal", v);
+            }}
+          />{" "}
+          sessions
+        </span>
+      </label>
+      <label className="row">
         <span>Start a break after reflecting</span>
         <input type="checkbox" checked={settings.autoBreak} onChange={(e) => set("autoBreak", e.target.checked)} />
       </label>
