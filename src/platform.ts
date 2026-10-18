@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { t } from "./i18n";
 
 export async function notify(title: string, body: string): Promise<void> {
   try {
@@ -21,6 +22,12 @@ export async function notify(title: string, body: string): Promise<void> {
 export function setTrayTooltip(text: string): void {
   if (!isTauri()) return;
   invoke("set_tray_tooltip", { text }).catch(() => {});
+}
+
+/** Names the tray menu's items in the chosen language. */
+export function setTrayMenu(open: string, quit: string): void {
+  if (!isTauri()) return;
+  invoke("set_tray_menu", { open, quit }).catch(() => {});
 }
 
 let audio: AudioContext | null = null;
@@ -67,9 +74,9 @@ export async function testNotification(): Promise<void> {
   if (isTauri()) {
     const n = await import("@tauri-apps/plugin-notification");
     if (!(await n.isPermissionGranted())) await n.requestPermission();
-    await invoke("test_notification");
+    await invoke("test_notification", { body: t().notice.working });
     return;
   }
   if ("Notification" in window && Notification.permission !== "granted") await Notification.requestPermission();
-  await notify("Stint", "Notifications are working.");
+  await notify("Stint", t().notice.working);
 }

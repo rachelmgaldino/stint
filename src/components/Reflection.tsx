@@ -4,20 +4,18 @@ import { clockTime } from "../dates";
 import { formatDuration } from "../timer";
 import { soft } from "../colors";
 import { Pip, RatingFace } from "./Pip";
+import { t } from "../i18n";
 
 export type PendingReflection = SessionRecord;
 
-export const ratings = [
-  { value: 1, label: "Distracted" },
-  { value: 2, label: "Neutral" },
-  { value: 3, label: "Focused" },
-];
+/** The ratings with their names in the current language. */
+export const ratings = () => [1, 2, 3].map((value) => ({ value, label: t().ratings[value] }));
 
 /** Buttons for picking how a session went; picking the chosen one again clears it. */
 export function RatingPicker({ value, onChange }: { value: number; onChange(v: number): void }) {
   return (
-    <div className="rating-picker" role="group" aria-label="How did it go?">
-      {ratings.map((r) => (
+    <div className="rating-picker" role="group" aria-label={t().reflection.howDidItGo}>
+      {ratings().map((r) => (
         <button
           type="button"
           key={r.value}
@@ -50,6 +48,7 @@ export function Reflection({
 }) {
   const [text, setText] = useState("");
   const [rating, setRating] = useState(pending.rating);
+  const words = t().reflection;
 
   return (
     <div className="drawer-backdrop">
@@ -66,7 +65,7 @@ export function Reflection({
         <div className="drawer-head">
           <Pip mood="cheer" size={96} />
           <div>
-            <h2 id="reflect-title">Nice work!</h2>
+            <h2 id="reflect-title">{words.niceWork}</h2>
             <p>
               {formatDuration(pending.focusedMs)} · {clockTime(pending.startedAt)} to {clockTime(pending.endedAt)}
             </p>
@@ -75,27 +74,28 @@ export function Reflection({
         <div className="drawer-session">
           <span className="dot" style={{ background: soft(category?.color ?? "#f4a988") }} />
           <div>
-            <div className="strong">{pending.intention || category?.name || "Focus session"}</div>
+            <div className="strong">{pending.intention || category?.name || t().focusSession}</div>
             <div className="small muted">
-              {category && pending.intention ? `${category.name} · ` : ""}session {sessionNumber} of {Math.max(dailyGoal, sessionNumber)}
+              {category && pending.intention ? `${category.name} · ` : ""}
+              {words.sessionOf(sessionNumber, Math.max(dailyGoal, sessionNumber))}
             </div>
           </div>
         </div>
         <label className="field">
-          <span>What did you get done?</span>
-          <textarea autoFocus rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="A line or two for future you" />
+          <span>{words.whatDidYouGetDone}</span>
+          <textarea autoFocus rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={words.placeholder} />
         </label>
         <div className="field">
-          <span>How did it go?</span>
+          <span>{words.howDidItGo}</span>
           <RatingPicker value={rating} onChange={setRating} />
         </div>
         <span className="grow" />
         <div className="drawer-actions">
           <button type="button" className="quiet-link" onClick={onSkip}>
-            Skip
+            {words.skip}
           </button>
           <button type="submit" className="squishy apricot big grow">
-            Save
+            {words.save}
           </button>
         </div>
       </form>
