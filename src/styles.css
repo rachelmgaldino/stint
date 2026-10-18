@@ -26,6 +26,7 @@
   --lemon: #f3db8e;
   --lemon-lip: #d9bc5f;
   --bubblegum: #f1b5c9;
+  --bubblegum-lip: #c9708f;
   --sky: #add6e8;
   --danger: #c4506e;
   --scrim: rgb(42 35 64 / 0.38);
@@ -762,10 +763,19 @@ main {
   stroke-width: 22;
 }
 
-.dial-arc {
+.dial-arc,
+.dial-lap {
   fill: none;
   stroke-width: 22;
+}
+
+.dial-arc {
   stroke-linecap: round;
+}
+
+/* Lifts the current hour's lap off the full lap underneath it. */
+.dial-arc.over {
+  filter: drop-shadow(0 0 4px rgb(10 6 24 / 0.45));
 }
 
 .dial-knob,
