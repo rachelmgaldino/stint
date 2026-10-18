@@ -1,8 +1,14 @@
+mod google;
+
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
+    AppHandle, Emitter, Manager, State, WindowEvent,
 };
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 const TRAY_ID: &str = "main";
@@ -36,6 +42,15 @@ fn migrations() -> Vec<Migration> {
             CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         ",
         kind: MigrationKind::Up,
+    },
+    Migration {
+        version: 2,
+        description: "remember the Google Calendar event made for a session",
+        sql: "
+            ALTER TABLE sessions ADD COLUMN google_event_id TEXT;
+            ALTER TABLE sessions ADD COLUMN google_calendar_id TEXT;
+        ",
+        kind: MigrationKind::Up,
     }]
 }
 
@@ -54,6 +69,54 @@ fn set_tray_tooltip(app: AppHandle, text: String) {
     }
 }
 
+/// The one pending "time's up" alarm. Each schedule or cancel bumps the
+/// generation, and a sleeping alarm only fires if it is still the latest.
+#[derive(Default)]
+struct Alarm(Arc<AtomicU64>);
+
+fn now_ms() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// Shows a notification at `at_ms` (wall clock). It runs here rather than in
+/// the window because a hidden window's timers are throttled.
+#[tauri::command]
+fn schedule_alarm(app: AppHandle, alarm: State<Alarm>, at_ms: u64, title: String, body: String) {
+    let generation = alarm.0.fetch_add(1, Ordering::SeqCst) + 1;
+    let current = alarm.0.clone();
+    std::thread::spawn(move || {
+        // Short naps against the wall clock, so a laptop that sleeps through
+        // the end still notifies as soon as it wakes.
+        loop {
+            if current.load(Ordering::SeqCst) != generation {
+                return;
+            }
+            let now = now_ms();
+            if now >= at_ms {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis((at_ms - now).min(1000)));
+        }
+        let _ = app.notification().builder().title(&title).body(&body).show();
+        let _ = app.emit("alarm", ());
+    });
+}
+
+#[tauri::command]
+fn cancel_alarm(alarm: State<Alarm>) {
+    alarm.0.fetch_add(1, Ordering::SeqCst);
+}
+
+#[tauri::command]
+fn test_notification(app: AppHandle) -> Result<(), String> {
+    app.notification()
+        .builder()
+        .title("Stint")
+        .body("Notifications are working.")
+        .show()
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -66,7 +129,19 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![set_tray_tooltip])
+        .plugin(tauri_plugin_opener::init())
+        .manage(Alarm::default())
+        .manage(google::Google::default())
+        .invoke_handler(tauri::generate_handler![
+            set_tray_tooltip,
+            schedule_alarm,
+            cancel_alarm,
+            test_notification,
+            google::google_connect,
+            google::google_status,
+            google::google_disconnect,
+            google::google_request,
+        ])
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "Open Stint", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

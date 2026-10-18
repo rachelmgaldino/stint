@@ -13,6 +13,7 @@ type Props = {
   onPause(): void;
   onResume(): void;
   onAdjust(minutes: number): void;
+  onFinish(): void;
   onOpenTimer(): void;
 };
 
@@ -55,6 +56,11 @@ export function MiniTimer(p: Props) {
       <button className="mini-step" aria-label="5 minutes more" onClick={() => p.onAdjust(5)}>
         +
       </button>
+      {active && (
+        <button className="mini-finish" onClick={p.onFinish}>
+          {p.kind === "focus" ? "Finish" : "End break"}
+        </button>
+      )}
       <button className="mini-more" aria-label="Open the timer" title="Open the timer" onClick={p.onOpenTimer}>
         <MoreIcon />
       </button>

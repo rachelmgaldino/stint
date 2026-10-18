@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { Category, SessionRecord } from "../store";
 import { addDays, clockTime, dayLabel, msIntoDay, startOfDay } from "../dates";
 import { formatDuration } from "../timer";
+import { eventLanes, type CalendarEvent } from "../google";
 import { ChevronLeft, ChevronRight, PlusIcon } from "./icons";
 import { WeekStrip } from "./WeekStrip";
 
@@ -17,6 +18,10 @@ type Props = {
   week: SessionRecord[];
   categories: Category[];
   live: LiveBlock | null;
+  /** Google Calendar events for this day. */
+  events: CalendarEvent[];
+  /** Set up a session from an event; absent while a timer runs. */
+  onEvent?(e: CalendarEvent): void;
   onDay(day: number): void;
   onOpen(s: SessionRecord): void;
   onAdd(): void;
@@ -26,7 +31,7 @@ function focusTotal(list: SessionRecord[]): number {
   return list.filter((s) => s.kind === "focus").reduce((a, s) => a + s.focusedMs, 0);
 }
 
-export function DayPane({ day, now, week, categories, live, onDay, onOpen, onAdd }: Props) {
+export function DayPane({ day, now, week, categories, live, events, onEvent, onDay, onOpen, onAdd }: Props) {
   const today = startOfDay(now);
   const byId = new Map(categories.map((c) => [c.id, c]));
   const sessions = week.filter((s) => startOfDay(s.startedAt) === day).sort((a, b) => a.startedAt - b.startedAt);
@@ -34,6 +39,8 @@ export function DayPane({ day, now, week, categories, live, onDay, onOpen, onAdd
   const count = (r: number) => focus.filter((s) => s.rating === r).length;
   const showLive = live && day === today;
   const scroller = useRef<HTMLDivElement>(null);
+  const allDay = events.filter((e) => e.allDay);
+  const timed = eventLanes(events.filter((e) => !e.allDay && e.end > day && e.start < addDays(day, 1)));
 
   const colorOf = (s: SessionRecord) =>
     s.kind === "break" ? "var(--break-block)" : ((s.categoryId !== null && byId.get(s.categoryId)?.color) || "var(--accent)");
@@ -51,7 +58,7 @@ export function DayPane({ day, now, week, categories, live, onDay, onOpen, onAdd
   }, [day, sessions.length]);
 
   const block = (start: number, end: number) => {
-    const top = (msIntoDay(start) / 3_600_000) * HOUR_PX;
+    const top = start <= day ? 0 : (msIntoDay(start) / 3_600_000) * HOUR_PX;
     const bottom = Math.min(24 * HOUR_PX, top + ((end - start) / 3_600_000) * HOUR_PX);
     return { top, height: Math.max(20, bottom - top) };
   };
@@ -92,13 +99,50 @@ export function DayPane({ day, now, week, categories, live, onDay, onOpen, onAdd
         {day === today && <i className="now-mark" style={{ left: `${(msIntoDay(now) / DAY_MS) * 100}%` }} />}
       </div>
 
+      {allDay.length > 0 && (
+        <ul className="all-day" aria-label="All-day events">
+          {allDay.map((e) => (
+            <li key={`${e.calendarId}/${e.id}`} style={{ borderColor: e.color }}>
+              {e.title}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="timeline" ref={scroller}>
-        <div className="timeline-inner" style={{ height: 24 * HOUR_PX }}>
+        <div className={timed.length ? "timeline-inner split" : "timeline-inner"} style={{ height: 24 * HOUR_PX }}>
           {Array.from({ length: 24 }, (_, h) => (
             <div key={h} className="hour" style={{ top: h * HOUR_PX }}>
               <span>{String(h).padStart(2, "0")}:00</span>
             </div>
           ))}
+          {timed.map(({ event: e, lane, lanes }) => {
+            const pos = block(e.start, e.end);
+            const label = `${e.title}, ${clockTime(e.start)} to ${clockTime(e.end)}`;
+            return (
+              <button
+                key={`${e.calendarId}/${e.id}`}
+                className={`event${pos.height < 30 ? " compact" : ""}`}
+                style={{
+                  top: pos.top,
+                  height: pos.height,
+                  "--lane": lane,
+                  "--lanes": lanes,
+                  "--event": e.color,
+                } as CSSProperties}
+                disabled={!onEvent}
+                onClick={() => onEvent?.(e)}
+                title={onEvent ? `${label}. Click to set up a session for it.` : label}
+              >
+                <span className="block-title">{e.title}</span>
+                {pos.height >= 44 && (
+                  <span className="block-time">
+                    {clockTime(e.start)} – {clockTime(e.end)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
           {sessions.map((s) => {
             const pos = block(s.startedAt, s.endedAt);
             const roomy = pos.height >= 56;
