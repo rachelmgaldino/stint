@@ -222,7 +222,9 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
               <p>{text.noSessions}</p>
             </div>
           ) : (
-            <DayStory sessions={sessions} colorOf={colorOf} byId={byId} onOpen={onOpen} />
+            <div className="story-scroll">
+              <DayStory sessions={sessions} colorOf={colorOf} byId={byId} onOpen={onOpen} />
+            </div>
           )}
         </section>
 

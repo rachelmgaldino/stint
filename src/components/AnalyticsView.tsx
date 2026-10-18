@@ -240,7 +240,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
   const ratingName = t().ratings;
 
   return (
-    <main className="analytics">
+    <main className={`analytics ${range.kind}-range`}>
       <div className="page-head">
         <h1>{periodLabel(range, now)}</h1>
         <div className="period-nav">
