@@ -84,3 +84,35 @@ export const PauseIcon = () => (
     <rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
   </svg>
 );
+
+export const BellIcon = () => (
+  <svg {...base} strokeWidth={2.2}>
+    <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16z" />
+    <path d="M10 20.5a2 2 0 0 0 4 0" />
+  </svg>
+);
+
+export const SparkIcon = () => (
+  <svg {...base} strokeWidth={2.2}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" />
+  </svg>
+);
+
+export const SunMoonIcon = () => (
+  <svg {...base} strokeWidth={2.2}>
+    <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" />
+  </svg>
+);
+
+export const TagIcon = () => (
+  <svg {...base} strokeWidth={2.2}>
+    <path d="M3 12V4h8l10 10-8 8L3 12z" />
+    <circle cx="8" cy="9" r="1.6" />
+  </svg>
+);
+
+export const XIcon = () => (
+  <svg {...base} width={16} height={16} strokeWidth={2.6}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
