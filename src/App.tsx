@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { cancelAlarm, chime, notify, scheduleAlarm, setTrayTooltip } from "./platform";
+import { cancelAlarm, chime, notify, scheduleAlarm, setTrayMenu, setTrayTooltip } from "./platform";
 import * as G from "./google";
 import {
   defaultSettings,
@@ -22,6 +22,7 @@ import { MiniTimer } from "./components/MiniTimer";
 import { ChartIcon, ClockIcon, SlidersIcon } from "./components/icons";
 import { GoalSprouts, Pip } from "./components/Pip";
 import { soft } from "./colors";
+import { setLanguage, t } from "./i18n";
 
 type View = "timer" | "analytics" | "settings";
 
@@ -74,6 +75,9 @@ export default function App() {
   const syncing = useRef(false);
 
   const { timer } = live;
+  // Set before the children render, so they all read the chosen language.
+  setLanguage(settings.language);
+  const text = t();
 
   useEffect(() => {
     openStore().then(async (s) => {
@@ -187,13 +191,17 @@ export default function App() {
 
   useEffect(() => {
     if (timer.status === "idle") {
-      setTrayTooltip("Stint: not running");
+      setTrayTooltip(text.tray.idle);
       return;
     }
-    const label = timer.kind === "focus" ? live.intention || "Focus" : "Break";
-    const paused = timer.status === "paused" ? " (paused)" : "";
+    const label = timer.kind === "focus" ? live.intention || text.focus : text.break;
+    const paused = timer.status === "paused" ? text.tray.paused : "";
     setTrayTooltip(`${label}: ${T.formatClock(left)}${paused}`);
-  }, [timer, left, live.intention]);
+  }, [timer, left, live.intention, text]);
+
+  useEffect(() => {
+    setTrayMenu(text.tray.open, text.tray.quit);
+  }, [text]);
 
   const startTimer = (kind: T.Kind, minutes: number) => {
     endedNotified.current = false;
@@ -244,11 +252,9 @@ export default function App() {
     startTimer("focus", settings.focusMinutes);
   };
 
-  const endTitle = (kind: T.Kind) => (kind === "focus" ? "Time's up" : "Break's over");
+  const endTitle = (kind: T.Kind) => (kind === "focus" ? text.notice.focusTitle : text.notice.breakTitle);
   const endBody = (kind: T.Kind, intention: string) =>
-    kind === "focus"
-      ? `${intention ? `${intention}. ` : ""}Keep going, or finish the session when you're ready.`
-      : "Ready for the next session?";
+    kind === "focus" ? `${intention ? `${intention}. ` : ""}${text.notice.focusBody}` : text.notice.breakBody;
   const wantsNotice = (kind: T.Kind) => (kind === "focus" ? settings.notifyFocusEnd : settings.notifyBreakEnd);
 
   // The desktop shell notifies at the planned end, even if this window is
@@ -262,7 +268,7 @@ export default function App() {
       return;
     }
     nativeAlarm.current = scheduleAlarm(alarmAt, endTitle(alarmKind), endBody(alarmKind, live.intention));
-  }, [alarmAt, alarmKind, live.intention, settings.notifyFocusEnd, settings.notifyBreakEnd]);
+  }, [alarmAt, alarmKind, live.intention, settings.notifyFocusEnd, settings.notifyBreakEnd, text]);
 
   // Fire once when the countdown reaches zero. Sessions and breaks both keep
   // counting into overtime until they are ended by hand.
@@ -382,7 +388,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  if (!store) return <div className="loading">Loading…</div>;
+  if (!store) return <div className="loading">{text.loading}</div>;
 
   const category = categories.find((c) => c.id === live.categoryId);
   const liveBlock: LiveBlock | null =
@@ -391,7 +397,7 @@ export default function App() {
       : {
           startedAt: timer.startedAt,
           kind: timer.kind,
-          title: timer.kind === "break" ? "Break" : category?.name ?? "Focus",
+          title: timer.kind === "break" ? text.break : category?.name ?? text.focus,
           color: timer.kind === "break" ? "var(--matcha)" : soft(category?.color ?? "#f4a988"),
         };
   const focusCount = today.filter((s) => s.kind === "focus").length;
@@ -403,9 +409,9 @@ export default function App() {
       .sort((a, b) => a.start - b.start)[0] ?? null;
 
   const tabs: { id: View; label: string; icon: ReactNode }[] = [
-    { id: "timer", label: "Timer", icon: <ClockIcon /> },
-    { id: "analytics", label: "Analytics", icon: <ChartIcon /> },
-    { id: "settings", label: "Settings", icon: <SlidersIcon /> },
+    { id: "timer", label: text.tabs.timer, icon: <ClockIcon /> },
+    { id: "analytics", label: text.tabs.analytics, icon: <ChartIcon /> },
+    { id: "settings", label: text.tabs.settings, icon: <SlidersIcon /> },
   ];
 
   return (
@@ -415,7 +421,7 @@ export default function App() {
           <Pip size={40} label="Pip" />
           <span>Stint</span>
         </div>
-        <nav className="tabs" aria-label="Main">
+        <nav className="tabs" aria-label={text.tabs.main}>
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -432,10 +438,10 @@ export default function App() {
         {mode === "focus" ? (
           <span className="status-pill focus">
             <span className="dot" />
-            Session {focusCount + 1} of {Math.max(settings.dailyGoal, focusCount + 1)}
+            {text.sessionOf(focusCount + 1, Math.max(settings.dailyGoal, focusCount + 1))}
           </span>
         ) : mode === "break" ? (
-          <span className="status-pill break">On a break</span>
+          <span className="status-pill break">{text.onABreak}</span>
         ) : (
           <GoalSprouts done={focusCount} goal={settings.dailyGoal} />
         )}

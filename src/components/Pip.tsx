@@ -1,5 +1,7 @@
 // Pip, Stint's mascot: a soft blob with a sprout on top.
 
+import { t } from "../i18n";
+
 export type Mood = "awake" | "asleep" | "break" | "cheer";
 
 const BODY = "M60 24 C92 24 108 48 108 74 C108 100 88 112 60 112 C32 112 12 100 12 74 C12 48 28 24 60 24 Z";
@@ -102,7 +104,7 @@ export function RatingFace({ value, size = 36 }: { value: number; size?: number 
 export function GoalSprouts({ done, goal }: { done: number; goal: number }) {
   const total = Math.max(goal, done);
   return (
-    <div className="goal" aria-label={`${done} of ${goal} sessions today`}>
+    <div className="goal" aria-label={t().goalAria(done, goal)}>
       <span className="goal-sprouts" aria-hidden="true">
         {Array.from({ length: total }, (_, i) =>
           i < done ? (
@@ -119,7 +121,7 @@ export function GoalSprouts({ done, goal }: { done: number; goal: number }) {
         )}
       </span>
       <span className="goal-label">
-        {done} of {goal} today
+        {t().goalToday(done, goal)}
       </span>
     </div>
   );
