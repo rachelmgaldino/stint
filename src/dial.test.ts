@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampMinutes, minuteAt, nextHourOffset, slicePath } from "./dial";
+import { clampMinutes, lapAt, minuteAt, nextHourOffset, slicePath } from "./dial";
 
 describe("dial", () => {
   it("maps points around the face to minutes", () => {
@@ -13,6 +13,15 @@ describe("dial", () => {
     expect(nextHourOffset(0, 58, 2)).toBe(60);
     expect(nextHourOffset(60, 3, 57)).toBe(0);
     expect(nextHourOffset(0, 20, 25)).toBe(0);
+  });
+
+  it("splits a length into hour laps", () => {
+    expect(lapAt(0)).toEqual({ lap: 1, fraction: 0 });
+    expect(lapAt(48)).toEqual({ lap: 1, fraction: 0.8 });
+    expect(lapAt(60)).toEqual({ lap: 1, fraction: 1 });
+    expect(lapAt(66)).toEqual({ lap: 2, fraction: 0.1 });
+    expect(lapAt(147)).toEqual({ lap: 3, fraction: 0.45 });
+    expect(lapAt(180)).toEqual({ lap: 3, fraction: 1 });
   });
 
   it("clamps to whole minutes within range", () => {
