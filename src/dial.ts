@@ -26,6 +26,40 @@ export function lapAt(minutes: number): { lap: number; fraction: number } {
   return { lap, fraction: (m - (lap - 1) * 60) / 60 };
 }
 
+export type DragState = {
+  hourOffset: number;
+  prev: number;
+  /** Set while the drag has gone past an end of the range; the time stays at that end. */
+  pinned: "min" | "max" | null;
+};
+
+/**
+ * Follow one pointer move to `next` (minutes past the hour). Going past the
+ * last lap parks the time at `maxMinutes`, and going back past 12 o'clock in
+ * the first lap parks it at 1 minute, until the pointer crosses 12 o'clock
+ * the other way again.
+ */
+export function dragStep(s: DragState, next: number, maxMinutes: number): { state: DragState; minutes: number } {
+  const maxOffset = Math.floor((maxMinutes - 1) / 60) * 60;
+  let { hourOffset, pinned } = s;
+  const offset = nextHourOffset(hourOffset, s.prev, next);
+  if (pinned === "max") {
+    if (offset < hourOffset) pinned = null;
+  } else if (pinned === "min") {
+    if (offset > hourOffset) pinned = null;
+  } else if (offset > maxOffset) {
+    pinned = "max";
+  } else if (offset < 0) {
+    pinned = "min";
+  } else {
+    hourOffset = offset;
+  }
+  const state = { hourOffset, prev: next, pinned };
+  if (pinned === "max") return { state, minutes: maxMinutes };
+  if (pinned === "min") return { state, minutes: 1 };
+  return { state, minutes: clampMinutes(hourOffset + next, maxMinutes) };
+}
+
 export function clampMinutes(m: number, max: number): number {
   return Math.min(max, Math.max(1, Math.round(m)));
 }
