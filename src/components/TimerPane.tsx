@@ -4,7 +4,8 @@ import type { CalendarEvent } from "../google";
 import { clockTime } from "../dates";
 import { soft } from "../colors";
 import * as T from "../timer";
-import { Dial } from "./Dial";
+import { lapAt } from "../dial";
+import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
 import { CalendarIcon, PlayIcon, StopIcon } from "./icons";
 
@@ -45,6 +46,14 @@ export function dialClock(ms: number): string {
 
 const lengths = { focus: [25, 50, 60, 90], break: [5, 10, 15, 20] };
 
+// Peach for the first hour, then pink, then periwinkle.
+const focusLaps: Lap[] = [
+  { color: "var(--apricot)", lip: "var(--apricot-lip)" },
+  { color: "var(--bubblegum)", lip: "var(--bubblegum-lip)" },
+  { color: "var(--peri)", lip: "var(--peri-lip)" },
+];
+const breakLaps: Lap[] = [{ color: "var(--lemon)", lip: "var(--lemon-lip)" }];
+
 export function TimerPane(p: Props) {
   const { timer, now } = p;
   const active = timer.status !== "idle";
@@ -64,20 +73,23 @@ export function TimerPane(p: Props) {
         ? `Over time since ${clockTime(plannedEnd)}`
         : `${clockTime(timer.startedAt)} to ${clockTime(plannedEnd)}`;
 
-  const dialColor = kind === "focus" ? "var(--apricot)" : "var(--lemon)";
-  const dialLip = kind === "focus" ? "var(--apricot-lip)" : "var(--lemon-lip)";
+  // Pip grows a leaf for every full hour on the dial.
+  const extraLeaves = kind === "focus" ? lapAt(minutes).lap - 1 : 0;
 
   const dial = (pipSize: number) => (
     <Dial
       minutes={minutes}
-      color={dialColor}
-      lip={dialLip}
+      laps={kind === "focus" ? focusLaps : breakLaps}
       maxMinutes={maxMinutes}
       label={active ? "Time remaining, drag to adjust" : "Session length, drag to set"}
       onChange={active ? p.onSetRemaining : p.onPlannedMin}
     >
       <span className="dial-pip">
-        <Pip mood={kind === "break" ? "break" : active && timer.status === "running" ? "asleep" : "awake"} size={pipSize} />
+        <Pip
+          mood={kind === "break" ? "break" : active && timer.status === "running" ? "asleep" : "awake"}
+          size={pipSize}
+          extraLeaves={extraLeaves}
+        />
         {kind === "focus" && timer.status === "running" && (
           <span className="zz" aria-hidden="true">
             z<small>z</small>

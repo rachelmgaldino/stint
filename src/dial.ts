@@ -1,5 +1,6 @@
 // Geometry for the drag-to-set timer dial. One full turn is 60 minutes;
-// dragging past 12 o'clock keeps adding (or removing) whole hours.
+// dragging past 12 o'clock keeps adding (or removing) whole hours, and each
+// hour is drawn as its own lap around the ring.
 
 /** Minutes past the hour (0 to <60) for a point, measured clockwise from 12 o'clock. */
 export function minuteAt(dx: number, dy: number): number {
@@ -16,6 +17,13 @@ export function nextHourOffset(hourOffset: number, prev: number, next: number): 
   if (prev > 45 && next < 15) return hourOffset + 60;
   if (prev < 15 && next > 45) return hourOffset - 60;
   return hourOffset;
+}
+
+/** Which lap (1 = the first hour) `minutes` falls in, and how much of that lap is filled (0 to 1). */
+export function lapAt(minutes: number): { lap: number; fraction: number } {
+  const m = Math.max(0, minutes);
+  const lap = Math.max(1, Math.ceil(m / 60));
+  return { lap, fraction: (m - (lap - 1) * 60) / 60 };
 }
 
 export function clampMinutes(m: number, max: number): number {
