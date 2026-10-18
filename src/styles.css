@@ -1745,6 +1745,47 @@ select.select-pill {
   overflow-y: auto;
 }
 
+/* The bottom row takes whatever height is left, and empty cards fill it. */
+.bottom-row {
+  flex: 1 0 auto;
+  align-items: stretch;
+}
+
+.bottom-row .entries-empty {
+  min-height: 220px;
+}
+
+/* Beside the chart, the list fills the card to the chart's height and scrolls. */
+.top-row {
+  align-items: stretch;
+}
+
+.top-row .entries {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 300px;
+  max-height: none;
+}
+
+.entries-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 12px;
+  border-radius: 20px;
+  background: var(--soft);
+  color: var(--muted);
+  font-weight: 700;
+  text-align: center;
+}
+
+.entries-empty p {
+  margin: 0;
+}
+
 .entry-day {
   display: flex;
   flex-direction: column;
