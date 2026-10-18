@@ -69,6 +69,20 @@ fn set_tray_tooltip(app: AppHandle, text: String) {
     }
 }
 
+fn tray_menu(app: &AppHandle, open: &str, quit: &str) -> tauri::Result<Menu<tauri::Wry>> {
+    let open = MenuItem::with_id(app, "open", open, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
+    Menu::with_items(app, &[&open, &quit])
+}
+
+/// Renames the tray menu's items when the language changes.
+#[tauri::command]
+fn set_tray_menu(app: AppHandle, open: String, quit: String) {
+    if let (Some(tray), Ok(menu)) = (app.tray_by_id(TRAY_ID), tray_menu(&app, &open, &quit)) {
+        let _ = tray.set_menu(Some(menu));
+    }
+}
+
 /// The one pending "time's up" alarm. Each schedule or cancel bumps the
 /// generation, and a sleeping alarm only fires if it is still the latest.
 #[derive(Default)]
@@ -108,11 +122,11 @@ fn cancel_alarm(alarm: State<Alarm>) {
 }
 
 #[tauri::command]
-fn test_notification(app: AppHandle) -> Result<(), String> {
+fn test_notification(app: AppHandle, body: String) -> Result<(), String> {
     app.notification()
         .builder()
         .title("Stint")
-        .body("Notifications are working.")
+        .body(body)
         .show()
         .map_err(|e| e.to_string())
 }
@@ -134,6 +148,7 @@ pub fn run() {
         .manage(google::Google::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_tooltip,
+            set_tray_menu,
             schedule_alarm,
             cancel_alarm,
             test_notification,
@@ -143,9 +158,7 @@ pub fn run() {
             google::google_request,
         ])
         .setup(|app| {
-            let open = MenuItem::with_id(app, "open", "Open Stint", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let menu = tray_menu(app.handle(), "Open Stint", "Quit")?;
             TrayIconBuilder::with_id(TRAY_ID)
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("Stint")
