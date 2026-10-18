@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { clampMinutes, lapAt, minuteAt, nextHourOffset } from "../dial";
+import { clampMinutes, dragStep, lapAt, minuteAt, type DragState } from "../dial";
 import { look } from "../look";
 
 export type Lap = {
@@ -31,14 +31,12 @@ const PETALS = "M180 2L189 5L197 11L204 17L212 21L220 21L229 17L239 15L248 16L25
 
 export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: Props) {
   const box = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ hourOffset: number; prev: number } | null>(null);
+  const drag = useRef<DragState | null>(null);
   const { lap, fraction } = lapAt(minutes);
   const current = laps[Math.min(lap, laps.length) - 1];
   const below = lap > 1 ? laps[Math.min(lap - 1, laps.length) - 1] : null;
   // Stop just short of a full turn so the knob doesn't sit on the ring's start.
   const angle = (Math.min(59.5, fraction * 60) / 60) * 2 * Math.PI;
-  // The furthest whole-hour offset a drag can reach.
-  const maxOffset = Math.floor((maxMinutes - 1) / 60) * 60;
   const knob = { x: C + RING * Math.sin(angle), y: C - RING * Math.cos(angle) };
   // Mochi's dial is a round sticker with a stitched edge and a little sun for a knob.
   const mochi = look() === "mochi";
@@ -55,16 +53,16 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
     const m = pointMinute(e);
     // Keep the current hours so grabbing a 90 minute timer doesn't reset it to 30.
     const hourOffset = Math.floor(Math.max(0, minutes - 0.5) / 60) * 60;
-    drag.current = { hourOffset, prev: m };
+    drag.current = { hourOffset, prev: m, pinned: null };
     onChange(clampMinutes(hourOffset + m, maxMinutes));
   };
 
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current || !onChange) return;
     const m = pointMinute(e);
-    const hourOffset = Math.min(maxOffset, Math.max(0, nextHourOffset(drag.current.hourOffset, drag.current.prev, m)));
-    drag.current = { hourOffset, prev: m };
-    onChange(clampMinutes(hourOffset + m, maxMinutes));
+    const { state, minutes: next } = dragStep(drag.current, m, maxMinutes);
+    drag.current = state;
+    onChange(next);
   };
 
   const onUp = () => {

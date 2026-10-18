@@ -849,6 +849,15 @@ main {
   color: var(--apricot-lip);
 }
 
+.dial-max {
+  font-family: var(--heading);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--peri-lip);
+}
+
 .dial-sub {
   font-size: 13px;
   font-weight: 700;
