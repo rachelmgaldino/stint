@@ -7,21 +7,45 @@ export type Mood = "awake" | "asleep" | "break" | "cheer";
 const BODY = "M60 24 C92 24 108 48 108 74 C108 100 88 112 60 112 C32 112 12 100 12 74 C12 48 28 24 60 24 Z";
 const INK = "#2a2340";
 
-function Sprout({ double }: { double?: boolean }) {
+// Leaves added to the sprout, in the order they grow.
+const LEAVES = [
+  { cx: 50, cy: 12, rx: 8, ry: 4, angle: 25 },
+  { cx: 69, cy: 20, rx: 7, ry: 3.5, angle: -15 },
+];
+
+function Sprout({ leaves }: { leaves: number }) {
   return (
     <>
       <path d="M60 24 C60 16 60 12 60 8" stroke="#86b374" strokeWidth="5" strokeLinecap="round" fill="none" />
       <ellipse cx="70" cy="11" rx="10" ry="5" fill="#b9d9a9" transform="rotate(-25 70 11)" />
-      {double && <ellipse cx="50" cy="12" rx="8" ry="4" fill="#b9d9a9" transform="rotate(25 50 12)" />}
+      {LEAVES.slice(0, leaves).map((l) => (
+        <ellipse
+          key={l.cx}
+          cx={l.cx}
+          cy={l.cy}
+          rx={l.rx}
+          ry={l.ry}
+          fill="#b9d9a9"
+          transform={`rotate(${l.angle} ${l.cx} ${l.cy})`}
+        />
+      ))}
     </>
   );
 }
 
-export function Pip({ mood = "awake", size = 80, label }: { mood?: Mood; size?: number; label?: string }) {
+type PipProps = {
+  mood?: Mood;
+  size?: number;
+  label?: string;
+  /** Extra leaves on the sprout, one per full hour on the timer dial. */
+  extraLeaves?: number;
+};
+
+export function Pip({ mood = "awake", size = 80, label, extraLeaves = 0 }: PipProps) {
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
-      <Sprout double={mood === "cheer"} />
+      <Sprout leaves={Math.max(extraLeaves, mood === "cheer" ? 1 : 0)} />
       <path d={BODY} fill="#a7aeec" />
       {mood === "awake" && (
         <>
