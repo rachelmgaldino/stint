@@ -26,6 +26,8 @@ export type Settings = {
   sound: boolean;
   /** Start a break automatically after the reflection is saved. */
   autoBreak: boolean;
+  /** Focus sessions per day, shown as dots above the timer. */
+  dailyGoal: number;
 };
 
 export const defaultSettings: Settings = {
@@ -34,6 +36,7 @@ export const defaultSettings: Settings = {
   theme: "system",
   sound: true,
   autoBreak: false,
+  dailyGoal: 4,
 };
 
 export interface Store {
@@ -42,7 +45,8 @@ export interface Store {
   updateCategory(c: Category): Promise<void>;
   removeCategory(id: number): Promise<void>;
   addSession(s: Omit<SessionRecord, "id">): Promise<number>;
-  updateReflection(id: number, reflection: string, rating: number): Promise<void>;
+  updateSession(s: SessionRecord): Promise<void>;
+  deleteSession(id: number): Promise<void>;
   sessionsBetween(from: number, to: number): Promise<SessionRecord[]>;
   settings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<void>;
@@ -122,12 +126,16 @@ async function sqliteStore(): Promise<Store> {
       );
       return r.lastInsertId ?? 0;
     },
-    async updateReflection(id, reflection, rating) {
-      await db.execute("UPDATE sessions SET reflection = $1, rating = $2 WHERE id = $3", [
-        reflection,
-        rating,
-        id,
-      ]);
+    async updateSession(s) {
+      await db.execute(
+        `UPDATE sessions SET intention = $1, category_id = $2, started_at = $3, ended_at = $4,
+           focused_ms = $5, reflection = $6, rating = $7
+         WHERE id = $8`,
+        [s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.id],
+      );
+    },
+    async deleteSession(id) {
+      await db.execute("DELETE FROM sessions WHERE id = $1", [id]);
     },
     async sessionsBetween(from, to) {
       const rows = await db.select<SessionRow[]>(
@@ -208,9 +216,14 @@ function browserStore(): Store {
       save(d);
       return id;
     },
-    async updateReflection(id, reflection, rating) {
+    async updateSession(s) {
       const d = load();
-      d.sessions = d.sessions.map((x) => (x.id === id ? { ...x, reflection, rating } : x));
+      d.sessions = d.sessions.map((x) => (x.id === s.id ? s : x));
+      save(d);
+    },
+    async deleteSession(id) {
+      const d = load();
+      d.sessions = d.sessions.filter((x) => x.id !== id);
       save(d);
     },
     async sessionsBetween(from, to) {
