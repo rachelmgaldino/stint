@@ -39,6 +39,8 @@ const en = {
     fromTo: (a: string, b: string) => `${a} to ${b}`,
     dialRunning: "Time remaining, drag to adjust",
     dialIdle: "Session length, drag to set",
+    /** Shown under the clock when the dial is at its longest length. */
+    max: "max",
     focusing: "Focusing",
     endSession: "End session",
     pause: "Pause",
@@ -273,6 +275,7 @@ const ptBR: Strings = {
     fromTo: (a, b) => `${a} às ${b}`,
     dialRunning: "Tempo restante, arraste para ajustar",
     dialIdle: "Duração da sessão, arraste para definir",
+    max: "máx.",
     focusing: "Em foco",
     endSession: "Encerrar sessão",
     pause: "Pausar",
