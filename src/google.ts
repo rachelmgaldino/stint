@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Category, SessionRecord } from "./store";
 import { formatDuration } from "./timer";
+import { t } from "./i18n";
 
 // Google Calendar, through the desktop shell (src-tauri/src/google.rs), which
 // holds the tokens. None of this works in a plain browser.
@@ -116,20 +117,19 @@ export function nearestColorId(hex: string): string {
   return best[0];
 }
 
-const moods = ["", "Distracted", "Neutral", "Focused"];
-
 /** The calendar event that stands for a session. */
 export function sessionEvent(s: SessionRecord, category: Category | undefined) {
   const isBreak = s.kind === "break";
-  const name = isBreak ? "Break" : category?.name ?? "Focus";
+  const text = t();
+  const name = isBreak ? text.break : category?.name ?? text.focus;
   const lines = [
-    isBreak ? `Break: ${formatDuration(s.focusedMs)}` : `Focused: ${formatDuration(s.focusedMs)}`,
-    moods[s.rating] ? `Mood: ${moods[s.rating]}` : "",
+    isBreak ? text.event.break(formatDuration(s.focusedMs)) : text.event.focused(formatDuration(s.focusedMs)),
+    s.rating > 0 ? text.event.mood(text.ratings[s.rating]) : "",
     s.reflection ? `\n${s.reflection}` : "",
   ].filter(Boolean);
   return {
     summary: !isBreak && s.intention ? `${s.intention} · ${name}` : name,
-    description: `${lines.join("\n")}\n\nAdded by Stint`,
+    description: `${lines.join("\n")}\n\n${text.event.addedBy}`,
     start: { dateTime: new Date(s.startedAt).toISOString() },
     end: { dateTime: new Date(Math.max(s.endedAt, s.startedAt + 60_000)).toISOString() },
     colorId: isBreak ? "8" : nearestColorId(category?.color ?? ""),
