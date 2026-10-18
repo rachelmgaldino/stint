@@ -1,0 +1,458 @@
+/* Phone layout. Below 640px the window scrolls like a page, the tabs move to a
+   bar along the bottom and every screen stacks into one column. */
+
+@media (max-width: 640px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 100%;
+  }
+
+  body {
+    overflow: visible;
+  }
+
+  .shell {
+    height: auto;
+    min-height: 100dvh;
+    gap: 12px;
+    padding: 10px 14px calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .demo-banner {
+    margin-bottom: 0;
+    padding: 4px 4px 4px 12px;
+    font-size: 11px;
+    flex-wrap: nowrap;
+    text-align: left;
+    border-radius: 16px;
+  }
+
+  .demo-banner button {
+    white-space: nowrap;
+  }
+
+  /* Top bar: Pip, the name and today's goal. */
+  .topbar {
+    min-height: 44px;
+  }
+
+  .brand {
+    min-width: 0;
+    font-size: 22px;
+    gap: 8px;
+  }
+
+  .brand .pip {
+    width: 34px;
+    height: 34px;
+  }
+
+  .goal,
+  .status-pill {
+    min-width: 0;
+  }
+
+  .goal-label {
+    display: none;
+  }
+
+  /* Tabs become a bottom bar, icon above label. */
+  .tabs {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 6;
+    padding: 6px;
+    gap: 6px;
+    border-radius: 26px;
+    box-shadow: 0 10px 30px rgb(23 20 42 / 0.16);
+  }
+
+  .tab {
+    flex: 1;
+    height: 56px;
+    padding: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .tab svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tab-dot {
+    top: 8px;
+    right: calc(50% - 20px);
+  }
+
+  main {
+    flex: 0 0 auto;
+  }
+
+  /* Timer: one card, dial first, then what it's for, with Start kept in reach. */
+  .plan-row {
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px 16px 16px;
+    border-radius: 32px;
+    background: var(--surface);
+  }
+
+  .plan-card,
+  .dial-card {
+    display: contents;
+  }
+
+  /* What it's for first, then how long (the dial sits near the thumb), then Start. */
+  .plan-card > .segmented {
+    order: 1;
+  }
+
+  .plan-card h1 {
+    order: 2;
+    margin-top: 4px;
+    font-size: 24px;
+  }
+
+  .plan-card .field,
+  .plan-card .plan-note {
+    order: 3;
+  }
+
+  .plan-card .field > span {
+    display: none;
+  }
+
+  .plan-card .next-event {
+    order: 4;
+  }
+
+  .dial-card > .dial {
+    order: 5;
+    align-self: center;
+    width: min(250px, 66vw);
+    min-width: 0;
+    margin: 2px 0 -2px;
+  }
+
+  .dial-card > .segmented.round {
+    order: 6;
+    align-self: stretch;
+  }
+
+  .dial-card > .segmented.round button {
+    padding: 0 6px;
+  }
+
+  .dial-card > .hint,
+  .plan-card > .grow {
+    display: none;
+  }
+
+  .plan-card input {
+    height: 50px;
+  }
+
+  /* Categories scroll sideways on one line. */
+  .plan-card .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+
+  .plan-card .chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .plan-card .chip {
+    flex: 0 0 auto;
+    height: 40px;
+  }
+
+  .plan-card > .squishy.huge {
+    order: 7;
+    min-height: 60px;
+    font-size: 20px;
+  }
+
+  /* Today: hours on top, the week underneath. */
+  .ribbon {
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 16px 14px;
+    border-radius: 28px;
+  }
+
+  .ribbon-head h2 {
+    font-size: 19px;
+  }
+
+  .ribbon-hours span:nth-child(even) {
+    visibility: hidden;
+  }
+
+  .ribbon-week {
+    flex: 0 0 auto;
+    padding: 12px 0 0;
+    border-left: none;
+    border-top: 2px dashed var(--line);
+  }
+
+  .ribbon-week::before {
+    display: none;
+  }
+
+  .week-bars {
+    justify-content: space-between;
+  }
+
+  /* While a session runs the whole screen is the stage. */
+  .stage {
+    flex-direction: column;
+    gap: 22px;
+    padding: 28px 20px 24px;
+    border-radius: 32px;
+    min-height: calc(100dvh - 220px);
+    justify-content: center;
+    text-align: center;
+  }
+
+  .break-stage {
+    flex-direction: column-reverse;
+    gap: 18px;
+  }
+
+  .stage-dial .dial {
+    width: min(300px, 78vw);
+    min-width: 0;
+  }
+
+  .break-stage .stage-dial .dial {
+    width: min(210px, 56vw);
+  }
+
+  .stage-side {
+    flex: 0 0 auto;
+    width: 100%;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .stage-what {
+    align-items: center;
+  }
+
+  .stage-what h1 {
+    font-size: 30px;
+  }
+
+  .cat-pill,
+  .stage-side .quiet-link {
+    align-self: center;
+  }
+
+  .stage-side .button-row {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: nowrap;
+  }
+
+  .stage-side .button-row .big {
+    padding-left: 18px;
+    padding-right: 18px;
+    white-space: nowrap;
+  }
+
+  .break-clock {
+    font-size: 72px;
+  }
+
+  .break-note {
+    font-size: 15px;
+  }
+
+  .ribbon.compact {
+    flex-direction: row;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  /* Mini timer sits just above the tab bar. */
+  .mini-timer {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    max-width: none;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    padding-left: 14px;
+  }
+
+  .mini-info {
+    flex: 1;
+    max-width: none;
+  }
+
+  .mini-step {
+    display: none;
+  }
+
+  /* Analytics */
+  .analytics,
+  .settings-page {
+    overflow: visible;
+    padding-bottom: 0;
+    gap: 12px;
+  }
+
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-head h1,
+  .page-title {
+    font-size: 32px;
+  }
+
+  .period-nav {
+    justify-content: space-between;
+  }
+
+  .period-nav .segmented {
+    flex: 1;
+  }
+
+  /* Summary cards swipe sideways. */
+  .tiles {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 -14px;
+    padding: 0 14px;
+    gap: 10px;
+    scrollbar-width: none;
+  }
+
+  .tiles::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tile {
+    flex: 0 0 82%;
+    scroll-snap-align: center;
+    min-height: 116px;
+  }
+
+  .tile-value {
+    font-size: 30px;
+  }
+
+  .analytics-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .when-card,
+  .list-card {
+    flex: 0 0 auto;
+    padding: 16px 14px;
+    border-radius: 28px;
+  }
+
+  .when-card .card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .when-days {
+    gap: 4px;
+  }
+
+  .when-head {
+    font-size: 10px;
+    white-space: normal;
+    line-height: 1.1;
+    height: 28px;
+  }
+
+  .when-col {
+    height: 220px;
+    border-radius: 12px;
+  }
+
+  .when-block {
+    left: 3px;
+    right: 3px;
+    border-radius: 6px;
+  }
+
+  .when-total {
+    font-size: 10px;
+  }
+
+  .entries {
+    max-height: none;
+  }
+
+  /* Settings stay one column with tighter cards. */
+  .settings-card {
+    padding: 18px;
+    border-radius: 28px;
+  }
+
+  /* Reflection and session editing slide up from the bottom. */
+  .drawer-backdrop {
+    align-items: flex-end;
+  }
+
+  .drawer {
+    width: 100%;
+    height: auto;
+    max-height: 92dvh;
+    padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+    border-radius: 32px 32px 0 0;
+    animation-name: slide-up;
+  }
+
+  .drawer::before,
+  .sheet::before {
+    content: "";
+    align-self: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--sunken);
+  }
+
+  .overlay {
+    place-items: end stretch;
+    padding: 0;
+  }
+
+  .sheet {
+    max-width: none;
+    max-height: 92dvh;
+    padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+    border-radius: 32px 32px 0 0;
+    animation: slide-up 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+}
