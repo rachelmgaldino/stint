@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { compactDuration, computeStats, nextRange, previousRange, rangeFor, type Range, type RangeKind } from "../analytics";
+import { compactDuration, computeStats, shortDuration, nextRange, previousRange, rangeFor, type Range, type RangeKind } from "../analytics";
 import { clockTime, dayLabel, startOfDay, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { ChevronLeft, ChevronRight, CoffeeIcon, PlusIcon } from "./icons";
 import { Pip, RatingFace } from "./Pip";
 import { capitalize, formatDate, locale, t } from "../i18n";
+import { DayAnalytics } from "./DayAnalytics";
 
 type Props = {
   range: Range;
@@ -15,6 +16,7 @@ type Props = {
   week: SessionRecord[];
   categories: Category[];
   now: number;
+  dailyGoal: number;
   onRange(r: Range): void;
   onOpen(s: SessionRecord): void;
   onAdd(): void;
@@ -58,6 +60,7 @@ function WhenChart({
   sessions,
   selected,
   now,
+  goal,
   colorOf,
   onDay,
   onOpen,
@@ -66,6 +69,8 @@ function WhenChart({
   sessions: SessionRecord[];
   selected: number | null;
   now: number;
+  /** Focus sessions per day; each column gets a dot per session towards it. */
+  goal: number;
   colorOf(s: SessionRecord): string;
   onDay(d: number): void;
   onOpen(s: SessionRecord): void;
@@ -78,6 +83,8 @@ function WhenChart({
   const step = span > 12 ? 4 : 3;
   const labels = Array.from({ length: Math.floor(span / step) + 1 }, (_, i) => from + i * step);
   const today = startOfDay(now);
+  const totals = days.map((d) => focus.filter((s) => startOfDay(s.startedAt) === d).reduce((a, s) => a + s.focusedMs, 0));
+  const best = Math.max(...totals) > 0 ? days[totals.indexOf(Math.max(...totals))] : null;
 
   return (
     <div className="when-chart">
@@ -100,7 +107,8 @@ function WhenChart({
                 onClick={() => onDay(d)}
                 aria-pressed={d === selected}
               >
-                {capitalize(formatDate(d, { weekday: "short" }))} {date.getDate()}
+                <span className="t-long">{capitalize(formatDate(d, { weekday: "short" }))}</span>
+                <span className="t-short">{capitalize(formatDate(d, { weekday: "narrow" }))}</span> {date.getDate()}
               </button>
               <div className="when-col">
                 {list.map((s) => {
@@ -118,7 +126,21 @@ function WhenChart({
                   );
                 })}
               </div>
-              <div className="when-total">{total ? compactDuration(total) : "–"}</div>
+              <div className={d === best ? "when-total best" : "when-total"} title={d === best ? t().analytics.bestDay : undefined}>
+                {total ? (
+                  <>
+                    <span className="t-long">{compactDuration(total)}</span>
+                    <span className="t-short">{shortDuration(total)}</span>
+                  </>
+                ) : (
+                  "–"
+                )}
+              </div>
+              <div className="when-goal" aria-hidden="true">
+                {Array.from({ length: Math.max(goal, list.length) }, (_, i) => (
+                  <span key={i} className={i < list.length ? "on" : ""} />
+                ))}
+              </div>
             </div>
           );
         })}
@@ -184,16 +206,22 @@ function DayChart({ perDay, kind, color }: { perDay: { day: number; ms: number }
   );
 }
 
-export function AnalyticsView({ range, sessions, previous, week, categories, now, onRange, onOpen, onAdd }: Props) {
+export function AnalyticsView({ range, sessions, previous, week, categories, now, dailyGoal, onRange, onOpen, onAdd }: Props) {
   const [notesOnly, setNotesOnly] = useState(false);
   const [filter, setFilter] = useState<number | "all">("all");
+  const [showAll, setShowAll] = useState(false);
+  // On a phone the list runs inside the page, so it shows a few and a button for the rest.
+  const phone = typeof matchMedia === "function" && matchMedia("(max-width: 640px)").matches;
+  const PHONE_LIMIT = 5;
 
   const matches = (s: SessionRecord) => filter === "all" || (s.kind === "focus" && s.categoryId === filter);
   const shown = sessions.filter(matches);
   const stats = computeStats(range, shown, previous.filter(matches), categories, now);
   const byId = new Map(categories.map((c) => [c.id, c]));
 
-  const listed = shown.filter((s) => !notesOnly || s.reflection).sort((a, b) => b.startedAt - a.startedAt);
+  const allListed = shown.filter((s) => !notesOnly || s.reflection).sort((a, b) => b.startedAt - a.startedAt);
+  const clamped = phone && !showAll && allListed.length > PHONE_LIMIT;
+  const listed = clamped ? allListed.slice(0, PHONE_LIMIT) : allListed;
   const days: { day: number; items: SessionRecord[] }[] = [];
   for (const s of listed) {
     const d = startOfDay(s.startedAt);
@@ -236,13 +264,28 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
         </div>
       </div>
 
+      {range.kind === "day" ? (
+        <DayAnalytics
+          day={range.from}
+          sessions={shown}
+          week={week.filter(matches)}
+          stats={stats}
+          categories={categories}
+          now={now}
+          dailyGoal={dailyGoal}
+          onDay={(d) => onRange(rangeFor("day", d))}
+          onOpen={onOpen}
+          onAdd={onAdd}
+        />
+      ) : (
+      <>
       <div className="tiles">
         <div className="tile apricot">
           <div>
             <div className="eyebrow">{text.focused}</div>
             <div className="tile-value">{compactDuration(stats.totalFocus)}</div>
             <div className="tile-sub">
-              {range.kind !== "day" && text.aDay(compactDuration(stats.avgFocusPerDay))}
+              {text.aDay(compactDuration(stats.avgFocusPerDay))}
               <Change value={stats.focusChange} />
             </div>
           </div>
@@ -286,9 +329,10 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
           {weekStart ? (
             <WhenChart
               days={weekStart}
-              sessions={range.kind === "week" ? shown : week.filter(matches)}
-              selected={range.kind === "day" ? range.from : null}
+              sessions={shown}
+              selected={null}
               now={now}
+              goal={dailyGoal}
               colorOf={colorOf}
               onDay={(d) => onRange(rangeFor("day", d))}
               onOpen={onOpen}
@@ -375,6 +419,11 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
               </div>
             ))}
           </div>
+          {clamped && (
+            <button className="show-all" onClick={() => setShowAll(true)}>
+              {text.showAll(allListed.length)}
+            </button>
+          )}
         </section>
       </div>
 
@@ -430,7 +479,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
               <p>{text.noFocusSessions}</p>
             </div>
           ) : (
-            <table className="breakdown">
+            <table className="breakdown intentions">
               <thead>
                 <tr>
                   <th>{text.intention}</th>
@@ -456,6 +505,8 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
           )}
         </section>
       </div>
+      </>
+      )}
     </main>
   );
 }
