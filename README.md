@@ -28,6 +28,7 @@ Everything is stored locally in SQLite.
   calendars' events beside your sessions (click one to set up a session for it)
 - Tray icon: hover for the time left; closing the window keeps the timer running
 - Light, dark or match-Windows theme
+- English or Portuguese (Brazil), picked in Settings
 - Space starts, pauses and resumes the timer; arrow keys adjust the dial
 
 ## Install on Windows

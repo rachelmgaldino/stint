@@ -1,5 +1,6 @@
 import { addDays, startOfDay, startOfWeek } from "./dates";
 import type { Category, SessionRecord } from "./store";
+import { t } from "./i18n";
 
 export type RangeKind = "day" | "week" | "month";
 export type Range = { kind: RangeKind; from: number; to: number };
@@ -120,7 +121,7 @@ export function computeStats(
       const c = names.get(id);
       return {
         key: id,
-        name: c?.name ?? "Removed category",
+        name: c?.name ?? t().analytics.removedCategory,
         color: c?.color ?? "var(--muted)",
         ms,
         ratio: all ? ms / all : 0,
@@ -131,7 +132,7 @@ export function computeStats(
   if (totalBreak > 0) {
     categoryRows.push({
       key: "break",
-      name: "Break",
+      name: t().break,
       color: "var(--break)",
       ms: totalBreak,
       ratio: totalBreak / all,
@@ -143,7 +144,7 @@ export function computeStats(
   const byIntention = new Map<string, { color: string; ms: number; sessions: number }>();
   for (const s of focus) {
     const c = s.categoryId !== null ? names.get(s.categoryId) : undefined;
-    const name = s.intention.trim() || c?.name || "No intention";
+    const name = s.intention.trim() || c?.name || t().analytics.noIntention;
     const row = byIntention.get(name) ?? { color: c?.color ?? "var(--accent)", ms: 0, sessions: 0 };
     byIntention.set(name, { ...row, ms: row.ms + s.focusedMs, sessions: row.sessions + 1 });
   }

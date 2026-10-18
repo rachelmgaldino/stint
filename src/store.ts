@@ -1,5 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import type { Kind } from "./timer";
+import type { Language } from "./i18n";
 
 export type Category = { id: number; name: string; color: string };
 
@@ -26,6 +27,7 @@ export type Settings = {
   focusMinutes: number;
   breakMinutes: number;
   theme: Theme;
+  language: Language;
   sound: boolean;
   /** Start a break automatically after the reflection is saved. */
   autoBreak: boolean;
@@ -59,6 +61,7 @@ export const defaultSettings: Settings = {
   focusMinutes: 25,
   breakMinutes: 5,
   theme: "system",
+  language: "en",
   sound: true,
   autoBreak: false,
   dailyGoal: 4,
