@@ -1,0 +1,20 @@
+name: Remove PR test release
+
+# Deletes the "PR #N test" pre-release (and its pr-N tag) once the PR is
+# merged or closed, so the Releases page only keeps real versions.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - run: gh release delete "pr-${{ github.event.pull_request.number }}" --cleanup-tag --yes || echo "No test release to remove."
