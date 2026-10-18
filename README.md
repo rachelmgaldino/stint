@@ -16,6 +16,11 @@ Everything is stored locally in SQLite.
 - A reflection after each session: what you got done and how it went
 - Day timeline with a week strip, daily totals and rating counts
 - Click a session to edit or delete it; add a session you forgot to time with +
+- Analytics by day, week or month: total and average focus, breaks, focus/break
+  ratio, rating counts, most focused and most distracted category, focus by day,
+  category and intention breakdowns with change from the previous period, and
+  the session list with notes, a notes-only toggle and a category filter
+- A mini timer bar along the bottom while you're on other screens
 - Notification and chime when time is up
 - Tray icon: hover for the time left; closing the window keeps the timer running
 - Light, dark or match-Windows theme
@@ -54,6 +59,6 @@ by the migrations in `src-tauri/src/lib.rs`.
 ## Roadmap
 
 1. Timer, focus goal, reflection, dark mode, desktop layout (done)
-2. Full history and analytics
+2. Full history and analytics (done)
 3. App and website blocking
 4. Global hotkeys, Do Not Disturb, calendar, Slack and music
