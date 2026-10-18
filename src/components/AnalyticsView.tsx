@@ -272,7 +272,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
         </div>
       </div>
 
-      <div className="analytics-row">
+      <div className="analytics-row top-row">
         <section className="card when-card" aria-label="When you focused">
           <div className="card-head">
             <h2>When you focused</h2>
@@ -335,7 +335,10 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
           </label>
           <div className="entries">
             {days.length === 0 && (
-              <p className="empty">{notesOnly ? "No sessions with notes in this period." : "No sessions in this period."}</p>
+              <div className="entries-empty">
+                <Pip mood="asleep" size={72} />
+                <p>{notesOnly ? "No sessions with notes in this period." : "No sessions in this period."}</p>
+              </div>
             )}
             {days.map(({ day, items }) => (
               <div key={day} className="entry-day">
@@ -370,13 +373,16 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
         </section>
       </div>
 
-      <div className="analytics-row">
+      <div className="analytics-row bottom-row">
         <section className="card table-card">
           <div className="card-head">
             <h2>Where the time went</h2>
           </div>
           {stats.categories.length === 0 ? (
-            <p className="empty">No sessions in this period.</p>
+            <div className="entries-empty">
+              <Pip mood="asleep" size={72} />
+              <p>No sessions in this period.</p>
+            </div>
           ) : (
             <table className="breakdown">
               <thead>
@@ -414,7 +420,10 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
             <h2>By intention</h2>
           </div>
           {stats.intentions.length === 0 ? (
-            <p className="empty">No focus sessions in this period.</p>
+            <div className="entries-empty">
+              <Pip mood="asleep" size={72} />
+              <p>No focus sessions in this period.</p>
+            </div>
           ) : (
             <table className="breakdown">
               <thead>
