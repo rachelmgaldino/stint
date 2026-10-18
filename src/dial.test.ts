@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampMinutes, lapAt, minuteAt, nextHourOffset, slicePath } from "./dial";
+import { clampMinutes, dragStep, lapAt, minuteAt, nextHourOffset, slicePath } from "./dial";
 
 describe("dial", () => {
   it("maps points around the face to minutes", () => {
@@ -22,6 +22,32 @@ describe("dial", () => {
     expect(lapAt(66)).toEqual({ lap: 2, fraction: 0.1 });
     expect(lapAt(147)).toEqual({ lap: 3, fraction: 0.45 });
     expect(lapAt(180)).toEqual({ lap: 3, fraction: 1 });
+  });
+
+  it("parks at the max when dragged past the last lap, until dragged back", () => {
+    let s = { hourOffset: 120, prev: 58, pinned: null as "min" | "max" | null };
+    let r = dragStep(s, 2, 180);
+    expect(r.minutes).toBe(180);
+    r = dragStep(r.state, 20, 180);
+    expect(r.minutes).toBe(180);
+    r = dragStep({ ...r.state, prev: 5 }, 57, 180);
+    expect(r.minutes).toBe(177);
+    s = r.state;
+    expect(s.pinned).toBeNull();
+  });
+
+  it("parks at 1 minute when dragged back past 12 in the first lap", () => {
+    let r = dragStep({ hourOffset: 0, prev: 2, pinned: null }, 58, 180);
+    expect(r.minutes).toBe(1);
+    r = dragStep(r.state, 40, 180);
+    expect(r.minutes).toBe(1);
+    r = dragStep({ ...r.state, prev: 55 }, 3, 180);
+    expect(r.minutes).toBe(3);
+  });
+
+  it("still moves between laps inside the range", () => {
+    const r = dragStep({ hourOffset: 60, prev: 59, pinned: null }, 1, 180);
+    expect(r.minutes).toBe(121);
   });
 
   it("clamps to whole minutes within range", () => {
