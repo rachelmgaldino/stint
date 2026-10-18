@@ -76,6 +76,9 @@ export function TimerPane(p: Props) {
         ? text.overSince(clockTime(plannedEnd))
         : text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd));
 
+  // The dial stops at the longest length; say so under the clock.
+  const atMax = left > 0 && Math.round(minutes) >= maxMinutes;
+
   // Pip grows a leaf for every full hour on the dial.
   const extraLeaves = kind === "focus" ? lapAt(minutes).lap - 1 : 0;
 
@@ -102,6 +105,7 @@ export function TimerPane(p: Props) {
       {!(kind === "break" && active) && (
         <>
           <span className={overtime ? "dial-time overtime" : "dial-time"}>{dialClock(left)}</span>
+          {atMax && <span className="dial-max">{text.max}</span>}
           <span className="dial-sub">{subline}</span>
         </>
       )}
