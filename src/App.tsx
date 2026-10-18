@@ -10,14 +10,17 @@ import {
 } from "./store";
 import * as T from "./timer";
 import { addDays, startOfDay, startOfWeek } from "./dates";
+import { previousRange, rangeFor, type Range } from "./analytics";
 import { TimerPane } from "./components/TimerPane";
 import { DayPane, type LiveBlock } from "./components/DayPane";
 import { SettingsView } from "./components/SettingsView";
 import { Reflection, type PendingReflection } from "./components/Reflection";
 import { SessionDialog } from "./components/SessionDialog";
-import { ClockIcon, GearIcon } from "./components/icons";
+import { AnalyticsView } from "./components/AnalyticsView";
+import { MiniTimer } from "./components/MiniTimer";
+import { ChartIcon, ClockIcon, GearIcon } from "./components/icons";
 
-type View = "timer" | "settings";
+type View = "timer" | "analytics" | "settings";
 
 // The running timer and what it's for, kept in localStorage so a restart of
 // the app doesn't lose a session in progress.
@@ -55,6 +58,12 @@ export default function App() {
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   const [week, setWeek] = useState<SessionRecord[]>([]);
   const [today, setToday] = useState<SessionRecord[]>([]);
+  const [range, setRange] = useState<Range>(() => rangeFor("day", Date.now()));
+  const [rangeData, setRangeData] = useState<{ sessions: SessionRecord[]; previous: SessionRecord[]; week: SessionRecord[] }>({
+    sessions: [],
+    previous: [],
+    week: [],
+  });
   const [now, setNow] = useState(Date.now());
   const endedNotified = useRef(false);
 
@@ -77,13 +86,19 @@ export default function App() {
     if (!store) return;
     const from = startOfWeek(day);
     const t = startOfDay(Date.now());
-    const [w, td] = await Promise.all([
+    const prev = previousRange(range);
+    const rangeWeek = startOfWeek(range.from);
+    const [w, td, rs, ps, rw] = await Promise.all([
       store.sessionsBetween(from, addDays(from, 7)),
       store.sessionsBetween(t, addDays(t, 1)),
+      store.sessionsBetween(range.from, range.to),
+      store.sessionsBetween(prev.from, prev.to),
+      store.sessionsBetween(rangeWeek, addDays(rangeWeek, 7)),
     ]);
     setWeek(w);
     setToday(td);
-  }, [store, day]);
+    setRangeData({ sessions: rs, previous: ps, week: rw });
+  }, [store, day, range]);
 
   useEffect(() => {
     refresh();
@@ -197,7 +212,7 @@ export default function App() {
     refresh();
   };
 
-  const newSession = (): SessionRecord => {
+  const newSession = (day: number): SessionRecord => {
     // Default to the hour before now on today, or 9:00 on another day.
     const n = Date.now();
     const start = day === startOfDay(n) ? Math.max(day, Math.floor((n - 3_600_000) / 60_000) * 60_000) : day + 9 * 3_600_000;
@@ -214,6 +229,15 @@ export default function App() {
       reflection: "",
       rating: 0,
     };
+  };
+
+  const adjust = (minutes: number) => {
+    if (timer.status === "idle") {
+      const max = idleKind === "focus" ? 180 : 60;
+      setPlannedMin((m) => Math.min(max, Math.max(1, m + minutes)));
+    } else {
+      setRemaining(Math.max(1, Math.ceil(T.remaining(timer, Date.now()) / 60_000) + minutes));
+    }
   };
 
   const updateSettings = async (s: Settings) => {
@@ -271,6 +295,15 @@ export default function App() {
           <ClockIcon />
           {timer.status !== "idle" && <span className="side-dot" />}
         </button>
+        <button
+          className={view === "analytics" ? "side-button active" : "side-button"}
+          onClick={() => setView("analytics")}
+          aria-current={view === "analytics" ? "page" : undefined}
+          title="Analytics"
+          aria-label="Analytics"
+        >
+          <ChartIcon />
+        </button>
         <span className="side-spacer" />
         <button
           className={view === "settings" ? "side-button active" : "side-button"}
@@ -314,9 +347,21 @@ export default function App() {
             live={liveBlock}
             onDay={setDay}
             onOpen={setEditing}
-            onAdd={() => setEditing(newSession())}
+            onAdd={() => setEditing(newSession(day))}
           />
         </div>
+      ) : view === "analytics" ? (
+        <AnalyticsView
+          range={range}
+          sessions={rangeData.sessions}
+          previous={rangeData.previous}
+          week={rangeData.week}
+          categories={categories}
+          now={now}
+          onRange={setRange}
+          onOpen={setEditing}
+          onAdd={() => setEditing(newSession(range.kind === "day" ? range.from : startOfDay(Date.now())))}
+        />
       ) : (
         <main className="settings-page">
           <SettingsView
@@ -327,6 +372,22 @@ export default function App() {
             onCategoriesChanged={reloadCategories}
           />
         </main>
+      )}
+
+      {view !== "timer" && (
+        <MiniTimer
+          timer={timer}
+          now={now}
+          kind={timer.status === "idle" ? idleKind : timer.kind}
+          plannedMin={plannedMin}
+          intention={live.intention}
+          category={category}
+          onStart={() => startTimer(idleKind, plannedMin)}
+          onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
+          onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
+          onAdjust={adjust}
+          onOpenTimer={() => setView("timer")}
+        />
       )}
 
       {pending && <Reflection pending={pending} onSave={saveReflection} onSkip={() => setPending(null)} />}

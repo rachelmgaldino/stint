@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import type { Category, SessionRecord } from "../store";
-import { addDays, clockTime, dayLabel, msIntoDay, startOfDay, weekDays } from "../dates";
+import { addDays, clockTime, dayLabel, msIntoDay, startOfDay } from "../dates";
 import { formatDuration } from "../timer";
 import { ChevronLeft, ChevronRight, PlusIcon } from "./icons";
+import { WeekStrip } from "./WeekStrip";
 
 const HOUR_PX = 64;
 const DAY_MS = 86_400_000;
@@ -20,12 +21,6 @@ type Props = {
   onOpen(s: SessionRecord): void;
   onAdd(): void;
 };
-
-/** "3:18" for 3 h 18 min, as in the week strip. */
-function hoursMinutes(ms: number): string {
-  const m = Math.round(ms / 60_000);
-  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
-}
 
 function focusTotal(list: SessionRecord[]): number {
   return list.filter((s) => s.kind === "focus").reduce((a, s) => a + s.focusedMs, 0);
@@ -75,30 +70,11 @@ export function DayPane({ day, now, week, categories, live, onDay, onOpen, onAdd
         </button>
       </header>
 
-      <div className="week-strip" role="tablist" aria-label="Week">
-        {weekDays(day).map((d) => {
-          const total = focusTotal(week.filter((s) => startOfDay(s.startedAt) === d));
-          const date = new Date(d);
-          return (
-            <button
-              key={d}
-              role="tab"
-              aria-selected={d === day}
-              className={d === day ? "week-day selected" : "week-day"}
-              onClick={() => onDay(d)}
-            >
-              <span className="wd">{date.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase()}</span>
-              <span className="dn">{date.getDate()}</span>
-              {d === today && <span className="today-dot" />}
-              <span className="wt">{hoursMinutes(total)}</span>
-            </button>
-          );
-        })}
-      </div>
+      <WeekStrip day={day} now={now} week={week} onDay={onDay} />
 
       <div className="day-summary">
-        <span title="Great">{count(3)} ↑</span> · <span title="Okay">{count(2)} →</span> ·{" "}
-        <span title="Rough">{count(1)} ↓</span>
+        <span title="Focused">{count(3)} ↑</span> · <span title="Neutral">{count(2)} →</span> ·{" "}
+        <span title="Distracted">{count(1)} ↓</span>
         <strong>{formatDuration(focusTotal(sessions)).toUpperCase()} FOCUS</strong>
       </div>
 
