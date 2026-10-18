@@ -23,6 +23,8 @@ import { ChartIcon, ClockIcon, SlidersIcon } from "./components/icons";
 import { GoalSprouts, Pip } from "./components/Pip";
 import { soft } from "./colors";
 import { setLanguage, t } from "./i18n";
+import { DEMO } from "./demo";
+import { DemoBanner } from "./components/DemoBanner";
 
 type View = "timer" | "analytics" | "settings";
 
@@ -416,6 +418,7 @@ export default function App() {
 
   return (
     <div className="shell" data-mode={mode}>
+      {DEMO && <DemoBanner language={settings.language} />}
       <header className="topbar">
         <div className="brand">
           <Pip size={40} label="Pip" />
