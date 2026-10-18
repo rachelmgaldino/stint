@@ -51,3 +51,30 @@ export const PlusIcon = () => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+
+export const ChartIcon = () => (
+  <svg {...base}>
+    <path d="M6 20v-6M12 20V5M18 20v-9" />
+  </svg>
+);
+
+export const PlayIcon = () => (
+  <svg width={20} height={20} viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor" />
+  </svg>
+);
+
+export const PauseIcon = () => (
+  <svg width={20} height={20} viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
+    <rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
+  </svg>
+);
+
+export const MoreIcon = () => (
+  <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="5" cy="12" r="1.8" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.8" fill="currentColor" />
+  </svg>
+);

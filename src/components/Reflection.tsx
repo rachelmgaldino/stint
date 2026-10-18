@@ -5,9 +5,9 @@ import { formatDuration } from "../timer";
 export type PendingReflection = SessionRecord;
 
 export const ratings = [
-  { value: 1, label: "↓ Rough" },
-  { value: 2, label: "→ Okay" },
-  { value: 3, label: "↑ Great" },
+  { value: 1, label: "↓ Distracted" },
+  { value: 2, label: "→ Neutral" },
+  { value: 3, label: "↑ Focused" },
 ];
 
 export function Reflection({
