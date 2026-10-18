@@ -1,42 +1,38 @@
-import { useRef } from "react";
-import { clampMinutes, minuteAt, nextHourOffset, slicePath } from "../dial";
+import { useRef, type ReactNode } from "react";
+import { clampMinutes, minuteAt, nextHourOffset } from "../dial";
 
 type Props = {
-  /** Minutes shown by the slice. Over 60 fills the whole face. */
+  /** Minutes shown by the ring. Over 60 fills the whole ring. */
   minutes: number;
+  /** Ring colour and the darker "lip" used for the knob's centre. */
   color: string;
+  lip: string;
   maxMinutes: number;
   /** Called with whole minutes while the user drags. Omit to make the dial read-only. */
   onChange?(minutes: number): void;
   label: string;
+  /** Drawn in the middle of the flower: Pip and the clock. */
+  children?: ReactNode;
 };
 
-const SIZE = 320;
+const SIZE = 360;
 const C = SIZE / 2;
-const FACE = 100;
+const RING = 140;
+const CIRCUMFERENCE = 2 * Math.PI * RING;
 
-const ticks = Array.from({ length: 60 }, (_, i) => {
-  const a = (i / 60) * 2 * Math.PI;
-  const major = i % 15 === 0;
-  const mid = i % 5 === 0;
-  const outer = 150;
-  const inner = major ? 132 : mid ? 136 : 142;
-  return {
-    x1: C + outer * Math.sin(a),
-    y1: C - outer * Math.cos(a),
-    x2: C + inner * Math.sin(a),
-    y2: C - inner * Math.cos(a),
-    cls: major ? "tick major" : mid ? "tick mid" : "tick",
-  };
-});
+// A scalloped flower behind the ring.
+const PETALS = "M180 2L189 5L197 11L204 17L212 21L220 21L229 17L239 15L248 16L255 21L260 30L264 39L270 45L278 48L288 49L298 50L306 54L310 62L311 72L312 82L315 90L321 96L330 100L339 105L344 112L345 121L343 131L339 140L339 148L343 156L349 163L355 171L358 180L355 189L349 197L343 204L339 212L339 220L343 229L345 239L344 248L339 255L330 260L321 264L315 270L312 278L311 288L310 298L306 306L298 310L288 311L278 312L270 315L264 321L260 330L255 339L248 344L239 345L229 343L220 339L212 339L204 343L197 349L189 355L180 358L171 355L163 349L156 343L148 339L140 339L131 343L121 345L112 344L105 339L100 330L96 321L90 315L82 312L72 311L62 310L54 306L50 298L49 288L48 278L45 270L39 264L30 260L21 255L16 248L15 239L17 229L21 220L21 212L17 204L11 197L5 189L2 180L5 171L11 163L17 156L21 148L21 140L17 131L15 121L16 112L21 105L30 100L39 96L45 90L48 82L49 72L50 62L54 54L62 50L72 49L82 48L90 45L96 39L100 30L105 21L112 16L121 15L131 17L140 21L148 21L156 17L163 11L171 5Z";
 
-export function Dial({ minutes, color, maxMinutes, onChange, label }: Props) {
-  const svg = useRef<SVGSVGElement>(null);
+export function Dial({ minutes, color, lip, maxMinutes, onChange, label, children }: Props) {
+  const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ hourOffset: number; prev: number } | null>(null);
-  const fraction = Math.min(1, Math.max(0, minutes / 60));
+  // Stop just short of a full turn so the knob doesn't sit on the ring's start.
+  const fraction = Math.min(59.5, Math.max(0, minutes)) / 60;
+  const angle = fraction * 2 * Math.PI;
+  const knob = { x: C + RING * Math.sin(angle), y: C - RING * Math.cos(angle) };
 
   const pointMinute = (e: React.PointerEvent) => {
-    const r = svg.current!.getBoundingClientRect();
+    const r = box.current!.getBoundingClientRect();
     const scale = SIZE / r.width;
     return minuteAt((e.clientX - r.left) * scale - C, (e.clientY - r.top) * scale - C);
   };
@@ -73,10 +69,9 @@ export function Dial({ minutes, color, maxMinutes, onChange, label }: Props) {
   };
 
   return (
-    <svg
-      ref={svg}
+    <div
+      ref={box}
       className={onChange ? "dial interactive" : "dial"}
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
       role={onChange ? "slider" : "img"}
       aria-label={label}
       aria-valuemin={onChange ? 1 : undefined}
@@ -89,24 +84,29 @@ export function Dial({ minutes, color, maxMinutes, onChange, label }: Props) {
       onPointerCancel={onUp}
       onKeyDown={onKey}
     >
-      <defs>
-        <radialGradient id="dial-sheen" cx="35%" cy="30%" r="80%">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {ticks.map((t, i) => (
-        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} className={t.cls} />
-      ))}
-      <circle cx={C} cy={C} r={FACE} className="dial-face" />
-      {fraction > 0 && (
-        <>
-          <path d={slicePath(C, C, FACE, fraction)} fill={color} />
-          <path d={slicePath(C, C, FACE, fraction)} fill="url(#dial-sheen)" />
-        </>
-      )}
-      <line x1={C} y1={C} x2={C} y2={C - FACE - 20} stroke={color} strokeWidth="6" strokeLinecap="round" />
-      <circle cx={C} cy={C} r="16" className="dial-knob" />
-    </svg>
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
+        <path d={PETALS} className="dial-petals" />
+        <circle cx={C} cy={C} r={RING} className="dial-track" />
+        {fraction > 0 && (
+          <circle
+            cx={C}
+            cy={C}
+            r={RING}
+            className="dial-arc"
+            stroke={color}
+            strokeDasharray={`${(fraction * CIRCUMFERENCE).toFixed(1)} ${CIRCUMFERENCE.toFixed(1)}`}
+            transform={`rotate(-90 ${C} ${C})`}
+          />
+        )}
+        {onChange && (
+          <>
+            <circle cx={knob.x} cy={knob.y} r="17" className="dial-knob" />
+            <circle cx={knob.x} cy={knob.y} r="9" fill={lip} />
+          </>
+        )}
+        <circle cx={C} cy={C} r="112" className="dial-face" />
+      </svg>
+      <div className="dial-center">{children}</div>
+    </div>
   );
 }

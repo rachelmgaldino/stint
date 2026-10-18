@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Category, SessionRecord } from "../store";
 import { atTime, clockTime, dayLabel, startOfDay } from "../dates";
 import { formatDuration } from "../timer";
-import { ratings } from "./Reflection";
+import { RatingPicker } from "./Reflection";
 
 type Props = {
   /** The session to edit, or a new one to add (id 0). */
@@ -86,18 +86,7 @@ export function SessionDialog({ session, categories, onSave, onDelete, onClose }
           <>
             <label htmlFor="sd-reflection">What did you get done?</label>
             <textarea id="sd-reflection" rows={3} value={reflection} onChange={(e) => setReflection(e.target.value)} />
-            <div className="rating" role="group" aria-label="How did it go?">
-              {ratings.map((r) => (
-                <button
-                  type="button"
-                  key={r.value}
-                  className={rating === r.value ? "preset active" : "preset"}
-                  onClick={() => setRating(rating === r.value ? 0 : r.value)}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            <RatingPicker value={rating} onChange={setRating} />
           </>
         )}
 
