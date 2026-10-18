@@ -153,12 +153,7 @@
   background: linear-gradient(135deg, #dde6d6 50%, #1e2e26 50%);
 }
 
-/* Mochi's fur matches the focus card, so Mochi sits on a white sticker there. */
+/* Mochi's fur matches the focus card, so a soft shadow lifts Mochi off it. */
 :root[data-look="mochi"] .tile.apricot .pip {
-  width: 72px;
-  height: 72px;
-  padding: 6px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 3px 0 rgb(35 54 44 / 0.14);
+  filter: drop-shadow(0 4px 6px rgb(35 54 44 / 0.45));
 }
