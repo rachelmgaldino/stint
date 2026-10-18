@@ -5,6 +5,7 @@ import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { ChevronLeft, ChevronRight, CoffeeIcon, PlusIcon } from "./icons";
 import { Pip, RatingFace } from "./Pip";
+import { capitalize, formatDate, locale, t } from "../i18n";
 
 type Props = {
   range: Range;
@@ -19,23 +20,25 @@ type Props = {
   onAdd(): void;
 };
 
-const ratingName = ["Not rated", "Distracted", "Neutral", "Focused"];
+/** "Saturday 17 October", or "Sábado, 17 de outubro" in Portuguese. */
+const longDay = (ms: number) => capitalize(formatDate(ms, { weekday: "long", day: "numeric", month: "long" }));
 
 /** "Today", "Saturday 17 October", "12 to 18 October" or "October 2026". */
 function periodLabel(r: Range, now: number): string {
+  const text = t().analytics;
   if (r.kind === "day") {
-    if (r.from === startOfDay(now)) return "Today";
-    return new Date(r.from).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    if (r.from === startOfDay(now)) return text.today;
+    return longDay(r.from);
   }
   if (r.kind === "week") {
     const a = new Date(r.from);
     const b = new Date(r.to - 1);
-    const month = (d: Date) => d.toLocaleDateString("en-GB", { month: "long" });
+    const month = (d: Date) => formatDate(d.getTime(), { month: "long" });
     return a.getMonth() === b.getMonth()
-      ? `${a.getDate()} to ${b.getDate()} ${month(b)}`
-      : `${a.getDate()} ${month(a)} to ${b.getDate()} ${month(b)}`;
+      ? text.weekSpan(a.getDate(), b.getDate(), month(b))
+      : text.weekSpanAcross(a.getDate(), month(a), b.getDate(), month(b));
   }
-  return new Date(r.from).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  return capitalize(formatDate(r.from, { month: "long", year: "numeric" }));
 }
 
 /** A friendly line about when most of the focus happened. */
@@ -45,8 +48,8 @@ function peakLine(focus: SessionRecord[]): string {
     const h = new Date(s.startedAt).getHours();
     parts[h < 12 ? 0 : h < 17 ? 1 : 2] += s.focusedMs;
   }
-  if (!parts.some((v) => v > 0)) return "Nothing yet";
-  return ["Mornings are your thing", "Afternoons are your thing", "Evenings are your thing"][parts.indexOf(Math.max(...parts))];
+  if (!parts.some((v) => v > 0)) return t().analytics.nothingYet;
+  return t().analytics.peak[parts.indexOf(Math.max(...parts))];
 }
 
 /** Each day of the week as a column, with its focus sessions placed by time of day. */
@@ -97,7 +100,7 @@ function WhenChart({
                 onClick={() => onDay(d)}
                 aria-pressed={d === selected}
               >
-                {date.toLocaleDateString("en-GB", { weekday: "short" })} {date.getDate()}
+                {capitalize(formatDate(d, { weekday: "short" }))} {date.getDate()}
               </button>
               <div className="when-col">
                 {list.map((s) => {
@@ -109,8 +112,8 @@ function WhenChart({
                       className="when-block"
                       style={{ top: `${top}%`, height: `max(8px, ${height}%)`, background: colorOf(s) }}
                       onClick={() => onOpen(s)}
-                      title={`${s.intention || "Focus"}, ${clockTime(s.startedAt)} to ${clockTime(s.endedAt)}`}
-                      aria-label={`${s.intention || "Focus"}, ${clockTime(s.startedAt)} to ${clockTime(s.endedAt)}`}
+                      title={`${s.intention || t().focus}, ${t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
+                      aria-label={`${s.intention || t().focus}, ${t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
                     />
                   );
                 })}
@@ -151,7 +154,7 @@ function DayChart({ perDay, kind, color }: { perDay: { day: number; ms: number }
   const lines = Array.from({ length: Math.floor(max / step) }, (_, i) => (i + 1) * step);
   return (
     <div className="day-chart-wrap">
-      <div className="day-chart" role="img" aria-label="Focus time for each day of the period">
+      <div className="day-chart" role="img" aria-label={t().analytics.perDayChart}>
         {lines.map((v) => (
           <div key={v} className="grid-line" style={{ bottom: `${(v / max) * 100}%` }}>
             <span>{v / 3_600_000}h</span>
@@ -161,7 +164,7 @@ function DayChart({ perDay, kind, color }: { perDay: { day: number; ms: number }
           {perDay.map((d) => {
             const date = new Date(d.day);
             const label =
-              kind === "week" ? date.toLocaleDateString("en-GB", { weekday: "short" }) : String(date.getDate());
+              kind === "week" ? capitalize(formatDate(d.day, { weekday: "short" })) : String(date.getDate());
             return (
               <div key={d.day} className="bar-slot" tabIndex={0} aria-label={`${dayLabel(d.day)}: ${compactDuration(d.ms)}`}>
                 <div className="bar" style={{ height: `${(d.ms / max) * 100}%`, background: color }} />
@@ -205,27 +208,29 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
   const pct = (n: number) => `${rated ? (n / rated) * 100 : 0}%`;
   const weekStart = range.kind === "month" ? null : weekDays(range.from);
   const focusCats = stats.categories.filter((c) => c.key !== "break");
+  const text = t().analytics;
+  const ratingName = t().ratings;
 
   return (
     <main className="analytics">
       <div className="page-head">
         <h1>{periodLabel(range, now)}</h1>
         <div className="period-nav">
-          <button className="round-button" aria-label="Previous period" onClick={() => onRange(previousRange(range))}>
+          <button className="round-button" aria-label={text.previous} onClick={() => onRange(previousRange(range))}>
             <ChevronLeft />
           </button>
-          <div className="segmented dark" role="group" aria-label="Range">
+          <div className="segmented dark" role="group" aria-label={text.range}>
             {(["day", "week", "month"] as RangeKind[]).map((k) => (
               <button
                 key={k}
                 aria-pressed={range.kind === k}
                 onClick={() => onRange(rangeFor(k, k === "day" && range.kind !== "day" ? Math.min(now, range.to - 1) : range.from))}
               >
-                {k[0].toUpperCase() + k.slice(1)}
+                {text.kinds[k]}
               </button>
             ))}
           </div>
-          <button className="round-button" aria-label="Next period" onClick={() => onRange(nextRange(range))}>
+          <button className="round-button" aria-label={text.next} onClick={() => onRange(nextRange(range))}>
             <ChevronRight />
           </button>
         </div>
@@ -234,48 +239,48 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
       <div className="tiles">
         <div className="tile apricot">
           <div>
-            <div className="eyebrow">FOCUSED</div>
+            <div className="eyebrow">{text.focused}</div>
             <div className="tile-value">{compactDuration(stats.totalFocus)}</div>
             <div className="tile-sub">
-              {range.kind !== "day" && <>{compactDuration(stats.avgFocusPerDay)} a day · </>}
+              {range.kind !== "day" && text.aDay(compactDuration(stats.avgFocusPerDay))}
               <Change value={stats.focusChange} />
             </div>
           </div>
           <Pip mood={stats.totalFocus > 0 ? "cheer" : "awake"} size={60} />
         </div>
         <div className="tile">
-          <div className="eyebrow muted">HOW IT FELT</div>
-          <div className="felt-bar" role="img" aria-label={`${stats.ratings.focused} focused, ${stats.ratings.neutral} neutral, ${stats.ratings.distracted} distracted`}>
+          <div className="eyebrow muted">{text.howItFelt}</div>
+          <div className="felt-bar" role="img" aria-label={text.feltCounts(stats.ratings.focused, stats.ratings.neutral, stats.ratings.distracted)}>
             <span className="r3" style={{ width: pct(stats.ratings.focused) }} />
             <span className="r2" style={{ width: pct(stats.ratings.neutral) }} />
             <span className="r1" style={{ width: pct(stats.ratings.distracted) }} />
           </div>
           <div className="tile-sub">
-            {stats.ratings.focused} focused · {stats.ratings.neutral} neutral · {stats.ratings.distracted} distracted
+            {text.feltCounts(stats.ratings.focused, stats.ratings.neutral, stats.ratings.distracted)}
           </div>
           {(stats.mostFocused || stats.mostDistracted) && (
             <div className="tile-sub muted">
-              {stats.mostFocused && <>Most focused: {stats.mostFocused}</>}
+              {stats.mostFocused && text.mostFocused(stats.mostFocused)}
               {stats.mostFocused && stats.mostDistracted && " · "}
-              {stats.mostDistracted && <>Most distracted: {stats.mostDistracted}</>}
+              {stats.mostDistracted && text.mostDistracted(stats.mostDistracted)}
             </div>
           )}
         </div>
         <div className="tile matcha">
-          <div className="eyebrow">BREAKS</div>
+          <div className="eyebrow">{text.breaks}</div>
           <div className="tile-value">{compactDuration(stats.totalBreak)}</div>
           <div className="tile-sub">
             {stats.focusPerBreak === null
-              ? "No breaks taken"
-              : `${stats.focusPerBreak.toFixed(1)} minutes of focus per break minute`}
+              ? text.noBreaks
+              : text.focusPerBreak(stats.focusPerBreak.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }))}
           </div>
         </div>
       </div>
 
       <div className="analytics-row top-row">
-        <section className="card when-card" aria-label="When you focused">
+        <section className="card when-card" aria-label={text.whenYouFocused}>
           <div className="card-head">
-            <h2>When you focused</h2>
+            <h2>{text.whenYouFocused}</h2>
             <span className="muted small strong">{peakLine(shown.filter((s) => s.kind === "focus"))}</span>
           </div>
           {weekStart ? (
@@ -307,25 +312,25 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
           )}
         </section>
 
-        <section className="card list-card" aria-label="Sessions">
+        <section className="card list-card" aria-label={text.sessions}>
           <div className="card-head">
-            <h2>Sessions</h2>
+            <h2>{text.sessions}</h2>
             <div className="list-tools">
               <button className="chip-button" aria-pressed={notesOnly} onClick={() => setNotesOnly(!notesOnly)}>
-                Notes only
+                {text.notesOnly}
               </button>
-              <button className="add-button" aria-label="Add a session" title="Add a session" onClick={onAdd}>
+              <button className="add-button" aria-label={text.addSession} title={text.addSession} onClick={onAdd}>
                 <PlusIcon />
               </button>
             </div>
           </div>
           <label className="select-pill">
             <select
-              aria-label="Filter by category"
+              aria-label={text.filter}
               value={filter}
               onChange={(e) => setFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
             >
-              <option value="all">All categories</option>
+              <option value="all">{text.allCategories}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -337,13 +342,13 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
             {days.length === 0 && (
               <div className="entries-empty">
                 <Pip mood="asleep" size={72} />
-                <p>{notesOnly ? "No sessions with notes in this period." : "No sessions in this period."}</p>
+                <p>{notesOnly ? text.noNotes : text.noSessions}</p>
               </div>
             )}
             {days.map(({ day, items }) => (
               <div key={day} className="entry-day">
                 {range.kind !== "day" && (
-                  <h3>{new Date(day).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h3>
+                  <h3>{longDay(day)}</h3>
                 )}
                 {items.map((s) => {
                   const c = s.categoryId !== null ? byId.get(s.categoryId) : undefined;
@@ -354,12 +359,12 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
                       <span className="entry-top">
                         <span className="entry-title">
                           {isBreak ? <CoffeeIcon /> : <span className="dot" style={{ background: colorOf(s) }} />}
-                          {isBreak ? "Break" : s.intention || c?.name || "Focus"}
+                          {isBreak ? t().break : s.intention || c?.name || t().focus}
                         </span>
                         <span className="entry-len">{compactDuration(s.focusedMs)}</span>
                       </span>
                       <span className="entry-when">
-                        {clockTime(s.startedAt)} to {clockTime(s.endedAt)}
+                        {t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}
                         {extra.length > 0 && ` · ${extra.join(" · ")}`}
                         {!isBreak && s.rating > 0 && <RatingFace value={s.rating} size={18} />}
                       </span>
@@ -376,21 +381,21 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
       <div className="analytics-row bottom-row">
         <section className="card table-card">
           <div className="card-head">
-            <h2>Where the time went</h2>
+            <h2>{text.whereTimeWent}</h2>
           </div>
           {stats.categories.length === 0 ? (
             <div className="entries-empty">
               <Pip mood="asleep" size={72} />
-              <p>No sessions in this period.</p>
+              <p>{text.noSessions}</p>
             </div>
           ) : (
             <table className="breakdown">
               <thead>
                 <tr>
-                  <th>Category</th>
-                  <th>Share</th>
-                  <th>Change</th>
-                  <th>Time</th>
+                  <th>{text.category}</th>
+                  <th>{text.share}</th>
+                  <th>{text.change}</th>
+                  <th>{text.time}</th>
                 </tr>
               </thead>
               <tbody>
@@ -417,21 +422,21 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
 
         <section className="card table-card">
           <div className="card-head">
-            <h2>By intention</h2>
+            <h2>{text.byIntention}</h2>
           </div>
           {stats.intentions.length === 0 ? (
             <div className="entries-empty">
               <Pip mood="asleep" size={72} />
-              <p>No focus sessions in this period.</p>
+              <p>{text.noFocusSessions}</p>
             </div>
           ) : (
             <table className="breakdown">
               <thead>
                 <tr>
-                  <th>Intention</th>
-                  <th>Share</th>
-                  <th>Sessions</th>
-                  <th>Time</th>
+                  <th>{text.intention}</th>
+                  <th>{text.share}</th>
+                  <th>{text.sessionsCol}</th>
+                  <th>{text.time}</th>
                 </tr>
               </thead>
               <tbody>

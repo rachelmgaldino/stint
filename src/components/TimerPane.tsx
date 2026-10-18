@@ -8,6 +8,7 @@ import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
 import { CalendarIcon, PlayIcon, StopIcon } from "./icons";
+import { t } from "../i18n";
 
 type Props = {
   timer: T.Timer;
@@ -64,14 +65,15 @@ export function TimerPane(p: Props) {
   const maxMinutes = kind === "focus" ? 180 : 60;
   const minutes = Math.max(0, left) / 60_000;
   const plannedEnd = timer.status === "running" ? timer.endsAt : now + Math.max(0, left);
+  const text = t().timer;
 
   const subline = !active
-    ? `ends at ${clockTime(now + left)}`
+    ? text.endsAt(clockTime(now + left))
     : timer.status === "paused"
-      ? "Paused"
+      ? text.paused
       : overtime
-        ? `Over time since ${clockTime(plannedEnd)}`
-        : `${clockTime(timer.startedAt)} to ${clockTime(plannedEnd)}`;
+        ? text.overSince(clockTime(plannedEnd))
+        : text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd));
 
   // Pip grows a leaf for every full hour on the dial.
   const extraLeaves = kind === "focus" ? lapAt(minutes).lap - 1 : 0;
@@ -81,7 +83,7 @@ export function TimerPane(p: Props) {
       minutes={minutes}
       laps={kind === "focus" ? focusLaps : breakLaps}
       maxMinutes={maxMinutes}
-      label={active ? "Time remaining, drag to adjust" : "Session length, drag to set"}
+      label={active ? text.dialRunning : text.dialIdle}
       onChange={active ? p.onSetRemaining : p.onPlannedMin}
     >
       <span className="dial-pip">
@@ -107,7 +109,7 @@ export function TimerPane(p: Props) {
 
   if (active && kind === "focus") {
     return (
-      <section className="stage focus-stage" aria-label="Focusing">
+      <section className="stage focus-stage" aria-label={text.focusing}>
         <div className="stage-dial">{dial(88)}</div>
         <div className="stage-side">
           <div className="stage-what">
@@ -117,33 +119,33 @@ export function TimerPane(p: Props) {
                 {category.name}
               </span>
             )}
-            <h1>{p.intention.trim() || "Focusing"}</h1>
+            <h1>{p.intention.trim() || text.focusing}</h1>
           </div>
           <div className="button-row">
             <button className="squishy apricot big grow" onClick={p.onFinish}>
-              <StopIcon /> End session
+              <StopIcon /> {text.endSession}
             </button>
             {timer.status === "running" ? (
               <button className="soft-button big" onClick={p.onPause}>
-                Pause
+                {text.pause}
               </button>
             ) : (
               <button className="soft-button big" onClick={p.onResume}>
-                Resume
+                {text.resume}
               </button>
             )}
           </div>
           <div className="button-row">
             <button className="soft-button grow" disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
-              −5 min
+              {text.minus5}
             </button>
             <button className="soft-button grow" onClick={() => p.onAdjust(5)}>
-              +5 min
+              {text.plus5}
             </button>
           </div>
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
           <button className="quiet-link" onClick={p.onDiscard}>
-            Discard without saving
+            {text.discard}
           </button>
         </div>
       </section>
@@ -152,35 +154,35 @@ export function TimerPane(p: Props) {
 
   if (active && kind === "break") {
     return (
-      <section className="stage break-stage" aria-label="Break">
+      <section className="stage break-stage" aria-label={t().break}>
         <div className="stage-side">
-          <div className="eyebrow">{overtime ? "BREAK'S UP · OVER BY" : timer.status === "paused" ? "BREAK · PAUSED" : "BREAK · TIME LEFT"}</div>
+          <div className="eyebrow">{overtime ? text.breakOver : timer.status === "paused" ? text.breakPaused : text.breakLeft}</div>
           <div className="break-clock">{dialClock(left)}</div>
           <p className="break-note">
             {overtime
-              ? "No rush. Your break keeps going until you end it, and the extra time counts as break."
-              : `Step away from the screen for a bit. Back at ${clockTime(plannedEnd)}.`}
+              ? text.breakOvertimeNote
+              : text.breakNote(clockTime(plannedEnd))}
           </p>
           <div className="button-row">
             <button className="squishy ink big" onClick={p.onBackToFocus}>
-              <PlayIcon /> Back to focus
+              <PlayIcon /> {text.backToFocus}
             </button>
             <button className="soft-button big" onClick={p.onFinish}>
-              End break
+              {text.endBreak}
             </button>
           </div>
           <div className="button-row">
             {timer.status === "running" ? (
               <button className="quiet-link" onClick={p.onPause}>
-                Pause break
+                {text.pauseBreak}
               </button>
             ) : (
               <button className="quiet-link" onClick={p.onResume}>
-                Resume break
+                {text.resumeBreak}
               </button>
             )}
             <button className="quiet-link" onClick={p.onDiscard}>
-              Discard without saving
+              {text.discard}
             </button>
           </div>
         </div>
@@ -191,30 +193,30 @@ export function TimerPane(p: Props) {
 
   return (
     <div className="plan-row">
-      <section className="card plan-card" aria-label="Plan your session">
-        <div className="segmented" role="group" aria-label="Session type">
+      <section className="card plan-card" aria-label={text.plan}>
+        <div className="segmented" role="group" aria-label={text.sessionType}>
           <button aria-pressed={kind === "focus"} onClick={() => p.onIdleKind("focus")}>
-            Focus
+            {t().focus}
           </button>
           <button aria-pressed={kind === "break"} onClick={() => p.onIdleKind("break")}>
-            Break
+            {t().break}
           </button>
         </div>
         {kind === "focus" ? (
           <>
-            <h1>What are we working on?</h1>
+            <h1>{text.whatAreWeWorkingOn}</h1>
             <label className="field">
-              <span>Intention</span>
+              <span>{text.intention}</span>
               <input
-                aria-label="Intention"
-                placeholder="I'm going to…"
+                aria-label={text.intention}
+                placeholder={text.intentionPlaceholder}
                 value={p.intention}
                 maxLength={120}
                 onChange={(e) => p.onIntention(e.target.value)}
               />
             </label>
-            <div className="field" role="group" aria-label="Category">
-              <span>Category</span>
+            <div className="field" role="group" aria-label={text.category}>
+              <span>{text.category}</span>
               <div className="chips">
                 {p.categories.map((c) => (
                   <button
@@ -232,28 +234,28 @@ export function TimerPane(p: Props) {
           </>
         ) : (
           <>
-            <h1>Time for a break</h1>
-            <p className="plan-note">Step away from the screen for a bit. Breaks keep going until you end them.</p>
+            <h1>{text.breakTime}</h1>
+            <p className="plan-note">{text.breakPlanNote}</p>
           </>
         )}
         <span className="grow" />
         {p.nextEvent && <NextEvent event={p.nextEvent} />}
         <button className={kind === "focus" ? "squishy apricot huge" : "squishy matcha huge"} onClick={p.onStart}>
           <PlayIcon />
-          {kind === "focus" ? "Start focusing" : "Start break"}
+          {kind === "focus" ? text.startFocusing : text.startBreak}
         </button>
       </section>
 
-      <section className="card dial-card" aria-label="Session length">
+      <section className="card dial-card" aria-label={text.sessionLength}>
         {dial(80)}
-        <div className="segmented round" role="group" aria-label="Quick lengths">
+        <div className="segmented round" role="group" aria-label={text.quickLengths}>
           {lengths[kind].map((m) => (
             <button key={m} aria-pressed={p.plannedMin === m} onClick={() => p.onPlannedMin(m)}>
-              {m} min
+              {text.minutes(m)}
             </button>
           ))}
         </div>
-        <p className="hint">Drag the dot around the flower to pick any length.</p>
+        <p className="hint">{text.dialHint}</p>
       </section>
     </div>
   );
@@ -265,9 +267,9 @@ function NextEvent({ event }: { event: CalendarEvent }) {
       <CalendarIcon />
       <div>
         <div className="next-title">
-          {event.title} at {clockTime(event.start)}
+          {t().timer.eventAt(event.title, clockTime(event.start))}
         </div>
-        <div className="next-sub">Next on your Google Calendar</div>
+        <div className="next-sub">{t().timer.nextOnCalendar}</div>
       </div>
     </div>
   );

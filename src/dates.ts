@@ -1,3 +1,5 @@
+import { capitalize, formatDate } from "./i18n";
+
 // Local-time calendar helpers. Days are identified by the timestamp of their
 // local midnight; adding days goes through Date so DST changes are handled.
 
@@ -31,12 +33,11 @@ export function clockTime(ms: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** "Sat 17 Oct" */
+/** "Sat 17 Oct", or "Sáb 17 out" in Portuguese. */
 export function dayLabel(ms: number): string {
-  const d = new Date(ms);
-  const wd = d.toLocaleDateString("en-GB", { weekday: "short" });
-  const mon = d.toLocaleDateString("en-GB", { month: "short" });
-  return `${wd} ${d.getDate()} ${mon}`;
+  const wd = capitalize(formatDate(ms, { weekday: "short" }));
+  const mon = formatDate(ms, { month: "short" });
+  return `${wd} ${new Date(ms).getDate()} ${mon}`;
 }
 
 /** Milliseconds since that day's local midnight. */

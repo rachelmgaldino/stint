@@ -5,6 +5,7 @@ import { formatDuration } from "../timer";
 import { eventLanes, type CalendarEvent } from "../google";
 import { soft } from "../colors";
 import { PlusIcon } from "./icons";
+import { formatDate, t } from "../i18n";
 
 const HOUR = 3_600_000;
 
@@ -36,6 +37,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
   const today = startOfDay(now);
   const isToday = day === today;
   const byId = new Map(categories.map((c) => [c.id, c]));
+  const text = t();
   const sessions = week.filter((s) => startOfDay(s.startedAt) === day).sort((a, b) => a.startedAt - b.startedAt);
   const showLive = live && isToday;
   const timed = eventLanes(events.filter((e) => !e.allDay && e.end > day && e.start < addDays(day, 1)));
@@ -62,7 +64,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
   const colorOf = (s: SessionRecord) =>
     s.kind === "break" ? "var(--matcha)" : soft((s.categoryId !== null && byId.get(s.categoryId)?.color) || "#f4a988");
   const titleOf = (s: SessionRecord) =>
-    s.kind === "break" ? "Break" : (s.categoryId !== null && byId.get(s.categoryId)?.name) || "Focus";
+    s.kind === "break" ? text.break : (s.categoryId !== null && byId.get(s.categoryId)?.name) || text.focus;
 
   const segments = (
     <>
@@ -72,15 +74,15 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
           className="ribbon-seg"
           style={{ ...place(s.startedAt, s.endedAt), background: colorOf(s) }}
           onClick={() => onOpen(s)}
-          title={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${clockTime(s.startedAt)} to ${clockTime(s.endedAt)}`}
-          aria-label={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${clockTime(s.startedAt)} to ${clockTime(s.endedAt)}`}
+          title={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${text.timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
+          aria-label={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${text.timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
         />
       ))}
       {showLive && (
         <div
           className="ribbon-seg live"
           style={{ ...place(live.startedAt, now), "--seg": live.color } as CSSProperties}
-          title={`${live.title}, since ${clockTime(live.startedAt)}`}
+          title={text.ribbon.since(live.title, clockTime(live.startedAt))}
         />
       )}
       {isToday && <i className="ribbon-now" style={{ left: `${pos(now)}%` }} />}
@@ -89,8 +91,8 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
 
   if (compact) {
     return (
-      <section className="ribbon compact" aria-label="Today">
-        <span className="ribbon-title">Today</span>
+      <section className="ribbon compact" aria-label={text.ribbon.today}>
+        <span className="ribbon-title">{text.ribbon.today}</span>
         <div className="ribbon-track">{segments}</div>
         <span className="ribbon-total">{formatDuration(focusTotal(sessions))}</span>
       </section>
@@ -102,20 +104,20 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
   const most = Math.max(...totals, 1);
 
   return (
-    <section className="ribbon" aria-label="Day">
+    <section className="ribbon" aria-label={text.ribbon.day}>
       <div className="ribbon-main">
         <div className="ribbon-head">
           <h2>
-            {isToday ? "Today" : dayLabel(day)}
-            <span className="ribbon-sum">{formatDuration(focusTotal(sessions))} focused</span>
+            {isToday ? text.ribbon.today : dayLabel(day)}
+            <span className="ribbon-sum">{text.ribbon.focused(formatDuration(focusTotal(sessions)))}</span>
           </h2>
           <div className="ribbon-tools">
             {!isToday && (
               <button className="chip-button" onClick={() => onDay(today)}>
-                Back to today
+                {text.ribbon.backToToday}
               </button>
             )}
-            <button className="add-button" aria-label="Add a session" title="Add a session" onClick={onAdd}>
+            <button className="add-button" aria-label={text.ribbon.addSession} title={text.ribbon.addSession} onClick={onAdd}>
               <PlusIcon />
             </button>
           </div>
@@ -123,7 +125,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
         <div className="ribbon-body">
           <div className="ribbon-events">
             {timed.map(({ event: e, lane, lanes }) => {
-              const label = `${e.title}, ${clockTime(e.start)} to ${clockTime(e.end)}`;
+              const label = `${e.title}, ${text.timer.fromTo(clockTime(e.start), clockTime(e.end))}`;
               return (
                 <button
                   key={`${e.calendarId}/${e.id}`}
@@ -131,7 +133,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
                   style={{ ...place(e.start, e.end), "--lane": lane, "--lanes": lanes, "--event": e.color } as CSSProperties}
                   disabled={!onEvent}
                   onClick={() => onEvent?.(e)}
-                  title={onEvent ? `${label}. Click to set up a session for it.` : label}
+                  title={onEvent ? text.ribbon.eventHint(label) : label}
                   aria-label={label}
                 />
               );
@@ -146,10 +148,10 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
         </div>
       </div>
       <div className="ribbon-week">
-        <span className="ribbon-week-title">This week</span>
+        <span className="ribbon-week-title">{text.ribbon.thisWeek}</span>
         <div className="week-bars">
           {days.map((d, i) => {
-            const label = `${dayLabel(d)}: ${totals[i] ? formatDuration(totals[i]) : "no focus"}`;
+            const label = `${dayLabel(d)}: ${totals[i] ? formatDuration(totals[i]) : text.ribbon.noFocus}`;
             return (
               <button
                 key={d}
@@ -163,7 +165,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
                   className={d === today ? "bar today" : totals[i] ? "bar" : "bar empty"}
                   style={{ height: Math.max(6, Math.round((totals[i] / most) * 50)) }}
                 />
-                <span className="dow">{new Date(d).toLocaleDateString("en-GB", { weekday: "narrow" })}</span>
+                <span className="dow">{formatDate(d, { weekday: "narrow" }).toUpperCase()}</span>
               </button>
             );
           })}
