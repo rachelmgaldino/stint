@@ -23,6 +23,7 @@ import { ChartIcon, ClockIcon, SlidersIcon } from "./components/icons";
 import { GoalSprouts, Pip } from "./components/Pip";
 import { soft } from "./colors";
 import { setLanguage, t } from "./i18n";
+import { setLook } from "./look";
 import { DEMO } from "./demo";
 import { DemoBanner } from "./components/DemoBanner";
 
@@ -77,8 +78,9 @@ export default function App() {
   const syncing = useRef(false);
 
   const { timer } = live;
-  // Set before the children render, so they all read the chosen language.
+  // Set before the children render, so they all read the chosen language and look.
   setLanguage(settings.language);
+  setLook(settings.look);
   const text = t();
 
   useEffect(() => {
@@ -188,6 +190,10 @@ export default function App() {
     if (settings.theme === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.look = settings.look;
+  }, [settings.look]);
 
   const left = T.remaining(timer, now);
 

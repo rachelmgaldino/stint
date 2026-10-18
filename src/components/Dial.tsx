@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { clampMinutes, lapAt, minuteAt, nextHourOffset } from "../dial";
+import { look } from "../look";
 
 export type Lap = {
   /** Ring colour and the darker "lip" used for the knob's centre. */
@@ -39,6 +40,8 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
   // The furthest whole-hour offset a drag can reach.
   const maxOffset = Math.floor((maxMinutes - 1) / 60) * 60;
   const knob = { x: C + RING * Math.sin(angle), y: C - RING * Math.cos(angle) };
+  // Mochi's dial is a round sticker with a stitched edge and a little sun for a knob.
+  const mochi = look() === "mochi";
 
   const pointMinute = (e: React.PointerEvent) => {
     const r = box.current!.getBoundingClientRect();
@@ -94,7 +97,14 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
       onKeyDown={onKey}
     >
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
-        <path d={PETALS} className="dial-petals" />
+        {mochi ? (
+          <>
+            <circle cx={C} cy={C} r="176" className="dial-petals" />
+            <circle cx={C} cy={C} r="166" className="dial-stitch" />
+          </>
+        ) : (
+          <path d={PETALS} className="dial-petals" />
+        )}
         <circle cx={C} cy={C} r={RING} className="dial-track" />
         {below && <circle cx={C} cy={C} r={RING} className="dial-lap" stroke={below.color} />}
         {fraction > 0 && (
@@ -111,7 +121,14 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
         {onChange && (
           <>
             <circle cx={knob.x} cy={knob.y} r="17" className="dial-knob" />
-            <circle cx={knob.x} cy={knob.y} r="9" fill={current.lip} />
+            {mochi ? (
+              <>
+                <circle cx={knob.x} cy={knob.y} r="13" className="dial-sun" stroke={current.lip} />
+                <circle cx={knob.x} cy={knob.y} r="8" fill="#f3cb8b" />
+              </>
+            ) : (
+              <circle cx={knob.x} cy={knob.y} r="9" fill={current.lip} />
+            )}
           </>
         )}
         <circle cx={C} cy={C} r="112" className="dial-face" />

@@ -9,6 +9,7 @@ import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
 import { CalendarIcon, PlayIcon, StopIcon } from "./icons";
 import { t } from "../i18n";
+import { look } from "../look";
 
 type Props = {
   timer: T.Timer;
@@ -255,7 +256,7 @@ export function TimerPane(p: Props) {
             </button>
           ))}
         </div>
-        <p className="hint">{text.dialHint}</p>
+        <p className="hint">{look() === "mochi" ? text.dialHintMochi : text.dialHint}</p>
       </section>
     </div>
   );
