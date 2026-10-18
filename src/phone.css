@@ -514,8 +514,170 @@
     font-size: 10px;
   }
 
-  .entries {
+  .entries,
+  .top-row .entries {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 0;
     max-height: none;
+    overflow: visible;
+  }
+
+  .t-long {
+    display: none;
+  }
+
+  .t-short {
+    display: inline;
+  }
+
+  .when-head {
+    font-size: 11px;
+    height: 24px;
+  }
+
+  .when-total.best {
+    padding: 1px 2px;
+  }
+
+  .when-goal {
+    gap: 2px;
+  }
+
+  .when-goal span {
+    width: 5px;
+    height: 5px;
+  }
+
+  /* Breakdown tables become two-line rows: name and time, then the bar with share and change. */
+  .table-card {
+    flex: 0 0 auto;
+    padding: 16px 14px;
+    border-radius: 28px;
+  }
+
+  .breakdown thead {
+    display: none;
+  }
+
+  .breakdown tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 10px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px dashed var(--line);
+  }
+
+  .breakdown td {
+    padding: 0;
+    border: 0;
+    white-space: nowrap;
+  }
+
+  .breakdown td:first-child {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: auto;
+    white-space: normal;
+    min-width: 0;
+  }
+
+  .breakdown td:last-child {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    font-size: 15px;
+  }
+
+  .breakdown td:nth-child(2),
+  .breakdown td:nth-child(3) {
+    grid-row: 2;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .breakdown td:nth-child(2) {
+    grid-column: 2;
+  }
+
+  .breakdown td:nth-child(3) {
+    grid-column: 3;
+  }
+
+  .breakdown.intentions td:nth-child(3)::before {
+    content: "×";
+  }
+
+  .week-strip {
+    gap: 2px;
+    padding: 6px;
+    border-radius: 24px;
+  }
+
+  .strip-day {
+    padding: 6px 0 8px;
+    border-radius: 16px;
+    gap: 4px;
+  }
+
+  .strip-name,
+  .strip-total {
+    font-size: 10px;
+  }
+
+  .strip-bar {
+    height: 26px;
+    width: 10px;
+  }
+
+  .phone-only {
+    display: block;
+  }
+
+  .desk-only {
+    display: none;
+  }
+
+  .day-side {
+    flex: 0 0 auto;
+  }
+
+  .story-card-wrap,
+  .went-card {
+    flex: 0 0 auto;
+    padding: 16px 14px;
+    border-radius: 28px;
+  }
+
+  .story::before {
+    left: 47px;
+  }
+
+  .story-row {
+    grid-template-columns: 38px 12px minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .story-time {
+    font-size: 11px;
+  }
+
+  .story-dot {
+    width: 12px;
+    height: 12px;
+  }
+
+  .story-gap {
+    margin-left: 70px;
+  }
+
+  .story-title {
+    font-size: 15px;
+  }
+
+  .went-pip {
+    display: none;
   }
 
   /* Settings stay one column with tighter cards. */
