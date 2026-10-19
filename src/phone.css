@@ -360,14 +360,24 @@
     white-space: nowrap;
   }
 
-  /* The chosen big button keeps the larger share, whichever label is longer. */
-  .focus-stage .button-row .grow {
-    flex: 3 1 0;
+  /* Both buttons start from their own label's width and share what is left, so
+     a long label ("Encerrar sessão") never spills past its button; on the
+     narrowest phones it wraps onto two lines instead. */
+  .focus-stage .button-row .big {
+    flex: 2 1 auto;
+    min-width: 0;
+  }
+
+  .focus-stage .button-row .big svg {
+    flex-shrink: 0;
   }
 
   .focus-stage .button-row .soft-button.big {
-    flex: 2 1 0;
-    min-width: 0;
+    flex-grow: 1;
+    padding-left: 14px;
+    padding-right: 14px;
+    white-space: normal;
+    line-height: 1.15;
   }
 
   .break-clock {
