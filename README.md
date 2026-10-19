@@ -76,6 +76,8 @@ Optional. You need your own OAuth client: in Google Cloud Console, enable the Go
 - [ ] The installer isn't code-signed, so every new version triggers a SmartScreen warning
 - [ ] Windows only. The phone layout exists, but there's no iPhone build yet
 
+AI disclosure: Stint was built with Claude Code. I set the product direction and design, and reviewed, tested and merged every change; Claude drafted much of the implementation.
+
 ## Contact
 
 **Rachel Galdino**
