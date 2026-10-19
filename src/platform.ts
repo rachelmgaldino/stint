@@ -32,53 +32,110 @@ export function setTrayMenu(open: string, quit: string): void {
 
 let audio: AudioContext | null = null;
 
-/** A short two-note chime, generated so the app ships no sound files. */
-export function chime(): void {
+export type Sound = "chime" | "soon" | "presence";
+
+// Notes (Hz), spacing (s), loudness and decay for each sound. The chime is a
+// rising two-note "ding-ding"; "soon" is one light ping; presence is a single
+// low, quiet note meant to nudge rather than alert.
+const sounds: Record<Sound, { notes: number[]; gap: number; peak: number; decay: number }> = {
+  chime: { notes: [660, 880], gap: 0.22, peak: 0.25, decay: 0.6 },
+  soon: { notes: [988], gap: 0, peak: 0.18, decay: 0.45 },
+  presence: { notes: [523], gap: 0, peak: 0.12, decay: 1.2 },
+};
+
+/** Plays a short generated sound, so the app ships no sound files. */
+export function playSound(sound: Sound): void {
   try {
     audio ??= new AudioContext();
     const ctx = audio;
-    [660, 880].forEach((freq, i) => {
-      const at = ctx.currentTime + i * 0.22;
+    if (ctx.state === "suspended") void ctx.resume();
+    const { notes, gap, peak, decay } = sounds[sound];
+    notes.forEach((freq, i) => {
+      const at = ctx.currentTime + i * gap;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, at);
-      gain.gain.exponentialRampToValueAtTime(0.25, at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.6);
+      gain.gain.exponentialRampToValueAtTime(peak, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + decay);
       osc.connect(gain).connect(ctx.destination);
       osc.start(at);
-      osc.stop(at + 0.65);
+      osc.stop(at + decay + 0.05);
     });
   } catch {
     // No audio device; the notification still fires.
   }
 }
 
+export type PlannedAlarm = {
+  key: string;
+  at: number;
+  notice?: { title: string; body: string };
+  sound?: Sound;
+};
+
+const scheduled = new Map<string, number>();
+const browserTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let fired: (key: string) => void = () => {};
+let listening = false;
+
 /**
- * Notifies at a wall-clock time from the desktop shell, which keeps time even
- * while the window is hidden. Returns false in a plain browser, where the
- * window has to notify by itself.
+ * Keeps the pending alarms in step with `alarms`: new or moved ones are
+ * scheduled, ones no longer listed are cancelled. In the desktop app the shell
+ * keeps time, so alarms fire on time even while the window is hidden; in a
+ * browser the page does it itself. `onFire` gets the key of each alarm as it
+ * goes off, for sounds and follow-ups.
  */
-export function scheduleAlarm(atMs: number, title: string, body: string): boolean {
-  if (!isTauri()) return false;
-  invoke("schedule_alarm", { atMs: Math.round(atMs), title, body }).catch(() => {});
-  return true;
+export function syncAlarms(alarms: PlannedAlarm[], onFire: (alarm: string) => void): void {
+  fired = onFire;
+  const tauri = isTauri();
+  if (tauri && !listening) {
+    listening = true;
+    import("@tauri-apps/api/event")
+      .then((e) => e.listen<string>("alarm", (ev) => {
+        scheduled.delete(ev.payload);
+        fired(ev.payload);
+      }))
+      .catch(() => {});
+  }
+  const wanted = new Map(alarms.map((a) => [a.key, a]));
+  for (const key of [...scheduled.keys()]) {
+    if (wanted.has(key)) continue;
+    scheduled.delete(key);
+    if (tauri) invoke("cancel_alarm", { key }).catch(() => {});
+    else clearTimeout(browserTimers.get(key));
+  }
+  for (const a of alarms) {
+    const at = Math.round(a.at);
+    if (scheduled.get(a.key) === at) continue;
+    scheduled.set(a.key, at);
+    if (tauri) {
+      invoke("schedule_alarm", { key: a.key, atMs: at, title: a.notice?.title, body: a.notice?.body }).catch(() => {});
+      continue;
+    }
+    clearTimeout(browserTimers.get(a.key));
+    browserTimers.set(
+      a.key,
+      setTimeout(() => {
+        scheduled.delete(a.key);
+        if (a.notice) notify(a.notice.title, a.notice.body);
+        fired(a.key);
+      }, Math.max(0, at - Date.now())),
+    );
+  }
 }
 
-export function cancelAlarm(): void {
-  if (isTauri()) invoke("cancel_alarm").catch(() => {});
-}
-
-export async function testNotification(): Promise<void> {
+/** Shows a notification right away, the way an alarm would. */
+export async function testNotification(title = "Stint", body = t().notice.working): Promise<void> {
   if (isTauri()) {
     const n = await import("@tauri-apps/plugin-notification");
     if (!(await n.isPermissionGranted())) await n.requestPermission();
-    await invoke("test_notification", { body: t().notice.working });
+    await invoke("test_notification", { title, body });
     return;
   }
   if ("Notification" in window && Notification.permission !== "granted") await Notification.requestPermission();
-  await notify("Stint", t().notice.working);
+  await notify(title, body);
 }
 
 /**
