@@ -51,6 +51,15 @@ fn migrations() -> Vec<Migration> {
             ALTER TABLE sessions ADD COLUMN google_calendar_id TEXT;
         ",
         kind: MigrationKind::Up,
+    },
+    Migration {
+        version: 3,
+        description: "let categories be put in any order",
+        sql: "
+            ALTER TABLE categories ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+            UPDATE categories SET position = id;
+        ",
+        kind: MigrationKind::Up,
     }]
 }
 
