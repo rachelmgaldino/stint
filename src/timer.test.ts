@@ -5,6 +5,7 @@ import {
   formatDuration,
   heat,
   idle,
+  moveStart,
   pause,
   progress,
   remaining,
@@ -50,6 +51,35 @@ describe("timer", () => {
     let t = pause(start("break", 5 * MIN, 0), 1 * MIN);
     t = scrub(t, 2 * MIN, 2 * MIN);
     expect(remaining(t, 9 * MIN)).toBe(6 * MIN);
+  });
+
+  it("moves the start earlier, keeping the planned length", () => {
+    // Started the timer at 13:15 for 50 minutes, but began working at 13:00.
+    let t = start("focus", 50 * MIN, 75 * MIN);
+    t = moveStart(t, 60 * MIN, 80 * MIN);
+    expect(t.status !== "idle" && t.startedAt).toBe(60 * MIN);
+    expect(elapsed(t, 80 * MIN)).toBe(20 * MIN);
+    expect(remaining(t, 80 * MIN)).toBe(30 * MIN);
+    expect(t.status !== "idle" && t.plannedMs).toBe(50 * MIN);
+  });
+
+  it("can push a session into overtime by moving its start", () => {
+    const t = moveStart(start("focus", 25 * MIN, 60 * MIN), 0, 60 * MIN);
+    expect(remaining(t, 60 * MIN)).toBe(-35 * MIN);
+  });
+
+  it("moves the start of a paused timer", () => {
+    let t = pause(start("break", 10 * MIN, 30 * MIN), 34 * MIN);
+    t = moveStart(t, 25 * MIN, 40 * MIN);
+    expect(remaining(t, 40 * MIN)).toBe(1 * MIN);
+    expect(elapsed(t, 40 * MIN)).toBe(9 * MIN);
+  });
+
+  it("never moves the start past now", () => {
+    const t = moveStart(start("focus", 25 * MIN, 0), 10 * MIN, 5 * MIN);
+    expect(t.status !== "idle" && t.startedAt).toBe(5 * MIN);
+    expect(elapsed(t, 5 * MIN)).toBe(0);
+    expect(moveStart(idle, 0, 0)).toBe(idle);
   });
 
   it("ignores actions that don't apply", () => {

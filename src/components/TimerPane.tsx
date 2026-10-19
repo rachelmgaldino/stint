@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { Category } from "../store";
 import type { CalendarEvent } from "../google";
 import { clockTime } from "../dates";
@@ -7,7 +7,8 @@ import * as T from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { StartEditor } from "./StartEditor";
 import { t } from "../i18n";
 import { look } from "../look";
 
@@ -21,6 +22,8 @@ type Props = {
   plannedMin: number;
   /** The next Google Calendar event today, if any. */
   nextEvent: CalendarEvent | null;
+  /** When the last saved session today ended, if any. */
+  previousEnd: number | null;
   onIntention(v: string): void;
   onCategory(id: number): void;
   onIdleKind(k: T.Kind): void;
@@ -30,6 +33,8 @@ type Props = {
   onResume(): void;
   onSetRemaining(minutes: number): void;
   onAdjust(minutes: number): void;
+  /** Say the running session really began at another time. */
+  onMoveStart(startedAt: number): void;
   onFinish(): void;
   /** End the break and start a focus session straight away. */
   onBackToFocus(): void;
@@ -67,6 +72,7 @@ export function TimerPane(p: Props) {
   const minutes = Math.max(0, left) / 60_000;
   const plannedEnd = timer.status === "running" ? timer.endsAt : now + Math.max(0, left);
   const text = t().timer;
+  const [editingStart, setEditingStart] = useState(false);
 
   const subline = !active
     ? text.endsAt(clockTime(now + left))
@@ -114,6 +120,30 @@ export function TimerPane(p: Props) {
     </Dial>
   );
 
+  const startLink = active && (
+    <button
+      className="start-edit-button"
+      aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
+      onClick={() => setEditingStart(true)}
+    >
+      <PencilIcon />
+      {text.startedAt(clockTime(timer.startedAt))}
+    </button>
+  );
+
+  const startEditor = active && editingStart && (
+    <StartEditor
+      timer={timer}
+      now={now}
+      previousEnd={p.previousEnd}
+      onSave={(ms) => {
+        p.onMoveStart(ms);
+        setEditingStart(false);
+      }}
+      onClose={() => setEditingStart(false)}
+    />
+  );
+
   if (active && kind === "focus") {
     return (
       <section className="stage focus-stage" aria-label={text.focusing}>
@@ -151,10 +181,14 @@ export function TimerPane(p: Props) {
             </button>
           </div>
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
-          <button className="quiet-link" onClick={p.onDiscard}>
-            {text.discard}
-          </button>
+          <div className="stage-links">
+            {startLink}
+            <button className="quiet-link" onClick={p.onDiscard}>
+              {text.discard}
+            </button>
+          </div>
         </div>
+        {startEditor}
       </section>
     );
   }
@@ -192,8 +226,10 @@ export function TimerPane(p: Props) {
               {text.discard}
             </button>
           </div>
+          {startLink}
         </div>
         <div className="stage-dial">{dial(150)}</div>
+        {startEditor}
       </section>
     );
   }

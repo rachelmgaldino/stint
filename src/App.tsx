@@ -443,6 +443,10 @@ export default function App() {
           color: timer.kind === "break" ? "var(--matcha)" : soft(category?.color ?? "#f4a988"),
         };
   const focusCount = today.filter((s) => s.kind === "focus").length;
+  const previousEnd =
+    timer.status === "idle"
+      ? null
+      : today.reduce<number | null>((m, s) => (s.endedAt <= timer.startedAt && (m === null || s.endedAt > m) ? s.endedAt : m), null);
   // Focus sessions turn the whole window to night; breaks get a green stage.
   const mode = view === "timer" && timer.status !== "idle" ? timer.kind : "plan";
   const nextEvent =
@@ -510,6 +514,8 @@ export default function App() {
             onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
             onSetRemaining={setRemaining}
             onAdjust={adjust}
+            onMoveStart={(ms) => setLive((l) => ({ ...l, timer: T.moveStart(l.timer, ms, Date.now()) }))}
+            previousEnd={previousEnd}
             onFinish={finish}
             onBackToFocus={backToFocus}
             onDiscard={() => setLive((l) => ({ ...l, timer: T.idle }))}
