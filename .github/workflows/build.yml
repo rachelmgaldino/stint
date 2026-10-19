@@ -1,9 +1,9 @@
 name: Build
 
-# Builds the Windows installer and publishes it on the Releases page:
-# - every push to main makes a release named after the app version (v0.9.0, ...)
-# - every pull request gets a "PR #N test" pre-release, replaced on each push
-#   and removed by release-cleanup.yml when the PR is closed or merged.
+# Tests and builds the Windows installer on every push to main and every PR.
+# Each pull request also gets a "PR #N test" pre-release, replaced on each push
+# and removed by release-cleanup.yml when the PR is closed or merged.
+# Real versions (Stint vX.Y.Z) are published by hand with release.yml.
 on:
   push:
     branches: [main]
@@ -52,10 +52,10 @@ jobs:
   release:
     needs: windows
     # Fork PRs get a read-only token, so they keep the Actions artifact only.
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     concurrency:
-      group: release-${{ github.event.pull_request.number || github.ref }}
+      group: release-${{ github.event.pull_request.number }}
       cancel-in-progress: false
     env:
       GH_TOKEN: ${{ github.token }}
@@ -63,50 +63,36 @@ jobs:
       PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - uses: actions/download-artifact@v6
         with:
           name: stint-windows-installer
           path: installer
-      - name: Publish release
+      - name: Publish PR test release
         run: |
           set -euo pipefail
           version=$(node -p "require('./src-tauri/tauri.conf.json').version")
           exe=$(find installer -name '*.exe' | head -n 1)
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pr=${{ github.event.pull_request.number }}
-            tag="pr-$pr"
-            sha=${{ github.event.pull_request.head.sha }}
-            title="v$version · PR #$pr test"
-            notes=$(printf '%s\n\n%s\n\n%s' \
-              "Test build of #$pr: $PR_TITLE" \
-              "Built from commit ${sha:0:7}. This pre-release is replaced on every push to the PR and removed once it is merged or closed." \
-              "Download the .exe below and run it; it upgrades your installed Stint in place.")
-            # Recreate so the tag points at the newest commit and the old installer goes away.
-            gh release delete "$tag" --cleanup-tag --yes 2>/dev/null || true
-            # The build takes a while, so the PR may have been merged or closed (and
-            # release-cleanup.yml already run) by now: publish only while it is open,
-            # and check again afterwards in case it closed during the upload.
-            pr_open() { [ "$(gh api "repos/$GH_REPO/pulls/$pr" -q .state)" = "open" ]; }
-            if ! pr_open; then
-              echo "::notice::PR #$pr is no longer open; skipping its test release."
-              exit 0
-            fi
-            gh release create "$tag" "$exe" --prerelease --target "$sha" \
-              --title "$title" --notes "$notes"
-            if ! pr_open; then
-              gh release delete "$tag" --cleanup-tag --yes
-            fi
-          else
-            tag="v$version"
-            if gh release view "$tag" >/dev/null 2>&1; then
-              echo "::notice::Release $tag already exists; bump the version to publish a new one."
-              exit 0
-            fi
-            previous=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
-            args=(--generate-notes --latest --target "${{ github.sha }}" --title "Stint $tag")
-            if [ -n "$previous" ]; then args+=(--notes-start-tag "$previous"); fi
-            gh release create "$tag" "$exe" "${args[@]}"
+          pr=${{ github.event.pull_request.number }}
+          tag="pr-$pr"
+          sha=${{ github.event.pull_request.head.sha }}
+          title="v$version · PR #$pr test"
+          notes=$(printf '%s\n\n%s\n\n%s' \
+            "Test build of #$pr: $PR_TITLE" \
+            "Built from commit ${sha:0:7}. This pre-release is replaced on every push to the PR and removed once it is merged or closed." \
+            "Download the .exe below and run it; it upgrades your installed Stint in place.")
+          # Recreate so the tag points at the newest commit and the old installer goes away.
+          gh release delete "$tag" --cleanup-tag --yes 2>/dev/null || true
+          # The build takes a while, so the PR may have been merged or closed (and
+          # release-cleanup.yml already run) by now: publish only while it is open,
+          # and check again afterwards in case it closed during the upload.
+          pr_open() { [ "$(gh api "repos/$GH_REPO/pulls/$pr" -q .state)" = "open" ]; }
+          if ! pr_open; then
+            echo "::notice::PR #$pr is no longer open; skipping its test release."
+            exit 0
+          fi
+          gh release create "$tag" "$exe" --prerelease --target "$sha" \
+            --title "$title" --notes "$notes"
+          if ! pr_open; then
+            gh release delete "$tag" --cleanup-tag --yes
           fi
