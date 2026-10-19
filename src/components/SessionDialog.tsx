@@ -39,6 +39,8 @@ export function SessionDialog(p: Props) {
   const [rating, setRating] = useState(session.rating);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const text = t().dialog;
+  // On a phone the switch sits in the title row, where it doesn't crowd the buttons.
+  const phone = typeof matchMedia === "function" && matchMedia("(max-width: 640px)").matches;
 
   const startMs = atTime(day, start);
   const endMs = atTime(day, end);
@@ -82,12 +84,32 @@ export function SessionDialog(p: Props) {
     });
   };
 
+  const keepAddingSwitch = (
+    <label className="keep-adding">
+      <span className="toggle">
+        <input type="checkbox" role="switch" checked={p.keepAdding} onChange={(e) => p.onKeepAdding(e.target.checked)} />
+        <span className="switch" aria-hidden="true" />
+      </span>
+      {text.keepAdding}
+    </label>
+  );
+  const title = (
+    <h2 id="session-title">
+      {isNew ? (isFocus ? text.addSession : text.addBreak) : `${isFocus ? text.session : text.break} · ${dayLabel(day)}`}
+    </h2>
+  );
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="session-title" onClick={onClose}>
       <form className="sheet" onSubmit={submit} onClick={(e) => e.stopPropagation()}>
-        <h2 id="session-title">
-          {isNew ? (isFocus ? text.addSession : text.addBreak) : `${isFocus ? text.session : text.break} · ${dayLabel(day)}`}
-        </h2>
+        {isNew && phone ? (
+          <div className="sheet-head">
+            {title}
+            {keepAddingSwitch}
+          </div>
+        ) : (
+          title
+        )}
         {!isNew && <p className="muted">{text.focused(formatDuration(session.focusedMs))}</p>}
         {isNew && (
           <div className="segmented small kind-switch" role="group" aria-label={text.type}>
@@ -163,20 +185,7 @@ export function SessionDialog(p: Props) {
                 {text.deleteSession}
               </button>
             ))}
-          {isNew && (
-            <label className="keep-adding">
-              <span className="toggle">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={p.keepAdding}
-                  onChange={(e) => p.onKeepAdding(e.target.checked)}
-                />
-                <span className="switch" aria-hidden="true" />
-              </span>
-              {text.keepAdding}
-            </label>
-          )}
+          {isNew && !phone && keepAddingSwitch}
           <span className="spacer" />
           <button type="button" className="secondary" onClick={onClose}>
             {text.cancel}

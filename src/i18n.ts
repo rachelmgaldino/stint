@@ -360,8 +360,8 @@ const ptBR: Strings = {
     save: "Salvar",
   },
   dialog: {
-    addSession: "Adicionar uma sessão",
-    addBreak: "Adicionar uma pausa",
+    addSession: "Nova sessão",
+    addBreak: "Nova pausa",
     type: "Tipo",
     keepAdding: "Adicionar mais",
     date: "Data",
