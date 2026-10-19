@@ -1,6 +1,6 @@
 name: Remove PR test release
 
-# Deletes the "PR #N test" pre-release (and its pr-N tag) once the PR is
+# Deletes the "PR #N test" pre-releases (and their pr-N tags) of PRs that are
 # merged or closed, so the Releases page only keeps real versions.
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   cleanup:
@@ -17,4 +18,15 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - run: gh release delete "pr-${{ github.event.pull_request.number }}" --cleanup-tag --yes || echo "No test release to remove."
+      # Removes this PR's test release, plus any other "pr-N" release whose PR
+      # is no longer open (left behind when a build finished after its PR closed).
+      - run: |
+          set -euo pipefail
+          tags=$(gh api "repos/$GH_REPO/releases?per_page=100" -q '.[].tag_name | select(startswith("pr-"))')
+          for tag in $tags; do
+            state=$(gh api "repos/$GH_REPO/pulls/${tag#pr-}" -q .state)
+            if [ "$state" != "open" ]; then
+              echo "Removing $tag (PR is $state)"
+              gh release delete "$tag" --cleanup-tag --yes
+            fi
+          done
