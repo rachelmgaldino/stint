@@ -10,7 +10,7 @@ import {
   type Store,
 } from "./store";
 import * as T from "./timer";
-import { addDays, startOfDay, startOfWeek } from "./dates";
+import { addDays, clockTime, startOfDay, startOfWeek } from "./dates";
 import { previousRange, rangeFor, type Range } from "./analytics";
 import { TimerPane } from "./components/TimerPane";
 import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
@@ -62,6 +62,9 @@ export default function App() {
   const [idleKind, setIdleKind] = useState<T.Kind>("focus");
   const [pending, setPending] = useState<PendingReflection | null>(null);
   const [editing, setEditing] = useState<SessionRecord | null>(null);
+  // "Keep adding" in the add dialog: on for the rest of the run once switched on.
+  const [keepAdding, setKeepAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState<{ text: string; n: number } | null>(null);
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   const [week, setWeek] = useState<SessionRecord[]>([]);
   const [today, setToday] = useState<SessionRecord[]>([]);
@@ -312,7 +315,15 @@ export default function App() {
       await store.updateSession(s);
       syncEdit(s);
     }
-    setEditing(null);
+    if (s.id === 0 && keepAdding) {
+      // Stay open, cleared, with the next entry starting where this one ended.
+      const text = t().dialog.added(s.kind === "focus" ? t().dialog.session : t().dialog.break, clockTime(s.startedAt), clockTime(s.endedAt));
+      setJustAdded((j) => ({ text, n: (j?.n ?? 0) + 1 }));
+      setEditing(nextEntry(s));
+    } else {
+      setEditing(null);
+      setJustAdded(null);
+    }
     refresh();
     syncPending();
   };
@@ -337,6 +348,23 @@ export default function App() {
     const from = e.start < n && e.end > n ? n : e.start;
     setPlannedMin(Math.min(180, Math.max(1, Math.round((e.end - from) / 60_000))));
     setLive((l) => ({ ...l, intention: e.title }));
+  };
+
+  const nextEntry = (prev: SessionRecord): SessionRecord => {
+    const day = startOfDay(prev.startedAt);
+    const lastMinute = addDays(day, 1) - 60_000;
+    const start = Math.min(prev.endedAt, lastMinute - 60_000);
+    const minutes = prev.kind === "focus" ? settings.focusMinutes : settings.breakMinutes;
+    const end = Math.min(start + minutes * 60_000, lastMinute);
+    return {
+      ...newSession(day),
+      kind: prev.kind,
+      categoryId: prev.categoryId,
+      startedAt: start,
+      endedAt: end,
+      plannedMs: end - start,
+      focusedMs: end - start,
+    };
   };
 
   const newSession = (day: number): SessionRecord => {
@@ -548,11 +576,19 @@ export default function App() {
       )}
       {editing && (
         <SessionDialog
+          key={justAdded?.n ?? 0}
           session={editing}
           categories={categories}
+          lengths={{ focus: settings.focusMinutes, break: settings.breakMinutes }}
+          keepAdding={keepAdding}
+          onKeepAdding={setKeepAdding}
+          justAdded={justAdded?.text}
           onSave={saveSession}
           onDelete={deleteSession}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            setEditing(null);
+            setJustAdded(null);
+          }}
         />
       )}
     </div>
