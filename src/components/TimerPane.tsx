@@ -20,6 +20,10 @@ type Props = {
   categories: Category[];
   idleKind: T.Kind;
   plannedMin: number;
+  /** The break running (or planned) is a long one. */
+  longBreak: boolean;
+  focusAction: "break" | "end";
+  breakAction: "focus" | "end";
   /** The next Google Calendar event today, if any. */
   nextEvent: CalendarEvent | null;
   /** When the last saved session today ended, if any. */
@@ -147,6 +151,24 @@ export function TimerPane(p: Props) {
   );
 
   if (active && kind === "focus") {
+    // The big button is the one chosen in Settings; the other sits beside it,
+    // or under it as a link while paused, when Resume takes its place.
+    const breakButton = (big: boolean) => (
+      <button
+        className={big ? "squishy apricot big grow" : "soft-button big"}
+        title={text.takeBreakHint}
+        onClick={p.onTakeBreak}
+      >
+        {big && <CoffeeIcon />} {text.takeBreak}
+      </button>
+    );
+    const endButton = (big: boolean) => (
+      <button className={big ? "squishy apricot big grow" : "soft-button big"} onClick={p.onFinish}>
+        {big && <StopIcon />} {text.endSession}
+      </button>
+    );
+    const breakFirst = p.focusAction === "break";
+    const running = timer.status === "running";
     return (
       <section className="stage focus-stage" aria-label={text.focusing}>
         <div className="stage-dial">{dial(88)}</div>
@@ -161,17 +183,15 @@ export function TimerPane(p: Props) {
             <h1>{p.intention.trim() || text.focusing}</h1>
           </div>
           <div className="button-row">
-            <button className="squishy apricot big grow" onClick={p.onFinish}>
-              <StopIcon /> {text.endSession}
-            </button>
-            {timer.status === "running" ? (
-              <button className="soft-button big with-icon" title={text.takeBreakHint} onClick={p.onTakeBreak}>
-                <CoffeeIcon /> {text.takeBreak}
-              </button>
-            ) : (
+            {breakFirst ? breakButton(true) : endButton(true)}
+            {!running ? (
               <button className="soft-button big" onClick={p.onResume}>
                 {text.resume}
               </button>
+            ) : breakFirst ? (
+              endButton(false)
+            ) : (
+              breakButton(false)
             )}
           </div>
           <div className="button-row">
@@ -185,6 +205,19 @@ export function TimerPane(p: Props) {
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
           <div className="stage-links">
             {startLink}
+            {running ? (
+              <button className="quiet-link" onClick={p.onPause}>
+                {text.pauseSession}
+              </button>
+            ) : breakFirst ? (
+              <button className="quiet-link" onClick={p.onFinish}>
+                {text.endSession}
+              </button>
+            ) : (
+              <button className="quiet-link" onClick={p.onTakeBreak}>
+                {text.takeBreakLink}
+              </button>
+            )}
             <button className="quiet-link" onClick={p.onDiscard}>
               {text.discard}
             </button>
@@ -199,7 +232,7 @@ export function TimerPane(p: Props) {
     return (
       <section className="stage break-stage" aria-label={t().break}>
         <div className="stage-side">
-          <div className="eyebrow">{overtime ? text.breakOver : timer.status === "paused" ? text.breakPaused : text.breakLeft}</div>
+          <div className="eyebrow">{overtime ? text.breakOver : timer.status === "paused" ? text.breakPaused : p.longBreak ? text.longBreakLeft : text.breakLeft}</div>
           <div className="break-clock">{dialClock(left)}</div>
           <p className="break-note">
             {overtime
@@ -207,12 +240,25 @@ export function TimerPane(p: Props) {
               : text.breakNote(clockTime(plannedEnd))}
           </p>
           <div className="button-row">
-            <button className="squishy ink big" onClick={p.onBackToFocus}>
-              <PlayIcon /> {text.backToFocus}
-            </button>
-            <button className="soft-button big" onClick={p.onFinish}>
-              {text.endBreak}
-            </button>
+            {p.breakAction === "focus" ? (
+              <>
+                <button className="squishy ink big" onClick={p.onBackToFocus}>
+                  <PlayIcon /> {text.backToFocus}
+                </button>
+                <button className="soft-button big" onClick={p.onFinish}>
+                  {text.endBreak}
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="squishy ink big" onClick={p.onFinish}>
+                  <StopIcon /> {text.endBreak}
+                </button>
+                <button className="soft-button big" onClick={p.onBackToFocus}>
+                  {text.backToFocus}
+                </button>
+              </>
+            )}
           </div>
           <div className="button-row">
             {timer.status === "running" ? (
@@ -279,7 +325,7 @@ export function TimerPane(p: Props) {
           </>
         ) : (
           <>
-            <h1>{text.breakTime}</h1>
+            <h1>{p.longBreak ? text.longBreakTime : text.breakTime}</h1>
             <p className="plan-note">{text.breakPlanNote}</p>
           </>
         )}

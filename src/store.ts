@@ -27,7 +27,15 @@ export type Theme = "system" | "light" | "dark";
 
 export type Settings = {
   focusMinutes: number;
+  /** The usual (short) break. */
   breakMinutes: number;
+  longBreakMinutes: number;
+  /** Minutes of focus, since the last long break, that earn a long break. */
+  longBreakAfter: number;
+  /** Which button is the big one during focus. */
+  focusAction: "break" | "end";
+  /** Which button is the big one on a break. */
+  breakAction: "focus" | "end";
   theme: Theme;
   look: Look;
   /** How big the desktop app draws, in percent, on top of fitting the window. */
@@ -79,6 +87,10 @@ export type CalendarSettings = {
 export const defaultSettings: Settings = {
   focusMinutes: 25,
   breakMinutes: 5,
+  longBreakMinutes: 15,
+  longBreakAfter: 90,
+  focusAction: "break",
+  breakAction: "focus",
   theme: "system",
   look: "lavender",
   size: 100,

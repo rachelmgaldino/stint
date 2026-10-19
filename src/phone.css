@@ -364,6 +364,16 @@
     white-space: nowrap;
   }
 
+  /* The chosen big button keeps the larger share, whichever label is longer. */
+  .focus-stage .button-row .grow {
+    flex: 3 1 0;
+  }
+
+  .focus-stage .button-row .soft-button.big {
+    flex: 2 1 0;
+    min-width: 0;
+  }
+
   .break-clock {
     font-size: 72px;
   }
@@ -842,5 +852,21 @@
   from {
     transform: translateY(60px);
     opacity: 0;
+  }
+}
+
+/* Settings with two named options put the options on their own line. */
+@media (max-width: 640px) {
+  .row.choice-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .row.choice-row .segmented {
+    flex: 1 1 100%;
+  }
+
+  .row.choice-row .segmented button {
+    flex: 1 1 0;
   }
 }

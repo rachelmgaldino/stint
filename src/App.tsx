@@ -26,6 +26,7 @@ import { soft } from "./colors";
 import { setLanguage, t } from "./i18n";
 import { setLook } from "./look";
 import { DEMO } from "./demo";
+import { nextBreak } from "./breaks";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 
@@ -33,7 +34,8 @@ type View = "timer" | "analytics" | "settings";
 
 // The running timer and what it's for, kept in localStorage so a restart of
 // the app doesn't lose a session in progress.
-type Live = { timer: T.Timer; intention: string; categoryId: number | null };
+// `long` marks a break that is a long one.
+type Live = { timer: T.Timer; intention: string; categoryId: number | null; long?: boolean };
 const liveKey = "stint-live";
 
 function loadLive(): Live {
@@ -204,6 +206,8 @@ export default function App() {
   }, [settings.look]);
 
   const left = T.remaining(timer, now);
+  // A break started from the plan card is long when it's set to the long length.
+  const idleLong = idleKind === "break" && settings.longBreakMinutes > settings.breakMinutes && plannedMin >= settings.longBreakMinutes;
 
   useEffect(() => {
     if (timer.status === "idle") {
@@ -219,16 +223,16 @@ export default function App() {
     setTrayMenu(text.tray.open, text.tray.quit);
   }, [text]);
 
-  const startTimer = (kind: T.Kind, minutes: number) => {
-    setLive((l) => ({ ...l, timer: T.start(kind, minutes * 60_000, Date.now()) }));
+  const startTimer = (kind: T.Kind, minutes: number, long = false) => {
+    setLive((l) => ({ ...l, timer: T.start(kind, minutes * 60_000, Date.now()), long }));
   };
 
   const chooseKind = useCallback(
     (k: T.Kind) => {
       setIdleKind(k);
-      setPlannedMin(k === "focus" ? settings.focusMinutes : settings.breakMinutes);
+      setPlannedMin(k === "focus" ? settings.focusMinutes : nextBreak(today, settings).minutes);
     },
-    [settings],
+    [settings, today],
   );
 
   // `thenBreak` ends a focus session and starts a break straight away, whatever
@@ -249,9 +253,13 @@ export default function App() {
       rating: timer.kind === "focus" ? settings.defaultRating : 0,
     };
     const breakNow = thenBreak && record.kind === "focus";
-    setLive((l) => ({ ...l, timer: breakNow ? T.start("break", settings.breakMinutes * 60_000, end) : T.idle }));
+    const next = nextBreak(today, settings, record.kind === "focus" ? record.focusedMs : 0);
+    setLive((l) =>
+      breakNow ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long } : { ...l, timer: T.idle },
+    );
     const id = await store.addSession(record);
     chooseKind(record.kind === "focus" ? "break" : "focus");
+    if (record.kind === "focus") setPlannedMin(next.minutes);
     setDay(startOfDay(end));
     refresh();
     if (asking) {
@@ -260,8 +268,8 @@ export default function App() {
       return;
     }
     syncPending();
-    if (record.kind === "focus" && settings.autoBreak && !breakNow) startTimer("break", settings.breakMinutes);
-  }, [timer, store, live, settings, chooseKind, refresh, syncPending]);
+    if (record.kind === "focus" && settings.autoBreak && !breakNow) startTimer("break", next.minutes, next.long);
+  }, [timer, store, live, settings, today, chooseKind, refresh, syncPending]);
 
   /** Pause on a focus session: save it up to now and go on a break. */
   const takeBreak = () => finish(true);
@@ -302,7 +310,10 @@ export default function App() {
     refresh();
     syncPending();
     // Not when a break (or a new focus session) is already under way.
-    if (settings.autoBreak && timer.status === "idle") startTimer("break", settings.breakMinutes);
+    if (settings.autoBreak && timer.status === "idle") {
+      const next = nextBreak(today, settings);
+      startTimer("break", next.minutes, next.long);
+    }
   };
 
   const saveSession = async (s: SessionRecord) => {
@@ -429,7 +440,7 @@ export default function App() {
       if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(el.tagName)) return;
       e.preventDefault();
       const n = Date.now();
-      if (timer.status === "idle") startTimer(idleKind, plannedMin);
+      if (timer.status === "idle") startTimer(idleKind, plannedMin, idleLong);
       else if (timer.status === "running" && timer.kind === "focus") takeBreak();
       else if (timer.status === "running") setLive((l) => ({ ...l, timer: T.pause(l.timer, n) }));
       else setLive((l) => ({ ...l, timer: T.resume(l.timer, n) }));
@@ -517,7 +528,10 @@ export default function App() {
             onCategory={(categoryId) => setLive((l) => ({ ...l, categoryId }))}
             onIdleKind={chooseKind}
             onPlannedMin={setPlannedMin}
-            onStart={() => startTimer(idleKind, plannedMin)}
+            onStart={() => startTimer(idleKind, plannedMin, idleLong)}
+            longBreak={timer.status === "idle" ? idleLong : !!live.long}
+            focusAction={settings.focusAction}
+            breakAction={settings.breakAction}
             onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
             onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
             onSetRemaining={setRemaining}

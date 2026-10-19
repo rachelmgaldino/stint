@@ -120,6 +120,32 @@ function Switch({
   );
 }
 
+/** A setting with a few named options, as a small segmented control. */
+function Choice<V extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: V;
+  options: [V, string][];
+  onChange(v: V): void;
+}) {
+  return (
+    <div className="row choice-row">
+      <span>{label}</span>
+      <span className="segmented small" role="group" aria-label={label}>
+        {options.map(([v, name]) => (
+          <button key={v} aria-pressed={value === v} onClick={() => onChange(v)}>
+            {name}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 type Tone = "apricot" | "lemon" | "bubblegum" | "peri" | "sky" | "matcha";
 
 function Card({
@@ -206,6 +232,41 @@ export function SettingsView(p: Props) {
               max={60}
               unit={text.min}
               onChange={(v) => set("breakMinutes", v)}
+            />
+            <Stepper
+              label={text.longBreakLength}
+              value={settings.longBreakMinutes}
+              min={1}
+              max={60}
+              unit={text.min}
+              onChange={(v) => set("longBreakMinutes", v)}
+            />
+            <Stepper
+              label={text.longBreakAfter}
+              value={settings.longBreakAfter}
+              min={15}
+              max={300}
+              step={15}
+              unit={text.minFocus}
+              onChange={(v) => set("longBreakAfter", v)}
+            />
+            <Choice
+              label={text.focusAction}
+              value={settings.focusAction}
+              options={[
+                ["break", text.focusActionBreak],
+                ["end", text.focusActionEnd],
+              ]}
+              onChange={(v) => set("focusAction", v)}
+            />
+            <Choice
+              label={text.breakAction}
+              value={settings.breakAction}
+              options={[
+                ["focus", text.breakActionFocus],
+                ["end", text.breakActionEnd],
+              ]}
+              onChange={(v) => set("breakAction", v)}
             />
             <Stepper
               label={text.dailyGoal}

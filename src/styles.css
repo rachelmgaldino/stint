@@ -297,13 +297,6 @@ input[type="time"] {
   font-weight: 800;
 }
 
-.soft-button.with-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
 .soft-button.big {
   height: 58px;
   border-radius: 22px;
