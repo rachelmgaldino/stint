@@ -85,6 +85,8 @@ export interface Store {
   addCategory(name: string, color: string): Promise<Category>;
   updateCategory(c: Category): Promise<void>;
   removeCategory(id: number): Promise<void>;
+  /** Saves the order categories are listed in everywhere, first to last. */
+  reorderCategories(ids: number[]): Promise<void>;
   addSession(s: Omit<SessionRecord, "id">): Promise<number>;
   updateSession(s: SessionRecord): Promise<void>;
   deleteSession(id: number): Promise<void>;
@@ -135,13 +137,14 @@ async function sqliteStore(): Promise<Store> {
   return {
     categories: () =>
       db.select<Category[]>(
-        "SELECT id, name, color FROM categories WHERE archived = 0 ORDER BY id",
+        "SELECT id, name, color FROM categories WHERE archived = 0 ORDER BY position, id",
       ),
     async addCategory(name, color) {
-      const r = await db.execute("INSERT INTO categories (name, color) VALUES ($1, $2)", [
-        name,
-        color,
-      ]);
+      // New categories go to the end of the list.
+      const r = await db.execute(
+        "INSERT INTO categories (name, color, position) VALUES ($1, $2, (SELECT COALESCE(MAX(position), 0) + 1 FROM categories))",
+        [name, color],
+      );
       return { id: r.lastInsertId ?? 0, name, color };
     },
     async updateCategory(c) {
@@ -154,6 +157,11 @@ async function sqliteStore(): Promise<Store> {
     async removeCategory(id) {
       // Archived rather than deleted so past sessions keep their category.
       await db.execute("UPDATE categories SET archived = 1 WHERE id = $1", [id]);
+    },
+    async reorderCategories(ids) {
+      for (const [i, id] of ids.entries()) {
+        await db.execute("UPDATE categories SET position = $1 WHERE id = $2", [i + 1, id]);
+      }
     },
     async addSession(s) {
       const r = await db.execute(
@@ -274,6 +282,13 @@ function browserStore(): Store {
     async removeCategory(id) {
       const d = load();
       d.categories = d.categories.map((x) => (x.id === id ? { ...x, archived: true } : x));
+      save(d);
+    },
+    async reorderCategories(ids) {
+      // The stored array order is the list order; archived ones keep their place at the end.
+      const d = load();
+      const rank = (c: Category) => (ids.includes(c.id) ? ids.indexOf(c.id) : ids.length);
+      d.categories = [...d.categories].sort((a, b) => rank(a) - rank(b));
       save(d);
     },
     async addSession(s) {

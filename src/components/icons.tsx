@@ -123,3 +123,26 @@ export const GlobeIcon = () => (
     <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z" />
   </svg>
 );
+
+export const GripIcon = () => (
+  <svg {...base} width={16} height={16} fill="currentColor" stroke="none">
+    {[7, 12, 17].map((y) => (
+      <g key={y}>
+        <circle cx="9" cy={y} r="1.7" />
+        <circle cx="15" cy={y} r="1.7" />
+      </g>
+    ))}
+  </svg>
+);
+
+export const ChevronUpIcon = () => (
+  <svg {...base} width={14} height={14} strokeWidth={2.8}>
+    <path d="M6 15l6-6 6 6" />
+  </svg>
+);
+
+export const ChevronDownIcon = () => (
+  <svg {...base} width={14} height={14} strokeWidth={2.8}>
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
