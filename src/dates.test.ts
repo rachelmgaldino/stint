@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, atTime, clockTime, startOfDay, startOfWeek, weekDays } from "./dates";
+import { addDays, atTime, clockTime, fromIsoDate, isoDate, startOfDay, startOfWeek, weekDays } from "./dates";
 
 describe("dates", () => {
   const sat = new Date(2026, 9, 17, 21, 14).getTime();
@@ -19,6 +19,14 @@ describe("dates", () => {
 
   it("adds days across a month boundary", () => {
     expect(addDays(new Date(2026, 9, 31).getTime(), 1)).toBe(new Date(2026, 10, 1).getTime());
+  });
+
+  it("formats and parses date input values", () => {
+    const day = new Date(2026, 9, 18).getTime();
+    expect(isoDate(day + 5 * 3_600_000)).toBe("2026-10-18");
+    expect(fromIsoDate("2026-10-18")).toBe(day);
+    expect(fromIsoDate("2026-02-30")).toBeNull();
+    expect(fromIsoDate("")).toBeNull();
   });
 
   it("formats and parses clock times", () => {
