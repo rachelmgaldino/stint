@@ -1,11 +1,23 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import type { CalendarSettings, Category, Settings, Store, Theme } from "../store";
 import * as G from "../google";
 import { testNotification } from "../platform";
 import { ratings } from "./Reflection";
 import { RatingFace } from "./Pip";
 import { palette, soft } from "../colors";
-import { BellIcon, CalendarIcon, ClockIcon, GlobeIcon, SparkIcon, SunMoonIcon, TagIcon, XIcon } from "./icons";
+import {
+  BellIcon,
+  CalendarIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ClockIcon,
+  GlobeIcon,
+  GripIcon,
+  SparkIcon,
+  SunMoonIcon,
+  TagIcon,
+  XIcon,
+} from "./icons";
 import { languages, t } from "../i18n";
 import type { Look } from "../look";
 import { Pip } from "./Pip";
@@ -449,20 +461,92 @@ function CalendarSection({ settings, google, onGoogleChanged, set }: Props & { s
   );
 }
 
+/** `list` with the item at `from` moved to `to`. */
+function moveItem<T>(list: T[], from: number, to: number): T[] {
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 function Categories({ categories, store, onCategoriesChanged }: Props) {
   const [newName, setNewName] = useState("");
   const [picking, setPicking] = useState<number | null>(null);
+  // While a row is dragged the list is shown in its new order before it's saved.
+  const [order, setOrder] = useState<Category[]>(categories);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    if (dragging === null) setOrder(categories);
+  }, [categories, dragging]);
+
   const recolor = async (c: Category, color: string) => {
     await store.updateCategory({ ...c, color });
     onCategoriesChanged();
   };
+  const saveOrder = async (list: Category[]) => {
+    setOrder(list);
+    await store.reorderCategories(list.map((c) => c.id));
+    onCategoriesChanged();
+  };
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= order.length) return;
+    void saveOrder(moveItem(order, from, to));
+  };
+
+  // Dragging uses pointer events so it works with a mouse, a pen and a finger.
+  const startDrag = (e: PointerEvent<HTMLButtonElement>, id: number) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setPicking(null);
+    setDragging(id);
+  };
+  const dragOver = (e: PointerEvent<HTMLButtonElement>) => {
+    if (dragging === null || !listRef.current) return;
+    const rows = [...listRef.current.children] as HTMLElement[];
+    const from = order.findIndex((c) => c.id === dragging);
+    let to = rows.findIndex((r) => {
+      const box = r.getBoundingClientRect();
+      return e.clientY < box.top + box.height / 2;
+    });
+    if (to === -1) to = rows.length - 1;
+    else if (to > from) to -= 1;
+    if (to !== from) setOrder(moveItem(order, from, to));
+  };
+  const endDrag = () => {
+    if (dragging === null) return;
+    setDragging(null);
+    if (order.some((c, i) => c.id !== categories[i]?.id)) void saveOrder(order);
+  };
+
   const text = t().settings;
   return (
     <Card title={text.categories} sub={text.categoriesSub} tone="sky" icon={<TagIcon />}>
-      <ul className="categories">
-        {categories.map((c) => (
-          <li key={c.id} className="category-item">
+      <ul className="categories" ref={listRef}>
+        {order.map((c, i) => (
+          <li key={c.id} className={dragging === c.id ? "category-item dragging" : "category-item"}>
             <div className="category-row">
+              <button
+                className="drag-handle"
+                aria-label={text.dragToReorder(c.name)}
+                title={text.dragShort}
+                disabled={order.length <= 1}
+                onPointerDown={(e) => startDrag(e, c.id)}
+                onPointerMove={dragOver}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    move(i, i - 1);
+                  } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    move(i, i + 1);
+                  }
+                }}
+              >
+                <GripIcon />
+              </button>
               <button
                 className="swatch"
                 style={{ background: soft(c.color) }}
@@ -482,6 +566,26 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
                   }
                 }}
               />
+              <span className="order-buttons">
+                <button
+                  className="icon-only"
+                  aria-label={text.moveUp(c.name)}
+                  title={text.moveUpShort}
+                  disabled={i === 0}
+                  onClick={() => move(i, i - 1)}
+                >
+                  <ChevronUpIcon />
+                </button>
+                <button
+                  className="icon-only"
+                  aria-label={text.moveDown(c.name)}
+                  title={text.moveDownShort}
+                  disabled={i === order.length - 1}
+                  onClick={() => move(i, i + 1)}
+                >
+                  <ChevronDownIcon />
+                </button>
+              </span>
               <button
                 className="icon-only"
                 aria-label={text.remove(c.name)}
