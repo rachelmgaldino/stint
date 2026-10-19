@@ -96,7 +96,7 @@ jobs:
       TAG: ${{ needs.bump.outputs.tag }}
       PREVIOUS: ${{ needs.bump.outputs.previous }}
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: stint-windows-installer
           path: installer
