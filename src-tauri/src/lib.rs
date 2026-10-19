@@ -8,6 +8,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, State, WindowEvent,
 };
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -49,6 +50,15 @@ fn migrations() -> Vec<Migration> {
         sql: "
             ALTER TABLE sessions ADD COLUMN google_event_id TEXT;
             ALTER TABLE sessions ADD COLUMN google_calendar_id TEXT;
+        ",
+        kind: MigrationKind::Up,
+    },
+    Migration {
+        version: 3,
+        description: "let categories be put in any order",
+        sql: "
+            ALTER TABLE categories ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+            UPDATE categories SET position = id;
         ",
         kind: MigrationKind::Up,
     }]
@@ -131,6 +141,24 @@ fn test_notification(app: AppHandle, body: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Asks where to save a report and writes it there. Returns false when the
+/// save window is cancelled.
+#[tauri::command]
+async fn save_report(app: AppHandle, file_name: String, contents: String) -> Result<bool, String> {
+    let Some(path) = app
+        .dialog()
+        .file()
+        .set_file_name(file_name)
+        .add_filter("CSV", &["csv"])
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(path, contents).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -144,6 +172,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Alarm::default())
         .manage(google::Google::default())
         .invoke_handler(tauri::generate_handler![
@@ -152,6 +181,7 @@ pub fn run() {
             schedule_alarm,
             cancel_alarm,
             test_notification,
+            save_report,
             google::google_connect,
             google::google_status,
             google::google_disconnect,

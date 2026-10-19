@@ -359,6 +359,30 @@ input[type="time"] {
   background: var(--surface);
 }
 
+.day-export {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.export-button {
+  height: 40px;
+  padding: 0 14px 0 11px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--sunken);
+  white-space: nowrap;
+}
+
+.export-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .dashed-button {
   height: 44px;
   padding: 0 16px;
@@ -2370,6 +2394,51 @@ select.select-pill {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.category-item.dragging {
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgb(40 30 80 / 0.14);
+  position: relative;
+  z-index: 1;
+}
+
+.drag-handle {
+  width: 22px;
+  height: 32px;
+  margin-right: -4px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.drag-handle:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.category-item.dragging .drag-handle {
+  cursor: grabbing;
+}
+
+.drag-handle:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.order-buttons {
+  display: inline-flex;
+}
+
+.order-buttons .icon-only {
+  width: 28px;
+}
+
+.order-buttons .icon-only:disabled {
+  opacity: 0.3;
 }
 
 .swatch {

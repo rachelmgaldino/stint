@@ -80,3 +80,32 @@ export async function testNotification(): Promise<void> {
   if ("Notification" in window && Notification.permission !== "granted") await Notification.requestPermission();
   await notify("Stint", t().notice.working);
 }
+
+/**
+ * Saves a report: through a save window in the desktop app, as a download in a
+ * browser. Resolves false when the save window is cancelled.
+ */
+export async function saveReport(fileName: string, contents: string): Promise<boolean> {
+  if (isTauri()) return invoke<boolean>("save_report", { fileName, contents });
+  const url = URL.createObjectURL(new Blob([contents], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
+export async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Older webviews without the clipboard API.
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.append(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+}
