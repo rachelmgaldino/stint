@@ -63,7 +63,7 @@ jobs:
       PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: stint-windows-installer
           path: installer
