@@ -44,6 +44,20 @@ export type Settings = {
   defaultRating: number;
   notifyFocusEnd: boolean;
   notifyBreakEnd: boolean;
+  /** A heads-up a few minutes before a session or break ends. */
+  notifySoon: boolean;
+  soonMinutes: number;
+  soonSound: boolean;
+  /** A soft sound every few minutes of focus, to pull attention back. */
+  presence: boolean;
+  presenceMinutes: number;
+  /** Nudges once a session or break runs this far over, or stays paused this long. */
+  overflowFocus: boolean;
+  overflowFocusMinutes: number;
+  overflowPause: boolean;
+  overflowPauseMinutes: number;
+  overflowBreak: boolean;
+  overflowBreakMinutes: number;
   calendar: CalendarSettings;
 };
 
@@ -76,6 +90,17 @@ export const defaultSettings: Settings = {
   defaultRating: 2,
   notifyFocusEnd: true,
   notifyBreakEnd: true,
+  notifySoon: true,
+  soonMinutes: 1,
+  soonSound: true,
+  presence: false,
+  presenceMinutes: 10,
+  overflowFocus: true,
+  overflowFocusMinutes: 10,
+  overflowPause: true,
+  overflowPauseMinutes: 10,
+  overflowBreak: true,
+  overflowBreakMinutes: 10,
   calendar: { syncSessions: false, syncBreaks: false, targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
 
