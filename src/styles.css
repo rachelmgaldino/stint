@@ -964,6 +964,82 @@ main {
   align-self: flex-start;
 }
 
+/* "Started at 13:15 · Change" sits with Discard under the running session. */
+.stage-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+}
+
+.start-edit-button {
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  background: var(--sunken);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.start-edit-button:hover {
+  color: var(--text);
+}
+
+.break-stage .start-edit-button {
+  align-self: flex-start;
+  background: var(--surface);
+}
+
+.start-card {
+  max-width: 400px;
+  gap: 12px;
+  text-align: left;
+}
+
+.start-card > p:first-of-type {
+  margin-bottom: 4px;
+}
+
+.start-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.start-chips > span {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.start-chips .segmented button {
+  padding: 0 10px;
+}
+
+.start-field input {
+  height: 48px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.start-card .start-preview {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.start-card .start-preview.error {
+  color: var(--danger);
+}
+
+.start-card .start-note {
+  font-size: 13px;
+}
+
 .eyebrow {
   font-size: 12px;
   font-weight: 800;
