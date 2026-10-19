@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import type { CalendarSettings, Category, Settings, Store, Theme } from "../store";
 import * as G from "../google";
-import { testNotification } from "../platform";
+import { playSound, testNotification } from "../platform";
 import { ratings } from "./Reflection";
 import { RatingFace } from "./Pip";
 import { palette, soft } from "../colors";
@@ -13,6 +13,7 @@ import {
   ClockIcon,
   GlobeIcon,
   GripIcon,
+  HourglassIcon,
   SparkIcon,
   SunMoonIcon,
   TagIcon,
@@ -42,6 +43,8 @@ function Stepper({
   max,
   step = 1,
   unit,
+  sub,
+  action,
   onChange,
 }: {
   label: string;
@@ -50,12 +53,19 @@ function Stepper({
   max: number;
   step?: number;
   unit: string;
+  /** Indented under the switch it belongs to. */
+  sub?: boolean;
+  /** A small button shown beside the label, like "Test". */
+  action?: ReactNode;
   onChange(v: number): void;
 }) {
   const go = (d: number) => onChange(Math.min(max, Math.max(min, value + d)));
   return (
-    <div className="row">
-      <span>{label}</span>
+    <div className={sub ? "row sub-row" : "row"}>
+      <span className="row-label">
+        {label}
+        {action}
+      </span>
       <span className="stepper">
         <button
           type="button"
@@ -85,15 +95,17 @@ function Switch({
   label,
   hint,
   checked,
+  sub,
   onChange,
 }: {
   label: string;
   hint?: string;
   checked: boolean;
+  sub?: boolean;
   onChange(v: boolean): void;
 }) {
   return (
-    <label className="row">
+    <label className={sub ? "row sub-row" : "row"}>
       <span>
         {label}
         {hint && <span className="hint">{hint}</span>}
@@ -139,6 +151,36 @@ export function SettingsView(p: Props) {
   const { settings } = p;
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => p.onSettings({ ...settings, [k]: v });
   const text = t().settings;
+  const notice = t().notice;
+  const overflows: {
+    on: "overflowFocus" | "overflowPause" | "overflowBreak";
+    minutes: "overflowFocusMinutes" | "overflowPauseMinutes" | "overflowBreakMinutes";
+    label: string;
+    hint: string;
+    test(n: number): void;
+  }[] = [
+    {
+      on: "overflowFocus",
+      minutes: "overflowFocusMinutes",
+      label: text.overflowFocus,
+      hint: text.overflowFocusHint,
+      test: (n) => void testNotification(notice.overflowFocusTitle, notice.overflowFocusBody("", n)).catch(() => {}),
+    },
+    {
+      on: "overflowPause",
+      minutes: "overflowPauseMinutes",
+      label: text.overflowPause,
+      hint: text.overflowPauseHint,
+      test: (n) => void testNotification(notice.pauseTitle, notice.pauseBody(true, "", n)).catch(() => {}),
+    },
+    {
+      on: "overflowBreak",
+      minutes: "overflowBreakMinutes",
+      label: text.overflowBreak,
+      hint: text.overflowBreakHint,
+      test: (n) => void testNotification(notice.overflowBreakTitle, notice.overflowBreakBody(n)).catch(() => {}),
+    },
+  ];
 
   return (
     <>
@@ -188,7 +230,70 @@ export function SettingsView(p: Props) {
               onChange={(v) => set("notifyBreakEnd", v)}
             />
             <Switch label={text.sound} checked={settings.sound} onChange={(v) => set("sound", v)} />
+            <Switch
+              label={text.soon}
+              hint={text.soonHint}
+              checked={settings.notifySoon}
+              onChange={(v) => set("notifySoon", v)}
+            />
+            {settings.notifySoon && (
+              <>
+                <Stepper
+                  sub
+                  label={text.soonLength}
+                  value={settings.soonMinutes}
+                  min={1}
+                  max={15}
+                  unit={text.min}
+                  onChange={(v) => set("soonMinutes", v)}
+                />
+                <Switch
+                  sub
+                  label={text.soonSound}
+                  checked={settings.soonSound}
+                  onChange={(v) => set("soonSound", v)}
+                />
+              </>
+            )}
             <TestButton />
+          </Card>
+
+          <Card title={text.reminders} sub={text.remindersSub} tone="sky" icon={<HourglassIcon />}>
+            <Switch
+              label={text.presence}
+              hint={text.presenceHint}
+              checked={settings.presence}
+              onChange={(v) => set("presence", v)}
+            />
+            {settings.presence && (
+              <Stepper
+                sub
+                label={text.presenceEvery}
+                action={<MiniButton label={text.listen} onClick={() => playSound("presence")} />}
+                value={settings.presenceMinutes}
+                min={1}
+                max={30}
+                unit={text.min}
+                onChange={(v) => set("presenceMinutes", v)}
+              />
+            )}
+            {overflows.map((o) => (
+              <div key={o.on} className="row-group">
+                <Switch label={o.label} hint={o.hint} checked={settings[o.on]} onChange={(v) => set(o.on, v)} />
+                {settings[o.on] && (
+                  <Stepper
+                    sub
+                    label={text.notifyAfter}
+                    action={<MiniButton label={text.test} onClick={() => o.test(settings[o.minutes])} />}
+                    value={settings[o.minutes]}
+                    min={1}
+                    max={60}
+                    unit={text.min}
+                    onChange={(v) => set(o.minutes, v)}
+                  />
+                )}
+              </div>
+            ))}
           </Card>
 
           <Card title={text.after} sub={text.afterSub} tone="bubblegum" icon={<SparkIcon />}>
@@ -282,6 +387,14 @@ export function SettingsView(p: Props) {
       </div>
       <p className="muted small page-foot">{text.savedLocally}</p>
     </>
+  );
+}
+
+function MiniButton({ label, onClick }: { label: string; onClick(): void }) {
+  return (
+    <button type="button" className="mini-button" onClick={onClick}>
+      {label}
+    </button>
   );
 }
 
