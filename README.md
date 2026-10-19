@@ -1,97 +1,84 @@
 # Stint
 
-A focus timer for Windows, modelled on the features of the Session app: pick
-what you're working on, run a timer, reflect when it ends, and look back over
-your day.
+A focus timer for Windows that ties every session to what you meant to do, asks how it went, and shows where your day actually went.
 
-Built with [Tauri 2](https://tauri.app) (Rust shell) and React + TypeScript.
-Everything is stored locally in SQLite.
+![Stint's timer on desktop and phone: a lavender window with a "What are we working on?" form on the left, a flower-shaped dial reading 25:00 with the mascot Pip in the middle, and a timeline of today's sessions along the bottom. A phone-sized version of the same screen sits on the right with a bottom tab bar.](screenshots/preview.png)
+
+**[Live demo](https://rachelmgaldino.github.io/stint/)** (the web build, with sample sessions kept in your browser)
+
+## Overview
+
+I plan my day in focus sessions: say what I'm about to do, run a timer, note how it went, and look back at where the time went. The app I used for this has no Windows version, and my working machine runs Windows, so I built my own as a native desktop app. It keeps the habit I already had and adds a layout and look of its own.
 
 ## Features
 
-- Two-pane desktop layout: the timer on the left, your day on the right
-- Drag the dial to set a session's length, or to change the time left while it runs
-- Pause and resume; sessions and breaks keep counting into overtime until you end them
-- A category and an intention for each session, and daily goal dots
-- A reflection after each session: what you got done and how it went (can be
-  turned off, with a default mood)
-- Day timeline with a week strip, daily totals and rating counts
-- Click a session to edit or delete it; add a session you forgot to time with +
-- Analytics by day, week or month: total and average focus, breaks, focus/break
-  ratio, rating counts, most focused and most distracted category, focus by day,
-  category and intention breakdowns with change from the previous period, and
-  the session list with notes, a notes-only toggle and a category filter
-- A mini timer bar along the bottom while you're on other screens
-- Notifications when a session's time is up or a break is over, even while
-  Stint is in the tray
-- Google Calendar: add your sessions to a calendar you pick, and see your
-  calendars' events beside your sessions (click one to set up a session for it)
-- Tray icon: hover for the time left; closing the window keeps the timer running
-- Two looks: Lavender with Pip, or Mochi the cat on sage paper, each with light, dark or match-Windows themes
-- English or Portuguese (Brazil), picked in Settings
-- Space starts, pauses and resumes the timer; arrow keys adjust the dial
+- Drag a dot around the dial to set any session length, or to change the time left while it runs
+- An intention and a category for each session, with a daily goal shown as sprouts
+- Sessions and breaks keep counting into overtime until you end them, so stopping is always a choice
+- A short reflection afterwards (what got done, how it felt), which can be switched off
+- Analytics by day, week and month: a timeline of the day with notes and breaks, focus by category and intention, and change from the previous period
+- Two-way link with Google Calendar: each session is written to a calendar you pick, and your calendar's events show beside your sessions
+- Two looks (Lavender with Pip, Mochi the cat), each with light, dark and match-Windows themes, in English or Portuguese (Brazil)
 
-## Install on Windows
+![Two timer screens side by side: Lavender in its dark plum theme, and the Mochi look with a cat in the dial on sage-green paper.](screenshots/looks.png)
 
-Each push builds an installer in GitHub Actions. Open the latest run of the
-**Build** workflow, download the `stint-windows-installer` artifact, unzip it
-and run the `.exe` (or the `.msi`). Windows SmartScreen may warn because the
-installer is not code-signed; choose "More info" then "Run anyway".
+![The Analytics Day view: tiles for time focused, how the sessions felt and the day's rhythm; a vertical timeline of sessions with their notes and the breaks and free gaps between them; and a side column with this week's totals and where the time went by category.](screenshots/analytics-day.png)
 
-## Google Calendar setup
+## How it works
 
-Stint signs in to Google with an OAuth client that you own, so no third party
-is involved. You do this once.
+**A desktop app, not a website.** A focus timer has to keep time while its window is hidden and notify you when it's done. Browsers throttle timers in background tabs, so a web page can be late to tell you a session is over, and it stops entirely once the tab is closed. Stint is a [Tauri 2](https://tauri.app) app: a Rust process owns the window, the tray icon and the alarm, and the interface is React running in the system's WebView. It uses the WebView2 runtime that already ships with Windows instead of bundling a whole browser the way Electron apps do.
 
-1. Go to <https://console.cloud.google.com/>, and create a project (any name,
-   for example "Stint").
-2. **APIs & Services → Library**: search for **Google Calendar API** and click
-   **Enable**.
-3. **APIs & Services → OAuth consent screen** (also called **Google Auth
-   Platform**): choose **External**, fill in the app name and your email, and
-   add yourself under **Test users** (or **Audience**).
-4. On the same screen, click **Publish app** so its status is **In
-   production**. Google doesn't need to verify it for your own use; you'll see
-   an "unverified app" warning when you sign in, which you can pass with
-   **Advanced → Go to Stint**. Without this step Google signs you out every 7
-   days.
-5. **APIs & Services → Credentials → Create credentials → OAuth client ID**,
-   application type **Desktop app**. Copy the **Client ID** and **Client
-   secret**.
-6. In Stint, open **Settings → Calendar**, paste both and click **Connect**.
-   Your browser opens to sign in; when it says Stint is connected, go back to
-   the app and pick the calendar for your sessions.
+**Time comes from the wall clock, not from ticks.** The timer state (`src/timer.ts`) stores when a session started and how long it was paused, and computes what's left from `Date.now()`. A hidden window, a laptop going to sleep or a slow frame can't make it lose time. The "time's up" notification is scheduled in Rust (`src-tauri/src/lib.rs`) in short naps against the wall clock, so a laptop that sleeps through the end still notifies the moment it wakes, even with the window closed to the tray.
 
-Stint only asks to read your calendar list and to manage events. The sign-in is
-kept in Windows Credential Manager; **Disconnect** removes it and revokes it at
-Google.
+**Google sign-in without a server.** Calendar access uses OAuth for installed apps: Stint opens a one-time loopback port on `127.0.0.1`, sends you to Google with a PKCE challenge, and catches the redirect itself (`src-tauri/src/google.rs`). The refresh token goes into Windows Credential Manager, never into the app's database or the interface. The UI asks Rust to make Calendar requests on its behalf and never sees a token, and those requests can only reach Calendar endpoints. Each person supplies their own Google OAuth client, so there's no shared secret in the repository and no third party in the middle.
 
-## Updating
+**Your data stays on your machine.** Sessions, categories and settings live in a local SQLite file, with the schema in versioned migrations. There's no account and no sync service. Events Stint writes to Google are tagged with a private property, so when it reads your calendar back it skips its own sessions instead of showing them twice.
 
-Run a newer installer over the installed app. It updates in place and keeps
-your sessions, which live in your user folder (see below).
+**One interface, three places.** The same React code runs as the desktop app, as `npm run dev` in a browser (with data in localStorage instead of SQLite), and as the public demo on GitHub Pages. Below 640px it switches to a phone layout with a bottom tab bar and bottom sheets, which is what the demo shows on a phone.
 
-## Develop
+## Tech
 
-Requirements: Node.js 22+, Rust (stable), and on Windows the WebView2 runtime
-(already present on Windows 10/11).
+- **Desktop shell:** Tauri 2 and Rust (tray, notifications, single instance, OAuth with `reqwest`, `keyring`, `sha2`)
+- **Interface:** React 19 and TypeScript, built with Vite; plain CSS with custom properties for the two looks and their themes
+- **Data:** SQLite through `tauri-plugin-sql`
+- **Tests:** Vitest for timer, dial, date, analytics and calendar logic; Rust unit tests for PKCE and the OAuth redirect parser
+- **CI:** GitHub Actions tests and builds the Windows installer on every push, publishes it as a GitHub Release when the version changes on main, and deploys the web demo to GitHub Pages
 
-```sh
+## Running it locally
+
+### Prerequisites
+
+- Node.js 22 or newer
+- Rust (stable), only for the desktop app
+- On Windows, the WebView2 runtime (already present on Windows 10 and 11)
+
+```bash
+git clone https://github.com/rachelmgaldino/stint.git
+cd stint
 npm install
-npm run tauri dev     # desktop app with hot reload
-npm run dev           # just the UI in a browser, data kept in localStorage
-npm test              # timer logic tests
-npm run tauri build   # installer in src-tauri/target/release/bundle
+npm run dev           # the interface in a browser, data kept in localStorage
+npm run tauri dev     # the desktop app with hot reload
+npm test              # unit tests
+npm run tauri build   # Windows installer in src-tauri/target/release/bundle
 ```
 
-## Where data lives
+To try it without building, download the `.exe` from the [latest release](https://github.com/rachelmgaldino/stint/releases/latest) and run it. It isn't code-signed, so SmartScreen will ask you to confirm. Data lives in `%APPDATA%\com.rachelmgaldino.stint\stint.db` and survives updates.
 
-`%APPDATA%\com.rachelmgaldino.stint\stint.db` on Windows. The schema is defined
-by the migrations in `src-tauri/src/lib.rs`.
+### Google Calendar
 
-## Roadmap
+Optional. You need your own OAuth client: in Google Cloud Console, enable the Google Calendar API, set up the consent screen as External and publish it, then create an OAuth client of type **Desktop app**. Paste its client ID and secret into **Settings, Calendar** and click **Connect**. Stint asks only to read your calendar list and manage events; **Disconnect** deletes the stored token and revokes it at Google.
 
-1. Timer, focus goal, reflection, dark mode, desktop layout (done)
-2. Full history and analytics (done)
-3. App and website blocking
-4. Global hotkeys, Do Not Disturb, Slack and music (Google Calendar done)
+## What I'd improve
+
+- [ ] No blocking of distracting apps or websites during a session yet. It's the feature I'd add next
+- [ ] No global hotkey: Space and the arrow keys only work while the window has focus
+- [ ] If a calendar write fails (for example, Google revoked the sign-in), it's only logged. The app should say so and offer to reconnect
+- [ ] The installer isn't code-signed, so every new version triggers a SmartScreen warning
+- [ ] Windows only. The phone layout exists, but there's no iPhone build yet
+
+## Contact
+
+**Rachel Galdino**
+- Email: [rachel.galdino@proton.me](mailto:rachel.galdino@proton.me)
+- LinkedIn: [linkedin.com/in/rachel-galdino](https://www.linkedin.com/in/rachel-galdino/)
+- GitHub: [github.com/rachelmgaldino](https://github.com/rachelmgaldino)
