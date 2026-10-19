@@ -92,6 +92,13 @@ export const BellIcon = () => (
   </svg>
 );
 
+export const HourglassIcon = () => (
+  <svg {...base} strokeWidth={2.2}>
+    <path d="M7 3h10M7 21h10" />
+    <path d="M8 3c0 4 8 5 8 9s-8 5-8 9M16 3c0 4-8 5-8 9s8 5 8 9" />
+  </svg>
+);
+
 export const SparkIcon = () => (
   <svg {...base} strokeWidth={2.2}>
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" />
