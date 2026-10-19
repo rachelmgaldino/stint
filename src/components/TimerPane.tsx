@@ -7,7 +7,7 @@ import * as T from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, CoffeeIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
 import { t } from "../i18n";
 import { look } from "../look";
@@ -31,6 +31,8 @@ type Props = {
   onStart(): void;
   onPause(): void;
   onResume(): void;
+  /** Save the focus session up to now and start a break. */
+  onTakeBreak(): void;
   onSetRemaining(minutes: number): void;
   onAdjust(minutes: number): void;
   /** Say the running session really began at another time. */
@@ -163,8 +165,8 @@ export function TimerPane(p: Props) {
               <StopIcon /> {text.endSession}
             </button>
             {timer.status === "running" ? (
-              <button className="soft-button big" onClick={p.onPause}>
-                {text.pause}
+              <button className="soft-button big with-icon" title={text.takeBreakHint} onClick={p.onTakeBreak}>
+                <CoffeeIcon /> {text.takeBreak}
               </button>
             ) : (
               <button className="soft-button big" onClick={p.onResume}>

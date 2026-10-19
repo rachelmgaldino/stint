@@ -231,7 +231,9 @@ export default function App() {
     [settings],
   );
 
-  const finish = useCallback(async () => {
+  // `thenBreak` ends a focus session and starts a break straight away, whatever
+  // the auto-break setting says. The reflection, if asked for, opens over the break.
+  const finish = useCallback(async (thenBreak = false) => {
     if (timer.status === "idle" || !store) return;
     const end = Date.now();
     const asking = timer.kind === "focus" && settings.askReflection;
@@ -246,7 +248,8 @@ export default function App() {
       reflection: "",
       rating: timer.kind === "focus" ? settings.defaultRating : 0,
     };
-    setLive((l) => ({ ...l, timer: T.idle }));
+    const breakNow = thenBreak && record.kind === "focus";
+    setLive((l) => ({ ...l, timer: breakNow ? T.start("break", settings.breakMinutes * 60_000, end) : T.idle }));
     const id = await store.addSession(record);
     chooseKind(record.kind === "focus" ? "break" : "focus");
     setDay(startOfDay(end));
@@ -257,8 +260,11 @@ export default function App() {
       return;
     }
     syncPending();
-    if (record.kind === "focus" && settings.autoBreak) startTimer("break", settings.breakMinutes);
+    if (record.kind === "focus" && settings.autoBreak && !breakNow) startTimer("break", settings.breakMinutes);
   }, [timer, store, live, settings, chooseKind, refresh, syncPending]);
+
+  /** Pause on a focus session: save it up to now and go on a break. */
+  const takeBreak = () => finish(true);
 
   const backToFocus = async () => {
     await finish();
@@ -295,7 +301,8 @@ export default function App() {
     setPending(null);
     refresh();
     syncPending();
-    if (settings.autoBreak) startTimer("break", settings.breakMinutes);
+    // Not when a break (or a new focus session) is already under way.
+    if (settings.autoBreak && timer.status === "idle") startTimer("break", settings.breakMinutes);
   };
 
   const saveSession = async (s: SessionRecord) => {
@@ -414,7 +421,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  // Space starts, pauses and resumes, unless the user is typing or a dialog is open.
+  // Space starts, sends a focus session to a break, pauses and resumes breaks, unless the user is typing or a dialog is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
@@ -423,6 +430,7 @@ export default function App() {
       e.preventDefault();
       const n = Date.now();
       if (timer.status === "idle") startTimer(idleKind, plannedMin);
+      else if (timer.status === "running" && timer.kind === "focus") takeBreak();
       else if (timer.status === "running") setLive((l) => ({ ...l, timer: T.pause(l.timer, n) }));
       else setLive((l) => ({ ...l, timer: T.resume(l.timer, n) }));
     };
@@ -516,7 +524,8 @@ export default function App() {
             onAdjust={adjust}
             onMoveStart={(ms) => setLive((l) => ({ ...l, timer: T.moveStart(l.timer, ms, Date.now()) }))}
             previousEnd={previousEnd}
-            onFinish={finish}
+            onTakeBreak={takeBreak}
+            onFinish={() => finish()}
             onBackToFocus={backToFocus}
             onDiscard={() => setLive((l) => ({ ...l, timer: T.idle }))}
           />
@@ -570,8 +579,9 @@ export default function App() {
           category={category}
           onPause={() => setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }))}
           onResume={() => setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }))}
+          onTakeBreak={takeBreak}
           onAdjust={adjust}
-          onFinish={finish}
+          onFinish={() => finish()}
           onOpenTimer={() => setView("timer")}
         />
       )}
