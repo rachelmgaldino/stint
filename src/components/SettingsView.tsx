@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import type { CalendarSettings, Category, Settings, Store, Theme } from "../store";
+import { SIZE_MAX, SIZE_MIN, SIZE_STEP, cleanSize } from "../fit";
 import * as G from "../google";
 import { playSound, testNotification } from "../platform";
 import { ratings } from "./Reflection";
@@ -76,7 +77,8 @@ function Stepper({
           −
         </button>
         <span className="stepper-value" aria-live="polite">
-          {value} {unit}
+          {value}
+          {unit === "%" ? unit : ` ${unit}`}
         </span>
         <button
           type="button"
@@ -362,6 +364,18 @@ export function SettingsView(p: Props) {
                   {(settings.look === "mochi" ? text.themesMochi : text.themes)[id]}
                 </button>
               ))}
+            </div>
+            <div className="desk-only">
+              <Stepper
+                label={text.size}
+                value={cleanSize(settings.size)}
+                min={SIZE_MIN}
+                max={SIZE_MAX}
+                step={SIZE_STEP}
+                unit="%"
+                onChange={(v) => set("size", v)}
+              />
+              <p className="card-note">{text.sizeKeys}</p>
             </div>
           </Card>
 
