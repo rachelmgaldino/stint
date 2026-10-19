@@ -3201,6 +3201,9 @@ select.select-pill {
   .analytics.month-range .top-row {
     flex: 0 0 calc(100% - 176px);
     min-height: 360px;
+    /* A smaller Size gives the app more room; let that show more of the page
+       instead of stretching the chart. */
+    max-height: 700px;
   }
 
   .shell:has(.mini-timer) .analytics.week-range .top-row,
