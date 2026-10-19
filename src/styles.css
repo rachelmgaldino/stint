@@ -1590,20 +1590,74 @@ button.ribbon-seg:hover {
   font-weight: 800;
 }
 
-.danger {
-  background: var(--danger);
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 12px;
+.danger-button {
+  height: 46px;
+  min-width: 104px;
+  padding: 0 20px;
+  border-radius: 16px;
   font-weight: 800;
+  background: var(--danger);
+  color: var(--on-ink);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--danger) 70%, black);
 }
 
-.confirm {
-  display: inline-flex;
-  align-items: center;
+.danger-button:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--danger) 70%, black);
+}
+
+/* "Delete this session?" sits over the session dialog as its own small card. */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--scrim);
+  animation: fade 0.15s ease-out;
+}
+
+.confirm-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border-radius: 28px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.25);
+  animation: pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.confirm-card h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.confirm-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.confirm-actions button {
+  flex: 1;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
 }
 
 /* Analytics */
