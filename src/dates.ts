@@ -56,3 +56,18 @@ export function atTime(dayMs: number, hhmm: string): number | null {
   d.setHours(h, min, 0, 0);
   return d.getTime();
 }
+
+/** "2026-10-18", the value of a date input. */
+export function isoDate(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Local midnight of a "YYYY-MM-DD" date. Returns null for anything malformed. */
+export function fromIsoDate(value: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (d.getMonth() !== Number(m[2]) - 1) return null;
+  return d.getTime();
+}
