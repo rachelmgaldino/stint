@@ -1,7 +1,8 @@
 mod google;
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -93,26 +94,40 @@ fn set_tray_menu(app: AppHandle, open: String, quit: String) {
     }
 }
 
-/// The one pending "time's up" alarm. Each schedule or cancel bumps the
-/// generation, and a sleeping alarm only fires if it is still the latest.
+/// Pending alarms by key ("end", "soon", "overflow", ...). Each schedule or
+/// cancel of a key gives it a new generation, and a sleeping alarm only fires
+/// if its generation is still the latest for that key.
 #[derive(Default)]
-struct Alarm(Arc<AtomicU64>);
+struct Alarms {
+    next: AtomicU64,
+    live: Arc<Mutex<HashMap<String, u64>>>,
+}
 
 fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
-/// Shows a notification at `at_ms` (wall clock). It runs here rather than in
-/// the window because a hidden window's timers are throttled.
+/// Fires an alarm at `at_ms` (wall clock): shows the notification, if there
+/// is one, and tells the window so it can play a sound. It runs here rather
+/// than in the window because a hidden window's timers are throttled.
 #[tauri::command]
-fn schedule_alarm(app: AppHandle, alarm: State<Alarm>, at_ms: u64, title: String, body: String) {
-    let generation = alarm.0.fetch_add(1, Ordering::SeqCst) + 1;
-    let current = alarm.0.clone();
+fn schedule_alarm(
+    app: AppHandle,
+    alarms: State<Alarms>,
+    key: String,
+    at_ms: u64,
+    title: Option<String>,
+    body: Option<String>,
+) {
+    let generation = alarms.next.fetch_add(1, Ordering::SeqCst) + 1;
+    alarms.live.lock().unwrap().insert(key.clone(), generation);
+    let live = alarms.live.clone();
     std::thread::spawn(move || {
+        let current = || live.lock().unwrap().get(&key) == Some(&generation);
         // Short naps against the wall clock, so a laptop that sleeps through
         // the end still notifies as soon as it wakes.
         loop {
-            if current.load(Ordering::SeqCst) != generation {
+            if !current() {
                 return;
             }
             let now = now_ms();
@@ -121,21 +136,31 @@ fn schedule_alarm(app: AppHandle, alarm: State<Alarm>, at_ms: u64, title: String
             }
             std::thread::sleep(Duration::from_millis((at_ms - now).min(1000)));
         }
-        let _ = app.notification().builder().title(&title).body(&body).show();
-        let _ = app.emit("alarm", ());
+        live.lock().unwrap().remove(&key);
+        if let (Some(title), Some(body)) = (title, body) {
+            let _ = app.notification().builder().title(&title).body(&body).show();
+        }
+        let _ = app.emit("alarm", key);
     });
 }
 
+/// Cancels one alarm, or all of them when no key is given.
 #[tauri::command]
-fn cancel_alarm(alarm: State<Alarm>) {
-    alarm.0.fetch_add(1, Ordering::SeqCst);
+fn cancel_alarm(alarms: State<Alarms>, key: Option<String>) {
+    let mut live = alarms.live.lock().unwrap();
+    match key {
+        Some(k) => {
+            live.remove(&k);
+        }
+        None => live.clear(),
+    }
 }
 
 #[tauri::command]
-fn test_notification(app: AppHandle, body: String) -> Result<(), String> {
+fn test_notification(app: AppHandle, title: String, body: String) -> Result<(), String> {
     app.notification()
         .builder()
-        .title("Stint")
+        .title(title)
         .body(body)
         .show()
         .map_err(|e| e.to_string())
@@ -173,7 +198,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(Alarm::default())
+        .manage(Alarms::default())
         .manage(google::Google::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_tooltip,
