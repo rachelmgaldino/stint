@@ -1,0 +1,109 @@
+name: Release
+
+# Publishes a new Stint version, only when started by hand:
+# Actions tab > Release > Run workflow. It bumps the version on main
+# (patch 0.16.0 -> 0.16.1, minor -> 0.17.0, major -> 1.0.0), tags it, builds
+# the Windows installer and publishes "Stint vX.Y.Z" as the latest release,
+# with notes listing the PRs merged since the previous version.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to raise
+        type: choice
+        options: [minor, patch, major]
+        default: minor
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  bump:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+      previous: ${{ steps.bump.outputs.previous }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - id: bump
+        name: Bump version, commit and tag
+        run: |
+          set -euo pipefail
+          version=$(node scripts/bump-version.mjs "${{ inputs.bump }}")
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Tag $tag already exists. Pick a bigger bump."
+            exit 1
+          fi
+          previous=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release $tag"
+          git tag "$tag"
+          git push origin HEAD:main "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: bump
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.bump.outputs.tag }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npx tauri build
+      - uses: actions/upload-artifact@v6
+        with:
+          name: stint-windows-installer
+          path: src-tauri/target/release/bundle/nsis/*.exe
+
+  publish:
+    needs: [bump, windows]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.bump.outputs.tag }}
+      PREVIOUS: ${{ needs.bump.outputs.previous }}
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: stint-windows-installer
+          path: installer
+      - name: Publish release
+        run: |
+          set -euo pipefail
+          exe=$(find installer -name '*.exe' | head -n 1)
+          args=(--generate-notes --latest --verify-tag --title "Stint $TAG")
+          if [ -n "$PREVIOUS" ]; then args+=(--notes-start-tag "$PREVIOUS"); fi
+          gh release create "$TAG" "$exe" "${args[@]}"
