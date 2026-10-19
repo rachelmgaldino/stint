@@ -3070,6 +3070,15 @@ select.select-pill {
     flex-basis: calc(100% - 256px);
   }
 
+  /* The row has a fixed height here, so the session list takes what's left
+     of its card and scrolls, instead of keeping a minimum that spills out. */
+  .analytics.week-range .list-card,
+  .analytics.month-range .list-card,
+  .analytics.week-range .top-row .entries,
+  .analytics.month-range .top-row .entries {
+    min-height: 0;
+  }
+
   .analytics.week-range .when-chart {
     flex: 1 1 0;
     min-height: 0;
