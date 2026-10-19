@@ -964,7 +964,7 @@ main {
   align-self: flex-start;
 }
 
-/* "Started at 13:15 · Change" sits with Discard under the running session. */
+/* Pause and Discard sit in one row under the buttons, "Started at 13:15" below them. */
 .stage-links {
   display: flex;
   flex-wrap: wrap;
@@ -990,8 +990,11 @@ main {
   color: var(--text);
 }
 
-.break-stage .start-edit-button {
+.stage-side > .start-edit-button {
   align-self: flex-start;
+}
+
+.break-stage .start-edit-button {
   background: var(--surface);
 }
 

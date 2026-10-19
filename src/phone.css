@@ -341,14 +341,10 @@
 
   .stage-links {
     justify-content: center;
-    gap: 4px 6px;
+    gap: 4px 16px;
   }
 
-  .stage-links .start-edit-button {
-    padding: 0 10px 0 9px;
-  }
-
-  .break-stage .start-edit-button {
+  .stage-side > .start-edit-button {
     align-self: center;
   }
 

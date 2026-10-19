@@ -247,7 +247,7 @@ export function SettingsView(p: Props) {
               min={15}
               max={300}
               step={15}
-              unit={text.minFocus}
+              unit={text.min}
               onChange={(v) => set("longBreakAfter", v)}
             />
             <Choice

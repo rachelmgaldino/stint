@@ -204,7 +204,6 @@ export function TimerPane(p: Props) {
           </div>
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
           <div className="stage-links">
-            {startLink}
             {running ? (
               <button className="quiet-link" onClick={p.onPause}>
                 {text.pauseSession}
@@ -222,6 +221,7 @@ export function TimerPane(p: Props) {
               {text.discard}
             </button>
           </div>
+          {startLink}
         </div>
         {startEditor}
       </section>
@@ -260,7 +260,7 @@ export function TimerPane(p: Props) {
               </>
             )}
           </div>
-          <div className="button-row">
+          <div className="stage-links">
             {timer.status === "running" ? (
               <button className="quiet-link" onClick={p.onPause}>
                 {text.pauseBreak}
