@@ -30,6 +30,8 @@ export type Settings = {
   breakMinutes: number;
   theme: Theme;
   look: Look;
+  /** How big the desktop app draws, in percent, on top of fitting the window. */
+  size: number;
   language: Language;
   sound: boolean;
   /** Start a break automatically after the reflection is saved. */
@@ -65,6 +67,7 @@ export const defaultSettings: Settings = {
   breakMinutes: 5,
   theme: "system",
   look: "lavender",
+  size: 100,
   language: "en",
   sound: true,
   autoBreak: false,

@@ -25,6 +25,7 @@ import { soft } from "./colors";
 import { setLanguage, t } from "./i18n";
 import { setLook } from "./look";
 import { DEMO } from "./demo";
+import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 
 type View = "timer" | "analytics" | "settings";
@@ -193,6 +194,10 @@ export default function App() {
     if (settings.theme === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    setUiSize(settings.size);
+  }, [settings.size]);
 
   useEffect(() => {
     document.documentElement.dataset.look = settings.look;
@@ -407,6 +412,20 @@ export default function App() {
     setCategories(cats);
     setLive((l) => (cats[0] && !cats.some((c) => c.id === l.categoryId) ? { ...l, categoryId: cats[0].id } : l));
   };
+
+  // Ctrl + and Ctrl − change the Size setting, Ctrl 0 resets it, like zoom in a browser.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || innerWidth <= 640) return;
+      const step = ["=", "+", "Add"].includes(e.key) || e.code === "NumpadAdd" ? 1 : ["-", "_", "Subtract"].includes(e.key) || e.code === "NumpadSubtract" ? -1 : e.key === "0" || e.code === "Numpad0" ? 0 : null;
+      if (step === null) return;
+      e.preventDefault();
+      const size = step === 0 ? 100 : cleanSize(cleanSize(settings.size) + step * SIZE_STEP);
+      if (size !== settings.size) updateSettings({ ...settings, size });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   // Space starts, pauses and resumes, unless the user is typing or a dialog is open.
   useEffect(() => {
