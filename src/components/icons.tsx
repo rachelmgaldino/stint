@@ -146,3 +146,16 @@ export const ChevronDownIcon = () => (
     <path d="M6 9l6 6 6-6" />
   </svg>
 );
+
+export const DownloadIcon = () => (
+  <svg {...base} width={16} height={16}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </svg>
+);
+
+export const CopyIcon = () => (
+  <svg {...base} width={16} height={16}>
+    <rect x="8" y="8" width="12" height="12" rx="3" />
+    <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+  </svg>
+);
