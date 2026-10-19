@@ -86,7 +86,9 @@ export function TimerPane(p: Props) {
       ? text.paused
       : overtime
         ? text.overSince(clockTime(plannedEnd))
-        : text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd));
+        : kind === "focus"
+          ? "" // The times sit in the pill between − and + instead.
+          : text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd));
 
   // The dial stops at the longest length; say so under the clock.
   const atMax = left > 0 && Math.round(minutes) >= maxMinutes;
@@ -124,17 +126,6 @@ export function TimerPane(p: Props) {
         </>
       )}
     </Dial>
-  );
-
-  const startLink = active && (
-    <button
-      className="start-edit-button"
-      aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
-      onClick={() => setEditingStart(true)}
-    >
-      <PencilIcon />
-      {text.startedAt(clockTime(timer.startedAt))}
-    </button>
   );
 
   const startEditor = active && editingStart && (
@@ -194,12 +185,21 @@ export function TimerPane(p: Props) {
               breakButton(false)
             )}
           </div>
-          <div className="button-row">
-            <button className="soft-button grow" disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
-              {text.minus5}
+          {/* − and + move the end by 5 minutes; the times between them open the start editor. */}
+          <div className="button-row adjust-row">
+            <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
+              −
             </button>
-            <button className="soft-button grow" onClick={() => p.onAdjust(5)}>
-              {text.plus5}
+            <button
+              className="start-edit-button time-range"
+              aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
+              onClick={() => setEditingStart(true)}
+            >
+              <PencilIcon />
+              {running ? text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd)) : text.startedAt(clockTime(timer.startedAt))}
+            </button>
+            <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
+              +
             </button>
           </div>
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
@@ -221,7 +221,6 @@ export function TimerPane(p: Props) {
               {text.discard}
             </button>
           </div>
-          {startLink}
         </div>
         {startEditor}
       </section>
