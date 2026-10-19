@@ -262,6 +262,8 @@ const en = {
     themes: { system: "Match Windows", light: "Lavender day", dark: "Plum night" },
     themeSubMochi: "Sage by day, moss by night",
     themesMochi: { system: "Match Windows", light: "Sage day", dark: "Moss night" },
+    size: "Size",
+    sizeKeys: "Ctrl + and Ctrl − change the size anywhere in the app, Ctrl 0 goes back to 100%.",
     look: "Look",
     looks: {
       lavender: { name: "Lavender", sub: "Pip, sprouts and a flower dial" },
@@ -569,6 +571,8 @@ const ptBR: Strings = {
     themes: { system: "Igual ao Windows", light: "Dia lavanda", dark: "Noite ameixa" },
     themeSubMochi: "Sálvia de dia, musgo à noite",
     themesMochi: { system: "Igual ao Windows", light: "Dia sálvia", dark: "Noite musgo" },
+    size: "Tamanho",
+    sizeKeys: "Ctrl + e Ctrl − mudam o tamanho em qualquer tela, Ctrl 0 volta para 100%.",
     look: "Visual",
     looks: {
       lavender: { name: "Lavanda", sub: "Pip, brotos e um relógio de flor" },
