@@ -2,6 +2,7 @@
 
 import { t } from "../i18n";
 import { look, type Look } from "../look";
+import type { Heat } from "../timer";
 
 export type Mood = "awake" | "asleep" | "break" | "cheer";
 
@@ -37,6 +38,70 @@ function Sprout({ leaves }: { leaves: number }) {
 
 const isMochi = () => look() === "mochi";
 
+const STEAM_LINE = "#cfc9e4";
+const FLUSH = "#f29bb4";
+const FLUSH_LINE = "#d9708f";
+
+function Steam({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
+  return (
+    <path
+      transform={`translate(${x} ${y}) scale(${s})`}
+      d="M-7 4 a4 4 0 0 1 2 -7.5 a5 5 0 0 1 9.5 0 a4 4 0 0 1 2.5 7.5 Z"
+      fill="#fff"
+      stroke={STEAM_LINE}
+      strokeWidth="1.2"
+    />
+  );
+}
+
+/**
+ * The overheating face after a long focus: eyes open, rosy cheeks and a puff
+ * of steam after one hour; squeezed eyes, wobbly mouth and lots of steam after
+ * two. `l`/`r` are the eye centres, `y` their height and `m` the mouth's.
+ */
+function HotFace({ heat, l, r, y, m, ink }: { heat: Heat; l: number; r: number; y: number; m: number; ink: string }) {
+  const cheek = y + 13;
+  return (
+    <>
+      {heat === 1 ? (
+        <>
+          {[l, r].map((x) => (
+            <g key={x}>
+              <circle cx={x} cy={y} r="5.5" fill={ink} />
+              <circle cx={x + 1.8} cy={y - 2} r="2" fill="#fff" />
+            </g>
+          ))}
+          <path d={`M55 ${m} q5 3 10 0`} stroke={ink} strokeWidth="3" strokeLinecap="round" fill="none" />
+          <Steam x={88} y={30} />
+        </>
+      ) : (
+        <>
+          <path
+            d={`M${l - 6} ${y - 5} l9 5 l-9 5 M${r + 6} ${y - 5} l-9 5 l9 5`}
+            stroke={ink}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+          <path d={`M51 ${m + 2} q3 -4 6 0 q3 4 6 0 q3 -4 6 0`} stroke={ink} strokeWidth="3" strokeLinecap="round" fill="none" />
+          <Steam x={30} y={28} s={1.1} />
+          <Steam x={90} y={26} s={1.2} />
+          <Steam x={102} y={44} s={0.7} />
+        </>
+      )}
+      {[l - 11, r + 11].map((x) => (
+        <g key={x}>
+          <ellipse cx={x} cy={cheek} rx={heat === 1 ? 9 : 12} ry={heat === 1 ? 5 : 6.5} fill={FLUSH} opacity={heat === 1 ? 0.75 : 0.9} />
+          {heat === 2 && (
+            <path d={`M${x - 5} ${cheek + 2} l3 -4 M${x - 1} ${cheek + 2} l3 -4 M${x + 3} ${cheek + 2} l3 -4`} stroke={FLUSH_LINE} strokeWidth="1.6" strokeLinecap="round" />
+          )}
+        </g>
+      ))}
+    </>
+  );
+}
+
 const FUR = "#edb66b";
 const STRIPE = "#c98b3a";
 const BLUSH = "#e7a3b5";
@@ -58,14 +123,15 @@ function MochiHead({ children }: { children?: React.ReactNode }) {
   );
 }
 
-function Mochi({ mood, size, a11y, leaves }: { mood: Mood; size: number; a11y: object; leaves: number }) {
+function Mochi({ mood, size, a11y, leaves, heat }: { mood: Mood; size: number; a11y: object; leaves: number; heat: Heat }) {
+  const hot = heat > 0;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
       <MochiHead>
         {LEAVES.slice(0, leaves).map((l, i) => (
           <ellipse key={l.cx} cx={i ? 70 : 50} cy={i ? 24 : 26} rx="8" ry="4" fill="#9fcba4" transform={`rotate(${i ? -30 : 30} ${i ? 70 : 50} ${i ? 24 : 26})`} />
         ))}
-        {mood === "awake" && (
+        {mood === "awake" && !hot && (
           <>
             <circle cx="44" cy="72" r="6" fill={MOSS} />
             <circle cx="76" cy="72" r="6" fill={MOSS} />
@@ -73,10 +139,10 @@ function Mochi({ mood, size, a11y, leaves }: { mood: Mood; size: number; a11y: o
             <circle cx="78" cy="70" r="2" fill="#fff" />
           </>
         )}
-        {mood === "asleep" && <path d="M37 72 Q44 78 51 72 M69 72 Q76 78 83 72" stroke={MOSS} strokeWidth="4" strokeLinecap="round" fill="none" />}
+        {mood === "asleep" && !hot && <path d="M37 72 Q44 78 51 72 M69 72 Q76 78 83 72" stroke={MOSS} strokeWidth="4" strokeLinecap="round" fill="none" />}
         {(mood === "break" || mood === "cheer") && <path d="M37 72 Q44 65 51 72 M69 72 Q76 65 83 72" stroke={MOSS} strokeWidth="4" strokeLinecap="round" fill="none" />}
         <path d="M56 82 h8 l-4 4 Z" fill={MOSS} />
-        {mood === "cheer" ? (
+        {hot ? null : mood === "cheer" ? (
           <path d="M52 88 Q60 98 68 88 Z" fill={MOSS} />
         ) : (
           <path d="M60 86 q-4 5 -8 2 M60 86 q4 5 8 2" stroke={MOSS} strokeWidth="2.4" strokeLinecap="round" fill="none" />
@@ -84,6 +150,7 @@ function Mochi({ mood, size, a11y, leaves }: { mood: Mood; size: number; a11y: o
         <path d="M6 76 h20 M8 86 l18 -4 M114 76 h-20 M112 86 l-18 -4" stroke={STRIPE} strokeWidth="2" strokeLinecap="round" />
         <ellipse cx="30" cy="86" rx="8" ry="4.5" fill={BLUSH} />
         <ellipse cx="90" cy="86" rx="8" ry="4.5" fill={BLUSH} />
+        {hot && <HotFace heat={heat} l={44} r={76} y={72} m={92} ink={MOSS} />}
         {mood === "break" && (
           <>
             <path d="M44 96 h30 v10 a10 10 0 0 1 -10 10 h-10 a10 10 0 0 1 -10 -10 Z" fill="#fff" />
@@ -104,16 +171,19 @@ type PipProps = {
   as?: Look;
   /** Extra leaves on the sprout, one per full hour on the timer dial. */
   extraLeaves?: number;
+  /** Overheats the face after a long focus; see `heat` in timer.ts. */
+  heat?: Heat;
 };
 
-export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0 }: PipProps) {
+export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0, heat = 0 }: PipProps) {
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
-  if ((as ?? look()) === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} />;
+  if ((as ?? look()) === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} heat={heat} />;
+  const hot = heat > 0;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
       <Sprout leaves={Math.max(extraLeaves, mood === "cheer" ? 1 : 0)} />
       <path d={BODY} fill="#a7aeec" />
-      {mood === "awake" && (
+      {mood === "awake" && !hot && (
         <>
           <circle cx="45" cy="70" r="6" fill={INK} />
           <circle cx="75" cy="70" r="6" fill={INK} />
@@ -122,7 +192,7 @@ export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0 }: P
           <path d="M55 84 Q60 89 65 84" stroke={INK} strokeWidth="3" strokeLinecap="round" fill="none" />
         </>
       )}
-      {mood === "asleep" && (
+      {mood === "asleep" && !hot && (
         <>
           <path d="M39 70 Q45 75 51 70 M69 70 Q75 75 81 70" stroke={INK} strokeWidth="4" strokeLinecap="round" fill="none" />
           <ellipse cx="60" cy="88" rx="3" ry="2" fill={INK} />
@@ -144,6 +214,7 @@ export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0 }: P
       )}
       <ellipse cx={mood === "break" ? 32 : 34} cy={mood === "break" ? 76 : 83} rx="7" ry="4" fill="#f1b5c9" />
       <ellipse cx={mood === "break" ? 88 : 86} cy={mood === "break" ? 76 : 83} rx="7" ry="4" fill="#f1b5c9" />
+      {hot && <HotFace heat={heat} l={45} r={75} y={70} m={86} ink={INK} />}
     </svg>
   );
 }

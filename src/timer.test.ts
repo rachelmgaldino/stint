@@ -3,6 +3,7 @@ import {
   elapsed,
   formatClock,
   formatDuration,
+  heat,
   idle,
   pause,
   progress,
@@ -74,5 +75,16 @@ describe("formatting", () => {
     expect(formatDuration(25 * MIN)).toBe("25m");
     expect(formatDuration(60 * MIN)).toBe("1h");
     expect(formatDuration(85 * MIN)).toBe("1h 25m");
+  });
+
+  it("warms the mascot after an hour of focus and overheats it after two", () => {
+    const t = start("focus", 180 * MIN, 0);
+    expect(heat(t, 60 * MIN)).toBe(0);
+    expect(heat(t, 61 * MIN)).toBe(1);
+    expect(heat(t, 120 * MIN)).toBe(1);
+    expect(heat(t, 121 * MIN)).toBe(2);
+    expect(heat(pause(t, 90 * MIN), 200 * MIN)).toBe(1);
+    expect(heat(start("break", 180 * MIN, 0), 150 * MIN)).toBe(0);
+    expect(heat(idle, 150 * MIN)).toBe(0);
   });
 });

@@ -75,6 +75,18 @@ export function elapsed(t: Timer, now: number): number {
   return 0;
 }
 
+export type Heat = 0 | 1 | 2;
+
+/**
+ * How hot the mascot gets from a long focus: 0 for the first hour, 1 (warm)
+ * after one hour, 2 (overheating) after two. A nudge to take a break.
+ */
+export function heat(t: Timer, now: number): Heat {
+  if (t.status === "idle" || t.kind !== "focus") return 0;
+  const minutes = elapsed(t, now) / 60_000;
+  return minutes > 120 ? 2 : minutes > 60 ? 1 : 0;
+}
+
 /**
  * Add or remove time from a running or paused timer. The remaining time never
  * drops below one minute, so scrubbing can't end a session by accident.
