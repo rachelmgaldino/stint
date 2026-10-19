@@ -460,7 +460,7 @@ export default function App() {
     <div className="shell" data-mode={mode}>
       <header className="topbar">
         <div className="brand">
-          <Pip size={40} label="Pip" />
+          <Pip size={40} label="Pip" heat={T.heat(timer, now)} />
           <span>Stint</span>
           {DEMO && <DemoBanner language={settings.language} />}
         </div>

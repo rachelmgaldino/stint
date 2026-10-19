@@ -79,7 +79,8 @@ export function TimerPane(p: Props) {
   // The dial stops at the longest length; say so under the clock.
   const atMax = left > 0 && Math.round(minutes) >= maxMinutes;
 
-  // Pip grows a leaf for every full hour on the dial.
+  // Pip grows a leaf for every full hour on the dial, and gets hot after a long focus.
+  const hot = T.heat(timer, now);
   const extraLeaves = kind === "focus" ? lapAt(minutes).lap - 1 : 0;
 
   const dial = (pipSize: number) => (
@@ -95,8 +96,9 @@ export function TimerPane(p: Props) {
           mood={kind === "break" ? "break" : active && timer.status === "running" ? "asleep" : "awake"}
           size={pipSize}
           extraLeaves={extraLeaves}
+          heat={hot}
         />
-        {kind === "focus" && timer.status === "running" && (
+        {kind === "focus" && timer.status === "running" && !hot && (
           <span className="zz" aria-hidden="true">
             z<small>z</small>
           </span>
