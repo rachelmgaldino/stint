@@ -74,14 +74,14 @@ describe("day report", () => {
       [
         "Stint · Monday, 19 October 2026",
         "Focused 2h in 2 sessions, breaks 15min",
-        "09:00 to 13:30",
+        "9:00\u00a0AM to 1:30\u00a0PM",
         "",
         "Peoplenity: 1h30min",
         "Study: 30min",
         "",
-        "09:00–10:30  Peoplenity · Payroll, March (1h30min)",
-        "10:30–10:45  Break (15min)",
-        "13:00–13:30  Study · Course (30min)",
+        "9:00–10:30\u00a0AM  Peoplenity · Payroll, March (1h30min)",
+        "10:30–10:45\u00a0AM  Break (15min)",
+        "1:00–1:30\u00a0PM  Study · Course (30min)",
       ].join("\n"),
     );
   });

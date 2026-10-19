@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Category, SessionRecord } from "../store";
-import { clockTime } from "../dates";
+import { timeRange } from "../dates";
 import { formatDuration } from "../timer";
 import { soft } from "../colors";
 import { Pip, RatingFace } from "./Pip";
@@ -67,7 +67,7 @@ export function Reflection({
           <div>
             <h2 id="reflect-title">{words.niceWork}</h2>
             <p>
-              {formatDuration(pending.focusedMs)} · {clockTime(pending.startedAt)} to {clockTime(pending.endedAt)}
+              {formatDuration(pending.focusedMs)} · {timeRange(pending.startedAt, pending.endedAt)}
             </p>
           </div>
         </div>

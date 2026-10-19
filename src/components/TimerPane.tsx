@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import type { Category } from "../store";
 import type { CalendarEvent } from "../google";
-import { clockTime } from "../dates";
+import { clockTime, timeRange } from "../dates";
 import { soft } from "../colors";
 import * as T from "../timer";
 import { lapAt } from "../dial";
@@ -88,7 +88,7 @@ export function TimerPane(p: Props) {
         ? text.overSince(clockTime(plannedEnd))
         : kind === "focus"
           ? "" // The times sit in the pill between − and + instead.
-          : text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd));
+          : timeRange(timer.startedAt, plannedEnd);
 
   // The dial stops at the longest length; say so under the clock.
   const atMax = left > 0 && Math.round(minutes) >= maxMinutes;
@@ -196,7 +196,7 @@ export function TimerPane(p: Props) {
               onClick={() => setEditingStart(true)}
             >
               <PencilIcon />
-              {running ? text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd)) : text.startedAt(clockTime(timer.startedAt))}
+              {running ? timeRange(timer.startedAt, plannedEnd) : text.startedAt(clockTime(timer.startedAt))}
             </button>
             <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
               +

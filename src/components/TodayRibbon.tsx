@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Category, SessionRecord } from "../store";
-import { addDays, clockTime, dayLabel, startOfDay, weekDays } from "../dates";
+import { addDays, clockTime, dayLabel, startOfDay, timeRange, weekDays } from "../dates";
 import { formatDuration } from "../timer";
 import { eventLanes, type CalendarEvent } from "../google";
 import { soft } from "../colors";
@@ -74,8 +74,8 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
           className="ribbon-seg"
           style={{ ...place(s.startedAt, s.endedAt), background: colorOf(s) }}
           onClick={() => onOpen(s)}
-          title={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${text.timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
-          aria-label={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${text.timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
+          title={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${timeRange(s.startedAt, s.endedAt)}`}
+          aria-label={`${titleOf(s)}${s.intention ? `: ${s.intention}` : ""}, ${timeRange(s.startedAt, s.endedAt)}`}
         />
       ))}
       {showLive && (
@@ -125,7 +125,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
         <div className="ribbon-body">
           <div className="ribbon-events">
             {timed.map(({ event: e, lane, lanes }) => {
-              const label = `${e.title}, ${text.timer.fromTo(clockTime(e.start), clockTime(e.end))}`;
+              const label = `${e.title}, ${timeRange(e.start, e.end)}`;
               return (
                 <button
                   key={`${e.calendarId}/${e.id}`}

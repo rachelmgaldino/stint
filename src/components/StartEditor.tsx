@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as T from "../timer";
-import { atTime, clockTime, startOfDay } from "../dates";
+import { atTime, clockTime, inputTime, startOfDay } from "../dates";
 import { t } from "../i18n";
 
 type Props = {
@@ -24,11 +24,11 @@ const MAX_BACK = 12 * 60 * MIN;
 export function StartEditor({ timer, now, previousEnd, onSave, onClose }: Props) {
   const text = t().timer;
   const [picked, setPicked] = useState(timer.startedAt);
-  const [field, setField] = useState(clockTime(timer.startedAt));
+  const [field, setField] = useState(inputTime(timer.startedAt));
 
   const pick = (ms: number) => {
     setPicked(ms);
-    setField(clockTime(ms));
+    setField(inputTime(ms));
   };
 
   const typed = (value: string) => {
@@ -38,7 +38,7 @@ export function StartEditor({ timer, now, previousEnd, onSave, onClose }: Props)
     // A time later than now means last night, for a session that crossed midnight.
     if (ms > now) ms -= 86_400_000;
     // Typing the same minute back keeps the exact start, seconds and all.
-    setPicked(value === clockTime(timer.startedAt) ? timer.startedAt : ms);
+    setPicked(value === inputTime(timer.startedAt) ? timer.startedAt : ms);
   };
 
   const valid = atTime(0, field) !== null;

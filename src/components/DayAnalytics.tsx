@@ -1,5 +1,5 @@
 import { compactDuration, type Stats } from "../analytics";
-import { clockTime, startOfDay, weekDays } from "../dates";
+import { clockTime, startOfDay, timeRange, timeSpan, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { useEffect, useState } from "react";
@@ -127,7 +127,7 @@ function DayStory({ sessions, colorOf, byId, onOpen }: {
                         {c.name}
                       </span>
                     )}
-                    {t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}
+                    {timeRange(s.startedAt, s.endedAt)}
                     {s.rating > 0 && (
                       <>
                         {" · "}
@@ -240,7 +240,7 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
         <div className="tile matcha">
           <div className="eyebrow">{text.rhythm}</div>
           <div className="tile-value">
-            {ordered.length ? `${clockTime(ordered[0].startedAt)}–${clockTime(ordered[ordered.length - 1].endedAt)}` : "–"}
+            {ordered.length ? timeSpan(ordered[0].startedAt, ordered[ordered.length - 1].endedAt) : "–"}
           </div>
           <div className="tile-sub">
             {text.longest(compactDuration(longest))} · {text.breaksTotal(compactDuration(stats.totalBreak))}
