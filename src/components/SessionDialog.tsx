@@ -169,22 +169,11 @@ export function SessionDialog(p: Props) {
           </p>
         )}
         <div className="sheet-actions">
-          {!isNew &&
-            (confirmDelete ? (
-              <span className="confirm">
-                {text.deleteForGood}
-                <button type="button" className="danger" onClick={() => onDelete(session.id)}>
-                  {text.delete}
-                </button>
-                <button type="button" className="link" onClick={() => setConfirmDelete(false)}>
-                  {text.keep}
-                </button>
-              </span>
-            ) : (
-              <button type="button" className="danger-link" onClick={() => setConfirmDelete(true)}>
-                {text.deleteSession}
-              </button>
-            ))}
+          {!isNew && (
+            <button type="button" className="danger-link" onClick={() => setConfirmDelete(true)}>
+              {isFocus ? text.deleteSession : text.deleteBreak}
+            </button>
+          )}
           {isNew && !phone && keepAddingSwitch}
           <span className="spacer" />
           <button type="button" className="secondary" onClick={onClose}>
@@ -195,6 +184,40 @@ export function SessionDialog(p: Props) {
           </button>
         </div>
       </form>
+      {confirmDelete && (
+        <div
+          className="confirm-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirmDelete(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation();
+            setConfirmDelete(false);
+          }}
+        >
+          <div
+            className="confirm-card"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            aria-describedby="confirm-body"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="confirm-title">{isFocus ? text.deleteSessionTitle : text.deleteBreakTitle}</h3>
+            <p id="confirm-body">{text.deleteBody}</p>
+            <div className="confirm-actions">
+              <button type="button" className="secondary" autoFocus onClick={() => setConfirmDelete(false)}>
+                {text.cancel}
+              </button>
+              <button type="button" className="danger-button" onClick={() => onDelete(session.id)}>
+                {text.delete}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
