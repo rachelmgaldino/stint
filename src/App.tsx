@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { cancelAlarm, chime, notify, scheduleAlarm, setTrayMenu, setTrayTooltip } from "./platform";
+import { playSound, setTrayMenu, setTrayTooltip, syncAlarms, type Sound } from "./platform";
+import { plannedAlarms } from "./alarms";
 import * as G from "./google";
 import {
   defaultSettings,
@@ -72,7 +73,6 @@ export default function App() {
     week: [],
   });
   const [now, setNow] = useState(Date.now());
-  const endedNotified = useRef(false);
   const [google, setGoogle] = useState<{ connected: boolean; calendars: G.GoogleCalendar[] }>({ connected: false, calendars: [] });
   const [events, setEvents] = useState<G.CalendarEvent[]>([]);
   const syncing = useRef(false);
@@ -212,7 +212,6 @@ export default function App() {
   }, [text]);
 
   const startTimer = (kind: T.Kind, minutes: number) => {
-    endedNotified.current = false;
     setLive((l) => ({ ...l, timer: T.start(kind, minutes * 60_000, Date.now()) }));
   };
 
@@ -260,37 +259,25 @@ export default function App() {
     startTimer("focus", settings.focusMinutes);
   };
 
-  const endTitle = (kind: T.Kind) => (kind === "focus" ? text.notice.focusTitle : text.notice.breakTitle);
-  const endBody = (kind: T.Kind, intention: string) =>
-    kind === "focus" ? `${intention ? `${intention}. ` : ""}${text.notice.focusBody}` : text.notice.breakBody;
-  const wantsNotice = (kind: T.Kind) => (kind === "focus" ? settings.notifyFocusEnd : settings.notifyBreakEnd);
-
-  // The desktop shell notifies at the planned end, even if this window is
-  // hidden and its timers are throttled. Rescheduled on every change.
-  const alarmAt = timer.status === "running" ? timer.endsAt : null;
-  const alarmKind = timer.status === "idle" ? null : timer.kind;
-  const nativeAlarm = useRef(false);
+  // Every alarm the timer needs (end, heads-up, overflow, presence) is kept
+  // scheduled with the desktop shell, which fires them on time even while this
+  // window is hidden. Each one that fires bumps `fired`, so repeating alarms
+  // (presence) schedule their next turn.
+  const [fired, setFired] = useState(0);
+  const alarmSounds = useRef(new Map<string, Sound | undefined>());
   useEffect(() => {
-    if (alarmAt === null || alarmKind === null || !wantsNotice(alarmKind) || alarmAt <= Date.now()) {
-      cancelAlarm();
-      return;
-    }
-    nativeAlarm.current = scheduleAlarm(alarmAt, endTitle(alarmKind), endBody(alarmKind, live.intention));
-  }, [alarmAt, alarmKind, live.intention, settings.notifyFocusEnd, settings.notifyBreakEnd, text]);
-
-  // Fire once when the countdown reaches zero. Sessions and breaks both keep
-  // counting into overtime until they are ended by hand.
-  useEffect(() => {
-    if (timer.status !== "running" || left > 0 || endedNotified.current) return;
-    endedNotified.current = true;
-    if (settings.sound) chime();
-    if (!nativeAlarm.current && wantsNotice(timer.kind)) notify(endTitle(timer.kind), endBody(timer.kind, live.intention));
-  }, [timer, left, settings, live.intention]);
+    const alarms = plannedAlarms(timer, settings, live.intention, Date.now());
+    alarmSounds.current = new Map(alarms.map((a) => [a.key, a.sound]));
+    syncAlarms(alarms, (key) => {
+      const sound = alarmSounds.current.get(key);
+      if (sound) playSound(sound);
+      setFired((n) => n + 1);
+    });
+  }, [timer, settings, live.intention, text, fired]);
 
   const setRemaining = (minutes: number) => {
     const n = Date.now();
     const delta = minutes * 60_000 - T.remaining(timer, n);
-    if (minutes * 60_000 > 0) endedNotified.current = false;
     setLive((l) => ({ ...l, timer: T.scrub(l.timer, delta, n) }));
   };
 
