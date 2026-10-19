@@ -424,11 +424,11 @@ export default function App() {
 
   return (
     <div className="shell" data-mode={mode}>
-      {DEMO && <DemoBanner language={settings.language} />}
       <header className="topbar">
         <div className="brand">
           <Pip size={40} label="Pip" />
           <span>Stint</span>
+          {DEMO && <DemoBanner language={settings.language} />}
         </div>
         <nav className="tabs" aria-label={text.tabs.main}>
           {tabs.map((t) => (
