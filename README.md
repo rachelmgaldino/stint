@@ -42,7 +42,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - **Interface:** React 19 and TypeScript, built with Vite; plain CSS with custom properties for the two looks and their themes
 - **Data:** SQLite through `tauri-plugin-sql`
 - **Tests:** Vitest for timer, dial, date, analytics and calendar logic; Rust unit tests for PKCE and the OAuth redirect parser
-- **CI:** GitHub Actions tests and builds the Windows installer on every push, publishes it as a GitHub Release when the version changes on main, and deploys the web demo to GitHub Pages
+- **CI:** GitHub Actions tests and builds the Windows installer on every push, attaches a test installer to every pull request, publishes a versioned GitHub Release from a manual "Release" workflow that bumps the version, and deploys the web demo to GitHub Pages
 
 ## Running it locally
 
