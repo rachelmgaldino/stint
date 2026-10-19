@@ -1487,9 +1487,43 @@ button.ribbon-seg:hover {
 
 .sheet-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 14px;
+}
+
+.sheet .kind-switch {
+  margin-top: 6px;
+}
+
+.sheet .kind-switch button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.sheet .keep-adding {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sheet .keep-adding .toggle input {
+  width: auto;
+  height: auto;
+}
+
+.sheet .just-added {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--sunken);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .spacer {
@@ -1499,6 +1533,7 @@ button.ribbon-seg:hover {
 .primary,
 .secondary {
   height: 46px;
+  min-width: 104px;
   padding: 0 20px;
   border-radius: 16px;
   font-weight: 800;
@@ -1517,6 +1552,12 @@ button.ribbon-seg:hover {
 
 .secondary {
   background: var(--sunken);
+  box-shadow: 0 4px 0 var(--line);
+}
+
+.secondary:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--line);
 }
 
 .danger-link {

@@ -681,6 +681,11 @@
     padding: 0;
   }
 
+  .sheet .keep-adding {
+    flex-basis: 100%;
+    margin-bottom: 4px;
+  }
+
   .sheet {
     max-width: none;
     max-height: 92dvh;
