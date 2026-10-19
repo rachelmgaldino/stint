@@ -994,10 +994,6 @@ main {
   align-self: flex-start;
 }
 
-.break-stage .start-edit-button {
-  background: var(--surface);
-}
-
 .start-card {
   max-width: 400px;
   gap: 12px;

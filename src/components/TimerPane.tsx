@@ -274,10 +274,8 @@ export function TimerPane(p: Props) {
               {text.discard}
             </button>
           </div>
-          {startLink}
         </div>
         <div className="stage-dial">{dial(150)}</div>
-        {startEditor}
       </section>
     );
   }
