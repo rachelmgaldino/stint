@@ -166,3 +166,10 @@ export const CopyIcon = () => (
     <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
   </svg>
 );
+
+export const PencilIcon = () => (
+  <svg {...base} width={14} height={14}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+    <path d="M13.5 6.5l4 4" />
+  </svg>
+);

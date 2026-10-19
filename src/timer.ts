@@ -101,6 +101,20 @@ export function scrub(t: Timer, deltaMs: number, now: number): Timer {
   return { ...t, remainingMs: t.remainingMs + applied, plannedMs };
 }
 
+/**
+ * Say the session really began at `startedAt` (usually earlier, when the timer
+ * was started late). The planned length stays, so the end moves by the same
+ * amount and the session may land in overtime. The start can't move past the
+ * point where no time would be left in the session.
+ */
+export function moveStart(t: Timer, startedAt: number, now: number): Timer {
+  if (t.status === "idle") return t;
+  const latest = (t.status === "paused" ? t.pausedAt : now) - t.pausedMs;
+  const delta = Math.min(startedAt, latest) - t.startedAt;
+  if (t.status === "running") return { ...t, startedAt: t.startedAt + delta, endsAt: t.endsAt + delta };
+  return { ...t, startedAt: t.startedAt + delta, remainingMs: t.remainingMs + delta };
+}
+
 /** Fraction of the planned time that has passed, clamped to 0..1. */
 export function progress(t: Timer, now: number): number {
   if (t.status === "idle" || t.plannedMs <= 0) return 0;

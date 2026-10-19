@@ -339,6 +339,19 @@
     align-self: center;
   }
 
+  .stage-links {
+    justify-content: center;
+    gap: 4px 6px;
+  }
+
+  .stage-links .start-edit-button {
+    padding: 0 10px 0 9px;
+  }
+
+  .break-stage .start-edit-button {
+    align-self: center;
+  }
+
   .stage-side .button-row {
     width: 100%;
     justify-content: center;
