@@ -2,9 +2,12 @@ import { compactDuration, type Stats } from "../analytics";
 import { clockTime, startOfDay, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
-import { CoffeeIcon, PlusIcon } from "./icons";
+import { useEffect, useState } from "react";
+import { CoffeeIcon, CopyIcon, DownloadIcon, PlusIcon } from "./icons";
 import { GoalSprouts, Pip, RatingFace } from "./Pip";
 import { capitalize, formatDate, t } from "../i18n";
+import { copyText, saveReport } from "../platform";
+import { dayCsv, daySummary, isoDay } from "../report";
 
 type Props = {
   day: number;
@@ -144,6 +147,43 @@ function DayStory({ sessions, colorOf, byId, onOpen }: {
   );
 }
 
+/** Saves the day as a CSV or copies a short summary, each saying so for a moment. */
+function DayExport({ day, sessions, categories }: { day: number; sessions: SessionRecord[]; categories: Category[] }) {
+  const text = t().report;
+  const [done, setDone] = useState<"csv" | "copy" | "failed" | null>(null);
+  useEffect(() => {
+    if (!done) return;
+    const id = setTimeout(() => setDone(null), 1800);
+    return () => clearTimeout(id);
+  }, [done]);
+
+  const save = async () => {
+    try {
+      if (await saveReport(`stint-${isoDay(day)}.csv`, dayCsv(day, sessions, categories))) setDone("csv");
+    } catch (e) {
+      console.warn("export failed", e);
+      setDone("failed");
+    }
+  };
+  const copy = async () => {
+    await copyText(daySummary(day, sessions, categories));
+    setDone("copy");
+  };
+
+  return (
+    <div className="day-export">
+      <button className="export-button" title={text.csvTitle} aria-label={text.csvTitle} onClick={save} disabled={!sessions.length}>
+        <DownloadIcon />
+        {done === "csv" ? text.saved : done === "failed" ? text.failed : text.csv}
+      </button>
+      <button className="export-button" title={text.copyTitle} aria-label={text.copyTitle} onClick={copy} disabled={!sessions.length}>
+        <CopyIcon />
+        {done === "copy" ? text.copied : text.copy}
+      </button>
+    </div>
+  );
+}
+
 export function DayAnalytics({ day, sessions, week, stats, categories, now, dailyGoal, onDay, onOpen, onAdd }: Props) {
   const text = t().analytics;
   const byId = new Map(categories.map((c) => [c.id, c]));
@@ -212,6 +252,7 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
         <section className="card story-card-wrap" aria-label={text.yourDay}>
           <div className="card-head">
             <h2>{text.yourDay}</h2>
+            <DayExport day={day} sessions={sessions} categories={categories} />
             <button className="add-button" aria-label={text.addSession} title={text.addSession} onClick={onAdd}>
               <PlusIcon />
             </button>

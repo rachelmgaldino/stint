@@ -359,6 +359,30 @@ input[type="time"] {
   background: var(--surface);
 }
 
+.day-export {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.export-button {
+  height: 40px;
+  padding: 0 14px 0 11px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--sunken);
+  white-space: nowrap;
+}
+
+.export-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .dashed-button {
   height: 44px;
   padding: 0 16px;
