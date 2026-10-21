@@ -130,7 +130,7 @@ function DayStory({ sessions, events, now, colorOf, byId, onOpen, onEvent, onCou
                   <button className="story-event-open" onClick={() => onEvent(e)}>
                     <span className="story-top">
                       <span className="story-title">{e.title}</span>
-                      <span className="story-len">{compactDuration(e.end - e.start)}</span>
+                      <span className="story-len phone-only">{compactDuration(e.end - e.start)}</span>
                     </span>
                     <span className="story-meta">
                       <span className="story-cal">
@@ -139,11 +139,14 @@ function DayStory({ sessions, events, now, colorOf, byId, onOpen, onEvent, onCou
                       </span>
                     </span>
                   </button>
-                  {countable(e, now) && (
-                    <button className="chip-button story-count" onClick={() => onCount(e)}>
-                      {text.count}
-                    </button>
-                  )}
+                  <span className="story-event-side">
+                    <span className="story-len desk-only">{compactDuration(e.end - e.start)}</span>
+                    {countable(e, now) && (
+                      <button className="chip-button story-count" onClick={() => onCount(e)}>
+                        {text.count}
+                      </button>
+                    )}
+                  </span>
                 </div>
               </div>
             </li>

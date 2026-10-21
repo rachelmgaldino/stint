@@ -3211,6 +3211,13 @@ select.select-pill {
   margin-right: 5px;
 }
 
+.story-event-side {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .story-count {
   flex: none;
   height: 32px;
