@@ -10,15 +10,15 @@ import {
   BellIcon,
   CalendarIcon,
   ChevronDownIcon,
+  ChevronLeft,
+  ChevronRight,
   ChevronUpIcon,
   ClockIcon,
   GlobeIcon,
   GripIcon,
-  HourglassIcon,
   SparkIcon,
   SunMoonIcon,
   TagIcon,
-  UpdateIcon,
   XIcon,
 } from "./icons";
 import { languages, t } from "../i18n";
@@ -151,31 +151,32 @@ function Choice<V extends string>({
 
 type Tone = "apricot" | "lemon" | "bubblegum" | "peri" | "sky" | "matcha";
 
-function Card({
-  title,
-  sub,
-  tone,
-  icon,
-  children,
-}: {
-  title: string;
-  sub: string;
-  tone: Tone;
-  icon: ReactNode;
-  children: ReactNode;
-}) {
+/** A rounded box of settings inside a section, with an optional small heading. */
+function Panel({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section className="card settings-card" aria-label={title}>
-      <div className="settings-card-head">
-        <span className={`settings-icon ${tone}`}>{icon}</span>
-        <div>
-          <h2>{title}</h2>
-          <p className="settings-sub">{sub}</p>
-        </div>
-      </div>
+    <section className="card settings-panel" aria-label={title}>
+      {title && <h3>{title}</h3>}
       {children}
     </section>
   );
+}
+
+type SectionId = "rhythm" | "alerts" | "after" | "categories" | "calendar" | "look" | "app";
+
+const phoneQuery = "(max-width: 640px)";
+const isPhone = () => typeof matchMedia === "function" && matchMedia(phoneQuery).matches;
+
+/** True while the window is phone-sized, where sections open as their own page. */
+function usePhone() {
+  const [phone, setPhone] = useState(isPhone);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const m = matchMedia(phoneQuery);
+    const on = () => setPhone(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return phone;
 }
 
 export function SettingsView(p: Props) {
@@ -183,6 +184,18 @@ export function SettingsView(p: Props) {
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => p.onSettings({ ...settings, [k]: v });
   const text = t().settings;
   const notice = t().notice;
+  const phone = usePhone();
+  // On a phone the list comes first and a section opens as its own page.
+  const [open, setOpen] = useState<SectionId | null>(() => (isPhone() ? null : "rhythm"));
+  const shown = open ?? (phone ? null : "rhythm");
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const go = (id: SectionId | null) => {
+    setOpen(id);
+    bodyRef.current?.scrollTo(0, 0);
+    if (phone) scrollTo(0, 0);
+  };
+
   const overflows: {
     on: "overflowFocus" | "overflowPause" | "overflowBreak";
     minutes: "overflowFocusMinutes" | "overflowPauseMinutes" | "overflowBreakMinutes";
@@ -213,264 +226,414 @@ export function SettingsView(p: Props) {
     },
   ];
 
-  return (
-    <>
-      <h1 className="page-title">{text.title}</h1>
-      <div className="settings-columns">
-        <div className="settings-column">
-          <Card title={text.timer} sub={text.timerSub} tone="apricot" icon={<ClockIcon />}>
-            <Stepper
-              label={text.focusLength}
-              value={settings.focusMinutes}
-              min={1}
-              max={180}
-              step={5}
-              unit={text.min}
-              onChange={(v) => set("focusMinutes", v)}
-            />
-            <Stepper
-              label={text.breakLength}
-              value={settings.breakMinutes}
-              min={1}
-              max={60}
-              unit={text.min}
-              onChange={(v) => set("breakMinutes", v)}
-            />
-            <Stepper
-              label={text.longBreakLength}
-              value={settings.longBreakMinutes}
-              min={1}
-              max={60}
-              unit={text.min}
-              onChange={(v) => set("longBreakMinutes", v)}
-            />
-            <Stepper
-              label={text.longBreakAfter}
-              value={settings.longBreakAfter}
-              min={15}
-              max={300}
-              step={15}
-              unit={text.min}
-              onChange={(v) => set("longBreakAfter", v)}
-            />
-            <Choice
-              label={text.focusAction}
-              value={settings.focusAction}
-              options={[
-                ["break", text.focusActionBreak],
-                ["end", text.focusActionEnd],
-              ]}
-              onChange={(v) => set("focusAction", v)}
-            />
-            <Choice
-              label={text.breakAction}
-              value={settings.breakAction}
-              options={[
-                ["focus", text.breakActionFocus],
-                ["end", text.breakActionEnd],
-              ]}
-              onChange={(v) => set("breakAction", v)}
-            />
-            <Stepper
-              label={text.dailyGoal}
-              value={settings.dailyGoal}
-              min={1}
-              max={20}
-              unit={text.sessions}
-              onChange={(v) => set("dailyGoal", v)}
-            />
-            <p className="card-note">
-              {text.neverEnd}
-            </p>
-          </Card>
+  const alerts = [
+    settings.notifyFocusEnd,
+    settings.notifyBreakEnd,
+    settings.sound,
+    settings.notifySoon,
+    settings.presence,
+    settings.overflowFocus,
+    settings.overflowPause,
+    settings.overflowBreak,
+  ];
+  const cal = settings.calendar;
+  const language = languages.find((l) => l.id === settings.language)?.name ?? "";
+  const { current } = p.updater;
+  const sections: { id: SectionId; name: string; summary: string; intro: string; tone: Tone; icon: ReactNode }[] = [
+    {
+      id: "rhythm",
+      name: text.rhythm,
+      summary: text.rhythmSummary(settings.focusMinutes, settings.breakMinutes, settings.longBreakMinutes),
+      intro: text.rhythmIntro,
+      tone: "apricot",
+      icon: <ClockIcon />,
+    },
+    {
+      id: "alerts",
+      name: text.alerts,
+      summary: text.alertsSummary(alerts.filter(Boolean).length, alerts.length),
+      intro: text.alertsIntro,
+      tone: "lemon",
+      icon: <BellIcon />,
+    },
+    {
+      id: "after",
+      name: text.after,
+      summary: settings.askReflection ? text.afterAsks : text.afterSkips,
+      intro: text.afterSub,
+      tone: "bubblegum",
+      icon: <SparkIcon />,
+    },
+    {
+      id: "categories",
+      name: text.categories,
+      summary: text.categoriesSummary(p.categories.map((c) => c.name)),
+      intro: text.categoriesSub,
+      tone: "sky",
+      icon: <TagIcon />,
+    },
+    {
+      id: "calendar",
+      name: text.calendar,
+      summary: !G.googleAvailable()
+        ? text.calendarDesktopShort
+        : !p.google.connected
+          ? text.calendarOff
+          : cal.syncSessions || cal.showEvents
+            ? text.calendarSyncing
+            : text.calendarConnected,
+      intro: text.calendarSub,
+      tone: "matcha",
+      icon: <CalendarIcon />,
+    },
+    {
+      id: "look",
+      name: text.look,
+      summary: `${text.looks[settings.look].name} · ${text.themeShort[settings.theme]}`,
+      intro: text.lookIntro,
+      tone: "peri",
+      icon: <SunMoonIcon />,
+    },
+    {
+      id: "app",
+      name: text.app,
+      summary: current ? `${language} · ${text.version(current)}` : language,
+      intro: text.appIntro,
+      tone: "lemon",
+      icon: <GlobeIcon />,
+    },
+  ];
+  const section = sections.find((x) => x.id === shown);
 
-          <Card title={text.notifications} sub={text.notificationsSub} tone="lemon" icon={<BellIcon />}>
-            <Switch
-              label={text.notifyFocus}
-              checked={settings.notifyFocusEnd}
-              onChange={(v) => set("notifyFocusEnd", v)}
-            />
-            <Switch
-              label={text.notifyBreak}
-              checked={settings.notifyBreakEnd}
-              onChange={(v) => set("notifyBreakEnd", v)}
-            />
-            <Switch label={text.sound} checked={settings.sound} onChange={(v) => set("sound", v)} />
-            <Switch
-              label={text.soon}
-              hint={text.soonHint}
-              checked={settings.notifySoon}
-              onChange={(v) => set("notifySoon", v)}
-            />
-            {settings.notifySoon && (
-              <>
-                <Stepper
-                  sub
-                  label={text.soonLength}
-                  value={settings.soonMinutes}
-                  min={1}
-                  max={15}
-                  unit={text.min}
-                  onChange={(v) => set("soonMinutes", v)}
-                />
-                <Switch
-                  sub
-                  label={text.soonSound}
-                  checked={settings.soonSound}
-                  onChange={(v) => set("soonSound", v)}
-                />
-              </>
-            )}
-            <TestButton />
-          </Card>
-
-          <Card title={text.reminders} sub={text.remindersSub} tone="sky" icon={<HourglassIcon />}>
-            <Switch
-              label={text.presence}
-              hint={text.presenceHint}
-              checked={settings.presence}
-              onChange={(v) => set("presence", v)}
-            />
-            {settings.presence && (
+  const body = (id: SectionId) => {
+    switch (id) {
+      case "rhythm":
+        return (
+          <div className="settings-panels">
+            <Panel title={text.lengths}>
               <Stepper
-                sub
-                label={text.presenceEvery}
-                action={<MiniButton label={text.listen} onClick={() => playSound("presence")} />}
-                value={settings.presenceMinutes}
+                label={text.focusLength}
+                value={settings.focusMinutes}
                 min={1}
-                max={30}
+                max={180}
+                step={5}
                 unit={text.min}
-                onChange={(v) => set("presenceMinutes", v)}
+                onChange={(v) => set("focusMinutes", v)}
               />
-            )}
-            {overflows.map((o) => (
-              <div key={o.on} className="row-group">
-                <Switch label={o.label} hint={o.hint} checked={settings[o.on]} onChange={(v) => set(o.on, v)} />
-                {settings[o.on] && (
+              <Stepper
+                label={text.breakLength}
+                value={settings.breakMinutes}
+                min={1}
+                max={60}
+                unit={text.min}
+                onChange={(v) => set("breakMinutes", v)}
+              />
+              <Stepper
+                label={text.longBreakLength}
+                value={settings.longBreakMinutes}
+                min={1}
+                max={60}
+                unit={text.min}
+                onChange={(v) => set("longBreakMinutes", v)}
+              />
+              <Stepper
+                label={text.longBreakAfter}
+                value={settings.longBreakAfter}
+                min={15}
+                max={300}
+                step={15}
+                unit={text.min}
+                onChange={(v) => set("longBreakAfter", v)}
+              />
+              <p className="card-note">{text.neverEnd}</p>
+            </Panel>
+            <div className="settings-panel-stack">
+              <Panel title={text.dailyGoal}>
+                <Stepper
+                  label={text.goalPerDay}
+                  value={settings.dailyGoal}
+                  min={1}
+                  max={20}
+                  unit={text.sessions}
+                  onChange={(v) => set("dailyGoal", v)}
+                />
+              </Panel>
+              <Panel title={text.bigButtons}>
+                <Choice
+                  label={text.focusAction}
+                  value={settings.focusAction}
+                  options={[
+                    ["break", text.focusActionBreak],
+                    ["end", text.focusActionEnd],
+                  ]}
+                  onChange={(v) => set("focusAction", v)}
+                />
+                <Choice
+                  label={text.breakAction}
+                  value={settings.breakAction}
+                  options={[
+                    ["focus", text.breakActionFocus],
+                    ["end", text.breakActionEnd],
+                  ]}
+                  onChange={(v) => set("breakAction", v)}
+                />
+              </Panel>
+            </div>
+          </div>
+        );
+      case "alerts":
+        return (
+          <div className="settings-panels">
+            <Panel title={text.whenTimeUp}>
+              <Switch
+                label={text.notifyFocus}
+                checked={settings.notifyFocusEnd}
+                onChange={(v) => set("notifyFocusEnd", v)}
+              />
+              <Switch
+                label={text.notifyBreak}
+                checked={settings.notifyBreakEnd}
+                onChange={(v) => set("notifyBreakEnd", v)}
+              />
+              <Switch label={text.sound} checked={settings.sound} onChange={(v) => set("sound", v)} />
+              <Switch
+                label={text.soon}
+                hint={text.soonHint}
+                checked={settings.notifySoon}
+                onChange={(v) => set("notifySoon", v)}
+              />
+              {settings.notifySoon && (
+                <>
                   <Stepper
                     sub
-                    label={text.notifyAfter}
-                    action={<MiniButton label={text.test} onClick={() => o.test(settings[o.minutes])} />}
-                    value={settings[o.minutes]}
+                    label={text.soonLength}
+                    value={settings.soonMinutes}
                     min={1}
-                    max={60}
+                    max={15}
                     unit={text.min}
-                    onChange={(v) => set(o.minutes, v)}
+                    onChange={(v) => set("soonMinutes", v)}
+                  />
+                  <Switch
+                    sub
+                    label={text.soonSound}
+                    checked={settings.soonSound}
+                    onChange={(v) => set("soonSound", v)}
+                  />
+                </>
+              )}
+              <TestButton />
+            </Panel>
+            <div className="settings-panel-stack">
+              <Panel title={text.whileFocus}>
+                <Switch
+                  label={text.presence}
+                  hint={text.presenceHint}
+                  checked={settings.presence}
+                  onChange={(v) => set("presence", v)}
+                />
+                {settings.presence && (
+                  <Stepper
+                    sub
+                    label={text.presenceEvery}
+                    action={<MiniButton label={text.listen} onClick={() => playSound("presence")} />}
+                    value={settings.presenceMinutes}
+                    min={1}
+                    max={30}
+                    unit={text.min}
+                    onChange={(v) => set("presenceMinutes", v)}
                   />
                 )}
+              </Panel>
+              <Panel title={text.whenRunsOver}>
+                {overflows.map((o) => (
+                  <div key={o.on} className="row-group">
+                    <Switch label={o.label} hint={o.hint} checked={settings[o.on]} onChange={(v) => set(o.on, v)} />
+                    {settings[o.on] && (
+                      <Stepper
+                        sub
+                        label={text.notifyAfter}
+                        action={<MiniButton label={text.test} onClick={() => o.test(settings[o.minutes])} />}
+                        value={settings[o.minutes]}
+                        min={1}
+                        max={60}
+                        unit={text.min}
+                        onChange={(v) => set(o.minutes, v)}
+                      />
+                    )}
+                  </div>
+                ))}
+              </Panel>
+            </div>
+          </div>
+        );
+      case "after":
+        return (
+          <div className="settings-panels one">
+            <Panel>
+              <Switch
+                label={text.askReflection}
+                hint={text.askReflectionHint}
+                checked={settings.askReflection}
+                onChange={(v) => set("askReflection", v)}
+              />
+              <div className="row">
+                <span>{text.defaultMood}</span>
+                <span className="segmented small" role="group" aria-label={text.defaultMood}>
+                  <button aria-pressed={settings.defaultRating === 0} onClick={() => set("defaultRating", 0)}>
+                    {text.none}
+                  </button>
+                  {ratings().map((r) => (
+                    <button
+                      key={r.value}
+                      aria-pressed={settings.defaultRating === r.value}
+                      aria-label={r.label}
+                      title={r.label}
+                      onClick={() => set("defaultRating", r.value)}
+                    >
+                      <RatingFace value={r.value} size={24} />
+                    </button>
+                  ))}
+                </span>
               </div>
-            ))}
-          </Card>
-
-          <Card title={text.after} sub={text.afterSub} tone="bubblegum" icon={<SparkIcon />}>
-            <Switch
-              label={text.askReflection}
-              hint={text.askReflectionHint}
-              checked={settings.askReflection}
-              onChange={(v) => set("askReflection", v)}
-            />
-            <div className="row">
-              <span>{text.defaultMood}</span>
-              <span className="segmented small" role="group" aria-label={text.defaultMood}>
-                <button aria-pressed={settings.defaultRating === 0} onClick={() => set("defaultRating", 0)}>
-                  {text.none}
-                </button>
-                {ratings().map((r) => (
+              <Switch
+                label={text.autoBreak}
+                checked={settings.autoBreak}
+                onChange={(v) => set("autoBreak", v)}
+              />
+            </Panel>
+          </div>
+        );
+      case "categories":
+        return (
+          <div className="settings-panels one">
+            <Categories {...p} />
+          </div>
+        );
+      case "calendar":
+        return (
+          <div className="settings-panels one">
+            <CalendarSection {...p} set={(c) => set("calendar", c)} />
+          </div>
+        );
+      case "look":
+        return (
+          <div className="settings-panels one">
+            <Panel>
+              <div className="look-picker" role="group" aria-label={text.look}>
+                {looks.map((id) => (
                   <button
-                    key={r.value}
-                    aria-pressed={settings.defaultRating === r.value}
-                    aria-label={r.label}
-                    title={r.label}
-                    onClick={() => set("defaultRating", r.value)}
+                    key={id}
+                    className="look-option"
+                    aria-pressed={settings.look === id}
+                    onClick={() => set("look", id)}
                   >
-                    <RatingFace value={r.value} size={24} />
+                    <Pip size={36} as={id} />
+                    <span>
+                      {text.looks[id].name}
+                      <small>{text.looks[id].sub}</small>
+                    </span>
                   </button>
                 ))}
-              </span>
-            </div>
-            <Switch
-              label={text.autoBreak}
-              checked={settings.autoBreak}
-              onChange={(v) => set("autoBreak", v)}
+              </div>
+              <div className="theme-picker">
+                {themes.map((id) => (
+                  <button
+                    key={id}
+                    className={`theme-option ${id}`}
+                    aria-pressed={settings.theme === id}
+                    onClick={() => set("theme", id)}
+                  >
+                    <span className="theme-swatch">
+                      <span />
+                    </span>
+                    {(settings.look === "mochi" ? text.themesMochi : text.themes)[id]}
+                  </button>
+                ))}
+              </div>
+              <div className="desk-only">
+                <Stepper
+                  label={text.size}
+                  value={cleanSize(settings.size)}
+                  min={SIZE_MIN}
+                  max={SIZE_MAX}
+                  step={SIZE_STEP}
+                  unit="%"
+                  onChange={(v) => set("size", v)}
+                />
+                <p className="card-note">{text.sizeKeys}</p>
+              </div>
+            </Panel>
+          </div>
+        );
+      case "app":
+        return (
+          <div className="settings-panels">
+            <Panel title={text.language}>
+              <div className="segmented language-picker" role="group" aria-label={text.language}>
+                {languages.map((l) => (
+                  <button
+                    key={l.id}
+                    lang={l.id}
+                    aria-pressed={settings.language === l.id}
+                    onClick={() => set("language", l.id)}
+                  >
+                    {l.name}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+            <UpdatesCard
+              updater={p.updater}
+              auto={settings.checkUpdates}
+              onAuto={(v) => set("checkUpdates", v)}
             />
-          </Card>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className={section ? "shelf has-open" : "shelf"}>
+      <nav className="shelf-nav" aria-label={text.title}>
+        <h1 className="page-title">{text.title}</h1>
+        <ul>
+          {sections.map((x) => (
+            <li key={x.id}>
+              <button className="shelf-item" aria-current={shown === x.id ? "page" : undefined} onClick={() => go(x.id)}>
+                <span className={`settings-icon ${x.tone}`}>{x.icon}</span>
+                <span className="shelf-text">
+                  <b>{x.name}</b>
+                  <small>{x.summary}</small>
+                </span>
+                <span className="shelf-chevron" aria-hidden="true">
+                  <ChevronRight />
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="shelf-foot">
+          <Pip size={34} as={settings.look} />
+          <span>{phone ? text.savedLocallyPhone : text.savedLocally}</span>
+        </p>
+      </nav>
+      {section && (
+        <div className="shelf-body" ref={bodyRef}>
+          <button className="shelf-back" onClick={() => go(null)}>
+            <ChevronLeft />
+            {text.title}
+          </button>
+          <header className="shelf-head">
+            <span className={`settings-icon big ${section.tone}`}>{section.icon}</span>
+            <div>
+              <h2>{section.name}</h2>
+              <p className="settings-sub">{section.intro}</p>
+            </div>
+          </header>
+          {body(section.id)}
         </div>
-
-        <div className="settings-column">
-          <Card
-            title={text.theme}
-            sub={settings.look === "mochi" ? text.themeSubMochi : text.themeSub}
-            tone="peri"
-            icon={<SunMoonIcon />}
-          >
-            <div className="look-picker" role="group" aria-label={text.look}>
-              {looks.map((id) => (
-                <button key={id} className="look-option" aria-pressed={settings.look === id} onClick={() => set("look", id)}>
-                  <Pip size={36} as={id} />
-                  <span>
-                    {text.looks[id].name}
-                    <small>{text.looks[id].sub}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="theme-picker">
-              {themes.map((id) => (
-                <button
-                  key={id}
-                  className={`theme-option ${id}`}
-                  aria-pressed={settings.theme === id}
-                  onClick={() => set("theme", id)}
-                >
-                  <span className="theme-swatch">
-                    <span />
-                  </span>
-                  {(settings.look === "mochi" ? text.themesMochi : text.themes)[id]}
-                </button>
-              ))}
-            </div>
-            <div className="desk-only">
-              <Stepper
-                label={text.size}
-                value={cleanSize(settings.size)}
-                min={SIZE_MIN}
-                max={SIZE_MAX}
-                step={SIZE_STEP}
-                unit="%"
-                onChange={(v) => set("size", v)}
-              />
-              <p className="card-note">{text.sizeKeys}</p>
-            </div>
-          </Card>
-
-          <Card title={text.language} sub={text.languageSub} tone="lemon" icon={<GlobeIcon />}>
-            <div className="segmented language-picker" role="group" aria-label={text.language}>
-              {languages.map((l) => (
-                <button
-                  key={l.id}
-                  lang={l.id}
-                  aria-pressed={settings.language === l.id}
-                  onClick={() => set("language", l.id)}
-                >
-                  {l.name}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          <UpdatesCard
-            updater={p.updater}
-            auto={settings.checkUpdates}
-            onAuto={(v) => set("checkUpdates", v)}
-          />
-
-          <Categories {...p} />
-
-          <CalendarSection {...p} set={(c) => set("calendar", c)} />
-        </div>
-      </div>
-      <p className="muted small page-foot">{text.savedLocally}</p>
-    </>
+      )}
+    </div>
   );
 }
 
@@ -479,9 +642,9 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
   const { state, current } = updater;
   if (!updatesAvailable()) {
     return (
-      <Card title={text.updates} sub={text.updatesSub} tone="peri" icon={<UpdateIcon />}>
+      <Panel title={text.updates}>
         <p className="muted">{text.updatesDesktopOnly}</p>
-      </Card>
+      </Panel>
     );
   }
 
@@ -506,7 +669,7 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
   const ready = state.phase === "available" || (state.phase === "failed" && state.during === "install");
 
   return (
-    <Card title={text.updates} sub={text.updatesSub} tone="peri" icon={<UpdateIcon />}>
+    <Panel title={text.updates}>
       <div className="row update-row" data-phase={state.phase}>
         <span>
           {text.version(current)}
@@ -550,7 +713,7 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
       )}
       <Switch label={text.autoUpdates} hint={text.autoUpdatesHint} checked={auto} onChange={onAuto} />
       <p className="card-note">{text.updateKeeps}</p>
-    </Card>
+    </Panel>
   );
 }
 
@@ -600,16 +763,16 @@ function CalendarSection({ settings, google, onGoogleChanged, set }: Props & { s
 
   if (!G.googleAvailable()) {
     return (
-      <Card title={text.calendar} sub={text.calendarSub} tone="matcha" icon={<CalendarIcon />}>
+      <Panel>
         <p className="muted">{text.calendarDesktopOnly}</p>
-      </Card>
+      </Panel>
     );
   }
 
   if (!google.connected) {
     return (
       <>
-        <Card title={text.calendar} sub={text.calendarSub} tone="matcha" icon={<CalendarIcon />}>
+        <Panel>
           <p className="muted small">
             {text.calendarSetup}
           </p>
@@ -652,13 +815,13 @@ function CalendarSection({ settings, google, onGoogleChanged, set }: Props & { s
               </p>
             )}
           </form>
-        </Card>
+        </Panel>
       </>
     );
   }
 
   return (
-    <Card title={text.calendar} sub={text.calendarSub} tone="matcha" icon={<CalendarIcon />}>
+    <Panel>
       <Switch
         label={text.syncSessions}
         hint={text.syncSessionsHint}
@@ -734,7 +897,7 @@ function CalendarSection({ settings, google, onGoogleChanged, set }: Props & { s
           {text.disconnect}
         </button>
       </div>
-    </Card>
+    </Panel>
   );
 }
 
@@ -798,7 +961,7 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
 
   const text = t().settings;
   return (
-    <Card title={text.categories} sub={text.categoriesSub} tone="sky" icon={<TagIcon />}>
+    <Panel>
       <ul className="categories" ref={listRef}>
         {order.map((c, i) => (
           <li key={c.id} className={dragging === c.id ? "category-item dragging" : "category-item"}>
@@ -923,6 +1086,6 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
           {text.add}
         </button>
       </form>
-    </Card>
+    </Panel>
   );
 }
