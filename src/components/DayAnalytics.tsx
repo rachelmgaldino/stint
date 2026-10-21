@@ -3,7 +3,9 @@ import { clockTime, startOfDay, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { useEffect, useState } from "react";
-import { CoffeeIcon, CopyIcon, DownloadIcon, PlusIcon } from "./icons";
+import { CalendarIcon, CoffeeIcon, CopyIcon, DownloadIcon, PlusIcon } from "./icons";
+import { countable, eventKey, type CalendarEvent } from "../google";
+import type { CSSProperties } from "react";
 import { GoalSprouts, Pip, RatingFace } from "./Pip";
 import { capitalize, formatDate, t } from "../i18n";
 import { copyText, saveReport } from "../platform";
@@ -19,8 +21,13 @@ type Props = {
   categories: Category[];
   now: number;
   dailyGoal: number;
+  /** The day's calendar events that haven't been made into sessions. */
+  events: CalendarEvent[];
   onDay(d: number): void;
   onOpen(s: SessionRecord): void;
+  onEvent(e: CalendarEvent): void;
+  /** Makes a past event into a focus session. */
+  onCountEvent(e: CalendarEvent): void;
   onAdd(): void;
 };
 
@@ -44,7 +51,6 @@ function WeekStrip({ day, week, now, onDay }: { day: number; week: SessionRecord
           className={d === day ? "strip-day selected" : d === today ? "strip-day today" : "strip-day"}
           aria-pressed={d === day}
           onClick={() => onDay(d)}
-          disabled={d > today}
         >
           <span className="strip-name">
             {capitalize(formatDate(d, { weekday: "short" }))} {new Date(d).getDate()}
@@ -60,9 +66,8 @@ function WeekStrip({ day, week, now, onDay }: { day: number; week: SessionRecord
 }
 
 /** On a desktop, the week as a list in the side column: a row per day with a sideways bar. */
-function WeekList({ day, week, now, onDay }: { day: number; week: SessionRecord[]; now: number; onDay(d: number): void }) {
+function WeekList({ day, week, onDay }: { day: number; week: SessionRecord[]; onDay(d: number): void }) {
   const { days, totals, max } = weekTotals(day, week);
-  const today = startOfDay(now);
   return (
     <section className="card week-list" aria-label={t().analytics.kinds.week}>
       <div className="card-head">
@@ -74,7 +79,6 @@ function WeekList({ day, week, now, onDay }: { day: number; week: SessionRecord[
           className={d === day ? "wl-day selected" : "wl-day"}
           aria-pressed={d === day}
           onClick={() => onDay(d)}
-          disabled={d > today}
         >
           <span className="wl-name">
             {capitalize(formatDate(d, { weekday: "short" }))} {new Date(d).getDate()}
@@ -89,24 +93,68 @@ function WeekList({ day, week, now, onDay }: { day: number; week: SessionRecord[
   );
 }
 
-/** The day told in order: each session with its note, breaks between, and the free time in the gaps. */
-function DayStory({ sessions, colorOf, byId, onOpen }: {
+/** The day told in order: each session with its note, breaks between, calendar events, and the free time in the gaps. */
+function DayStory({ sessions, events, now, colorOf, byId, onOpen, onEvent, onCount }: {
   sessions: SessionRecord[];
+  events: CalendarEvent[];
+  now: number;
   colorOf(s: SessionRecord): string;
   byId: Map<number, Category>;
   onOpen(s: SessionRecord): void;
+  onEvent(e: CalendarEvent): void;
+  onCount(e: CalendarEvent): void;
 }) {
-  const ordered = [...sessions].sort((a, b) => a.startedAt - b.startedAt);
+  type Item = { start: number; end: number; session?: SessionRecord; event?: CalendarEvent };
+  const ordered: Item[] = [
+    ...sessions.map((s) => ({ start: s.startedAt, end: s.endedAt, session: s })),
+    ...events.filter((e) => !e.allDay).map((e) => ({ start: e.start, end: e.end, event: e })),
+  ].sort((a, b) => a.start - b.start);
   const ratingName = t().ratings;
+  const text = t().events;
+  let reached = -Infinity;
   return (
     <ol className="story">
-      {ordered.map((s, i) => {
-        const gap = i > 0 ? s.startedAt - ordered[i - 1].endedAt : 0;
+      {ordered.map((item) => {
+        const gap = reached > -Infinity ? item.start - reached : 0;
+        reached = Math.max(reached, item.end);
+        const free = gap >= 30 * 60_000 && <div className="story-gap">{t().analytics.free(compactDuration(gap))}</div>;
+        if (item.event) {
+          const e = item.event;
+          return (
+            <li key={eventKey(e)} className="story-item">
+              {free}
+              <div className="story-row event" style={{ "--event": e.color } as CSSProperties}>
+                <span className="story-time">{clockTime(e.start)}</span>
+                <span className="story-dot" aria-hidden="true" />
+                <div className="story-card story-event">
+                  <button className="story-event-open" onClick={() => onEvent(e)}>
+                    <span className="story-top">
+                      <span className="story-title">{e.title}</span>
+                      <span className="story-len">{compactDuration(e.end - e.start)}</span>
+                    </span>
+                    <span className="story-meta">
+                      <span className="story-cal">
+                        <CalendarIcon />
+                        {text.onCalendar} · {t().timer.fromTo(clockTime(e.start), clockTime(e.end))}
+                      </span>
+                    </span>
+                  </button>
+                  {countable(e, now) && (
+                    <button className="chip-button story-count" onClick={() => onCount(e)}>
+                      {text.count}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        }
+        const s = item.session!;
         const c = s.categoryId !== null ? byId.get(s.categoryId) : undefined;
         const isBreak = s.kind === "break";
         return (
           <li key={s.id} className="story-item">
-            {gap >= 30 * 60_000 && <div className="story-gap">{t().analytics.free(compactDuration(gap))}</div>}
+            {free}
             <div className={isBreak ? "story-row break" : "story-row"}>
               <span className="story-time">{clockTime(s.startedAt)}</span>
               <span className="story-dot" style={{ background: colorOf(s) }} aria-hidden="true" />
@@ -125,6 +173,11 @@ function DayStory({ sessions, colorOf, byId, onOpen }: {
                     {c && (
                       <span className="story-tag" style={{ background: soft(c.color) }}>
                         {c.name}
+                      </span>
+                    )}
+                    {s.fromEvent && (
+                      <span className="story-from" title={text.madeFrom} aria-label={text.madeFrom}>
+                        <CalendarIcon />
                       </span>
                     )}
                     {t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}
@@ -184,7 +237,7 @@ function DayExport({ day, sessions, categories }: { day: number; sessions: Sessi
   );
 }
 
-export function DayAnalytics({ day, sessions, week, stats, categories, now, dailyGoal, onDay, onOpen, onAdd }: Props) {
+export function DayAnalytics({ day, sessions, week, stats, categories, now, dailyGoal, events, onDay, onOpen, onEvent, onCountEvent, onAdd }: Props) {
   const text = t().analytics;
   const byId = new Map(categories.map((c) => [c.id, c]));
   const colorOf = (s: SessionRecord) =>
@@ -257,21 +310,21 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
               <PlusIcon />
             </button>
           </div>
-          {sessions.length === 0 ? (
+          {sessions.length === 0 && !events.some((e) => !e.allDay) ? (
             <div className="entries-empty">
               <Pip mood="asleep" size={72} />
               <p>{text.noSessions}</p>
             </div>
           ) : (
             <div className="story-scroll">
-              <DayStory sessions={sessions} colorOf={colorOf} byId={byId} onOpen={onOpen} />
+              <DayStory sessions={sessions} events={events} now={now} colorOf={colorOf} byId={byId} onOpen={onOpen} onEvent={onEvent} onCount={onCountEvent} />
             </div>
           )}
         </section>
 
         <div className="day-side">
           <div className="desk-only">
-            <WeekList day={day} week={week} now={now} onDay={onDay} />
+            <WeekList day={day} week={week} onDay={onDay} />
           </div>
           <section className="card went-card" aria-label={text.whereTimeWent}>
             <div className="card-head">

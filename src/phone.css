@@ -482,10 +482,29 @@
     border-radius: 12px;
   }
 
-  .when-block {
-    left: 3px;
-    right: 3px;
+  .when-block,
+  .when-event {
+    left: calc(2px + (100% - 4px) * var(--lane, 0) / var(--lanes, 1));
+    width: calc((100% - 4px) / var(--lanes, 1) - (var(--lanes, 1) - 1) * 1px);
     border-radius: 6px;
+  }
+
+  .when-event {
+    padding: 0;
+    border-width: 1.5px;
+  }
+
+  .when-event span {
+    display: none;
+  }
+
+  .story-event {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .story-count {
+    align-self: flex-start;
   }
 
   .when-total {

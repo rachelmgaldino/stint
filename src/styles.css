@@ -1928,6 +1928,164 @@ button.ribbon-seg:hover {
   filter: brightness(1.05) saturate(1.1);
 }
 
+/* Sessions and calendar events share a column; overlapping ones sit side by side. */
+.when-block,
+.when-event {
+  left: calc(4px + (100% - 8px) * var(--lane, 0) / var(--lanes, 1));
+  right: auto;
+  width: calc((100% - 8px) / var(--lanes, 1) - (var(--lanes, 1) - 1) * 2px);
+}
+
+/* Calendar events: a dashed edge and a wash of the calendar's colour, so they read as plans, not focus. */
+.when-event {
+  position: absolute;
+  z-index: 1;
+  border-radius: 10px;
+  border: 2px dashed var(--event, var(--peri-lip));
+  background: color-mix(in srgb, var(--event, var(--peri)) 22%, var(--surface));
+  color: var(--text);
+  padding: 0 6px;
+  overflow: hidden;
+  container-type: size;
+  text-align: left;
+}
+
+.when-event:hover {
+  background: color-mix(in srgb, var(--event, var(--peri)) 40%, var(--surface));
+}
+
+.when-event span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container (max-height: 16px) {
+  .when-event span {
+    display: none;
+  }
+}
+
+.count-events {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  font-weight: 800;
+}
+
+.count-events svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* An event opened from Analytics. */
+.event-sheet {
+  max-width: 400px;
+  border-top: 6px solid var(--event, var(--peri));
+}
+
+.event-from {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.event-from svg {
+  width: 14px;
+  height: 14px;
+}
+
+.event-when {
+  font-weight: 600;
+}
+
+.event-note {
+  margin-top: 4px !important;
+  font-size: 14px;
+}
+
+/* Counting several events at once. */
+.count-sheet .sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.count-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(340px, calc(var(--vh) - 360px));
+  overflow-y: auto;
+}
+
+.sheet .count-row {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 6px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sheet .count-row:has(input:checked) {
+  background: color-mix(in srgb, var(--event, var(--peri)) 22%, var(--surface));
+}
+
+.sheet .count-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+
+.count-swatch {
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--event, var(--peri));
+}
+
+.count-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.count-title {
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count-when {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.count-len {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .when-total {
   font-size: 12px;
   font-weight: 800;
@@ -3007,6 +3165,57 @@ select.select-pill {
 .story-break svg {
   width: 14px;
   height: 14px;
+}
+
+/* A calendar event in the day's story: dashed, in the calendar's colour. */
+.story-row.event .story-dot {
+  background: var(--surface);
+  border: 3px dashed var(--event, var(--peri-lip));
+}
+
+.story-event {
+  border: 2px dashed var(--event, var(--peri-lip));
+  background: color-mix(in srgb, var(--event, var(--peri)) 14%, var(--surface));
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+}
+
+.story-event:hover {
+  background: color-mix(in srgb, var(--event, var(--peri)) 14%, var(--surface));
+}
+
+.story-event-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.story-event .story-meta svg,
+.story-from svg {
+  width: 13px;
+  height: 13px;
+}
+
+.story-from {
+  display: inline-flex;
+}
+
+.story-cal svg {
+  vertical-align: -2px;
+  margin-right: 5px;
+}
+
+.story-count {
+  flex: none;
+  height: 32px;
+  background: var(--surface);
+  font-weight: 800;
 }
 
 .went-card {
