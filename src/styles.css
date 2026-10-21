@@ -3740,6 +3740,8 @@ select.select-pill {
 }
 
 .update-pill {
+  display: inline-flex;
+  align-items: center;
   margin-left: 10px;
   height: 26px;
   padding: 0 12px;
