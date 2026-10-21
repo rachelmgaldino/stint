@@ -1,4 +1,5 @@
 mod google;
+mod updates;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
@@ -204,8 +205,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Alarms::default())
         .manage(google::Google::default())
+        .manage(updates::Pending::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_tooltip,
             set_tray_menu,
@@ -217,6 +220,8 @@ pub fn run() {
             google::google_status,
             google::google_disconnect,
             google::google_request,
+            updates::update_check,
+            updates::update_install,
         ])
         .setup(|app| {
             let menu = tray_menu(app.handle(), "Open Stint", "Quit")?;

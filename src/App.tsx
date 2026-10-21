@@ -30,6 +30,8 @@ import { DEMO, demoEvents } from "./demo";
 import { nextBreak } from "./breaks";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
+import { UpdatePill } from "./components/UpdatePill";
+import { useUpdater } from "./updates";
 
 type View = "timer" | "analytics" | "settings";
 
@@ -122,6 +124,8 @@ export default function App() {
   const [openEvent, setOpenEvent] = useState<G.CalendarEvent | null>(null);
   const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
   const syncing = useRef(false);
+  // Waits for the saved settings, so a switched-off automatic check never runs.
+  const updater = useUpdater(store !== null && settings.checkUpdates);
 
   const { timer } = live;
   // Set before the children render, so they all read the chosen language and look.
@@ -551,6 +555,7 @@ export default function App() {
           <Pip size={40} label="Pip" heat={T.heat(timer, now)} />
           <span>Stint</span>
           {DEMO && <DemoBanner language={settings.language} />}
+          <UpdatePill updater={updater} />
         </div>
         <nav className="tabs" aria-label={text.tabs.main}>
           {tabs.map((t) => (
@@ -649,6 +654,7 @@ export default function App() {
             onGoogleChanged={loadGoogle}
             onSettings={updateSettings}
             onCategoriesChanged={reloadCategories}
+            updater={updater}
           />
         </main>
       )}

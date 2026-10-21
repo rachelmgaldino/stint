@@ -1,0 +1,24 @@
+import { t } from "../i18n";
+import type { Updater } from "../updates";
+
+/** Beside the name once the quiet check finds a new version; a click installs it. */
+export function UpdatePill({ updater }: { updater: Updater }) {
+  const { state } = updater;
+  const text = t().updatePill;
+  if (state.phase === "available") {
+    return (
+      <button type="button" className="update-pill" title={text.hint} onClick={updater.install}>
+        {text.ready(state.version)}
+      </button>
+    );
+  }
+  if (state.phase === "downloading" || state.phase === "installing") {
+    const pct = state.phase === "downloading" && state.fraction !== null ? Math.round(state.fraction * 100) : null;
+    return (
+      <span className="update-pill busy" role="status">
+        {text.updating(state.phase === "installing" ? 100 : pct)}
+      </span>
+    );
+  }
+  return null;
+}
