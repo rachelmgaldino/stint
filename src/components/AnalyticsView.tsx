@@ -375,7 +375,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
             {weekStart && toCount.length > 0 ? (
               <button className="chip-button count-events" onClick={() => onCountEvents(toCount)}>
                 <CalendarIcon />
-                {t().events.countEvents(toCount.length)}
+                {t().events.countEvents}
               </button>
             ) : (
               <span className="muted small strong">{peakLine(shown.filter((s) => s.kind === "focus"))}</span>
