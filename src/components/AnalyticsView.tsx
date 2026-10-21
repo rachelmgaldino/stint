@@ -289,6 +289,13 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
       <div className="page-head">
         <h1>{periodLabel(range, now)}</h1>
         <div className="period-nav">
+          <button
+            className="round-button today-button"
+            disabled={range.anchor === startOfDay(now)}
+            onClick={() => onRange(rangeFor(range.kind, now))}
+          >
+            {text.today}
+          </button>
           <button className="round-button" aria-label={text.previous} onClick={() => onRange(previousRange(range, now))}>
             <ChevronLeft />
           </button>
