@@ -20,6 +20,12 @@ export type CalendarEvent = {
 
 export const googleAvailable = isTauri;
 
+/** Names an event across calendars; a session made from it keeps this. */
+export const eventKey = (e: CalendarEvent) => `${e.calendarId}/${e.id}`;
+
+/** An event can count as focus once it is over, if it has a time of day. */
+export const countable = (e: CalendarEvent, now: number) => !e.allDay && e.end <= now;
+
 export const connect = (clientId: string, clientSecret: string) =>
   invoke<void>("google_connect", { clientId, clientSecret });
 export const isConnected = () => (isTauri() ? invoke<boolean>("google_status") : Promise.resolve(false));
@@ -156,9 +162,9 @@ export async function deleteEvent(calendarId: string, eventId: string) {
  * Side-by-side columns for overlapping events: each event gets a lane, and
  * `lanes` is how many share its cluster of overlaps.
  */
-export function eventLanes(events: CalendarEvent[]): { event: CalendarEvent; lane: number; lanes: number }[] {
+export function eventLanes<E extends { start: number; end: number }>(events: E[]): { event: E; lane: number; lanes: number }[] {
   const sorted = [...events].sort((a, b) => a.start - b.start || b.end - a.end);
-  const out: { event: CalendarEvent; lane: number; lanes: number }[] = [];
+  const out: { event: E; lane: number; lanes: number }[] = [];
   let cluster: typeof out = [];
   let laneEnds: number[] = [];
   let clusterEnd = -Infinity;

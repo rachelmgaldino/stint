@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { compactDuration, computeStats, shortDuration, nextRange, previousRange, rangeFor, type Range, type RangeKind } from "../analytics";
 import { clockTime, dayLabel, startOfDay, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
-import { ChevronLeft, ChevronRight, CoffeeIcon, PlusIcon } from "./icons";
+import { CalendarIcon, ChevronLeft, ChevronRight, CoffeeIcon, PlusIcon } from "./icons";
+import { countable, eventKey, eventLanes, type CalendarEvent } from "../google";
 import { Pip, RatingFace } from "./Pip";
 import { capitalize, formatDate, locale, t } from "../i18n";
 import { DayAnalytics } from "./DayAnalytics";
@@ -17,8 +18,15 @@ type Props = {
   categories: Category[];
   now: number;
   dailyGoal: number;
+  /** Google Calendar events in the range, without the ones already made into sessions. */
+  events: CalendarEvent[];
   onRange(r: Range): void;
   onOpen(s: SessionRecord): void;
+  onEvent(e: CalendarEvent): void;
+  /** Makes a past event into a focus session. */
+  onCountEvent(e: CalendarEvent): void;
+  /** Opens the picker for counting several past events as focus. */
+  onCountEvents(list: CalendarEvent[]): void;
   onAdd(): void;
 };
 
@@ -58,15 +66,19 @@ function peakLine(focus: SessionRecord[]): string {
 function WhenChart({
   days,
   sessions,
+  events,
   selected,
   now,
   goal,
   colorOf,
   onDay,
   onOpen,
+  onEvent,
 }: {
   days: number[];
   sessions: SessionRecord[];
+  /** Calendar events, drawn beside the sessions with a dashed edge. */
+  events: CalendarEvent[];
   selected: number | null;
   now: number;
   /** Focus sessions per day; each column gets a dot per session towards it. */
@@ -74,11 +86,22 @@ function WhenChart({
   colorOf(s: SessionRecord): string;
   onDay(d: number): void;
   onOpen(s: SessionRecord): void;
+  onEvent(e: CalendarEvent): void;
 }) {
   const focus = sessions.filter((s) => s.kind === "focus");
   const hourOf = (ms: number) => (ms - startOfDay(ms)) / 3_600_000;
-  const from = Math.max(0, Math.min(8, ...focus.map((s) => Math.floor(hourOf(s.startedAt)))));
-  const to = Math.min(24, Math.max(20, ...focus.map((s) => Math.ceil(hourOf(s.startedAt) + (s.endedAt - s.startedAt) / 3_600_000))));
+  // Each timed event, cut to the day it falls on, so one past midnight shows on both.
+  const timed = days.flatMap((d) =>
+    events
+      .filter((e) => !e.allDay && e.end > d && e.start < d + 86_400_000)
+      .map((e) => ({ e, day: d, start: Math.max(e.start, d), end: Math.min(e.end, d + 86_400_000) })),
+  );
+  const spans = [
+    ...focus.map((s) => ({ start: s.startedAt, end: s.endedAt })),
+    ...timed.map((x) => ({ start: x.start, end: x.end })),
+  ];
+  const from = Math.max(0, Math.min(8, ...spans.map((s) => Math.floor(hourOf(s.start)))));
+  const to = Math.min(24, Math.max(20, ...spans.map((s) => Math.ceil(hourOf(s.start) + (s.end - s.start) / 3_600_000))));
   const span = to - from;
   const step = span > 12 ? 4 : 3;
   const labels = Array.from({ length: Math.floor(span / step) + 1 }, (_, i) => from + i * step);
@@ -111,14 +134,35 @@ function WhenChart({
                 <span className="t-short">{capitalize(formatDate(d, { weekday: "narrow" }))}</span> {date.getDate()}
               </button>
               <div className="when-col">
-                {list.map((s) => {
-                  const top = ((hourOf(s.startedAt) - from) / span) * 100;
-                  const height = ((s.endedAt - s.startedAt) / 3_600_000 / span) * 100;
+                {eventLanes([
+                  ...list.map((x) => ({ start: x.startedAt, end: x.endedAt, session: x })),
+                  ...timed.filter((x) => x.day === d).map((x) => ({ start: x.start, end: x.end, event: x.e })),
+                ]).map(({ event: item, lane, lanes }) => {
+                  const top = ((hourOf(item.start) - from) / span) * 100;
+                  const height = ((item.end - item.start) / 3_600_000 / span) * 100;
+                  const place = { top: `${top}%`, height: `max(8px, ${height}%)`, "--lane": lane, "--lanes": lanes } as CSSProperties;
+                  if ("event" in item) {
+                    const e = item.event;
+                    const label = `${e.title}, ${t().timer.fromTo(clockTime(e.start), clockTime(e.end))}`;
+                    return (
+                      <button
+                        key={eventKey(e)}
+                        className="when-event"
+                        style={{ ...place, "--event": e.color } as CSSProperties}
+                        onClick={() => onEvent(e)}
+                        title={t().events.hint(label)}
+                        aria-label={label}
+                      >
+                        <span>{e.title}</span>
+                      </button>
+                    );
+                  }
+                  const s = item.session;
                   return (
                     <button
                       key={s.id}
                       className="when-block"
-                      style={{ top: `${top}%`, height: `max(8px, ${height}%)`, background: colorOf(s) }}
+                      style={{ ...place, background: colorOf(s) }}
                       onClick={() => onOpen(s)}
                       title={`${s.intention || t().focus}, ${t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
                       aria-label={`${s.intention || t().focus}, ${t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
@@ -206,7 +250,7 @@ function DayChart({ perDay, kind, color }: { perDay: { day: number; ms: number }
   );
 }
 
-export function AnalyticsView({ range, sessions, previous, week, categories, now, dailyGoal, onRange, onOpen, onAdd }: Props) {
+export function AnalyticsView({ range, sessions, previous, week, categories, now, dailyGoal, events, onRange, onOpen, onEvent, onCountEvent, onCountEvents, onAdd }: Props) {
   const [notesOnly, setNotesOnly] = useState(false);
   const [filter, setFilter] = useState<number | "all">("all");
   const [showAll, setShowAll] = useState(false);
@@ -238,6 +282,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
   const focusCats = stats.categories.filter((c) => c.key !== "break");
   const text = t().analytics;
   const ratingName = t().ratings;
+  const toCount = events.filter((e) => countable(e, now));
 
   return (
     <main className={`analytics ${range.kind}-range`}>
@@ -273,8 +318,11 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
           categories={categories}
           now={now}
           dailyGoal={dailyGoal}
+          events={events}
           onDay={(d) => onRange(rangeFor("day", d))}
           onOpen={onOpen}
+          onEvent={onEvent}
+          onCountEvent={onCountEvent}
           onAdd={onAdd}
         />
       ) : (
@@ -324,18 +372,27 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
         <section className="card when-card" aria-label={text.whenYouFocused}>
           <div className="card-head">
             <h2>{text.whenYouFocused}</h2>
-            <span className="muted small strong">{peakLine(shown.filter((s) => s.kind === "focus"))}</span>
+            {weekStart && toCount.length > 0 ? (
+              <button className="chip-button count-events" onClick={() => onCountEvents(toCount)}>
+                <CalendarIcon />
+                {t().events.countEvents}
+              </button>
+            ) : (
+              <span className="muted small strong">{peakLine(shown.filter((s) => s.kind === "focus"))}</span>
+            )}
           </div>
           {weekStart ? (
             <WhenChart
               days={weekStart}
               sessions={shown}
+              events={events}
               selected={null}
               now={now}
               goal={dailyGoal}
               colorOf={colorOf}
               onDay={(d) => onRange(rangeFor("day", d))}
               onOpen={onOpen}
+              onEvent={onEvent}
             />
           ) : (
             <DayChart

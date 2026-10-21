@@ -62,6 +62,12 @@ fn migrations() -> Vec<Migration> {
             UPDATE categories SET position = id;
         ",
         kind: MigrationKind::Up,
+    },
+    Migration {
+        version: 4,
+        description: "remember the calendar event a session was made from",
+        sql: "ALTER TABLE sessions ADD COLUMN from_event TEXT;",
+        kind: MigrationKind::Up,
     }]
 }
 
