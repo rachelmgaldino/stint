@@ -1,10 +1,11 @@
 import type { Category, SessionRecord, Settings } from "./store";
 import type { Language } from "./i18n";
+import type { CalendarEvent } from "./google";
 
 // The web demo (built with VITE_DEMO=1 and published to GitHub Pages) opens
 // with four weeks of made-up sessions so the dial, the Today ribbon and the
 // analytics look lived in. It runs only in the browser: no desktop database,
-// no Google Calendar.
+// no Google Calendar, so a made-up calendar of meetings stands in for one.
 
 export const DEMO = import.meta.env.VITE_DEMO === "1";
 export const DEMO_KEY = "stint-demo";
@@ -154,4 +155,30 @@ export function demoData(settings: Settings): { categories: Category[]; sessions
     }
   }
   return { categories, sessions, settings: { ...settings, language, dailyGoal: 5 } };
+}
+
+const meetings: Record<Language, { standup: string; oneOnOne: string; review: string; planning: string; dentist: string }> = {
+  en: { standup: "Team standup", oneOnOne: "1:1 with Ana", review: "Design review", planning: "Sprint planning", dentist: "Dentist" },
+  "pt-BR": { standup: "Daily do time", oneOnOne: "1:1 com a Ana", review: "Revisão de design", planning: "Planejamento da sprint", dentist: "Dentista" },
+};
+
+/** A week of meetings, repeated every week, for the demo's pretend calendar. */
+export function demoEvents(from: number, to: number, language: Language): CalendarEvent[] {
+  const m = meetings[language];
+  const out: CalendarEvent[] = [];
+  const day = new Date(from);
+  day.setHours(0, 0, 0, 0);
+  for (; day.getTime() < to; day.setDate(day.getDate() + 1)) {
+    const dow = day.getDay();
+    const at = (h: number, min: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, min).getTime();
+    const add = (key: string, title: string, start: number, minutes: number, color: string) =>
+      out.push({ id: `${key}-${day.getTime()}`, calendarId: "demo", title, color, start, end: start + minutes * MIN, allDay: false });
+    if (dow >= 1 && dow <= 5) add("standup", m.standup, at(9, 30), 15, "#7986cb");
+    if (dow === 2 || dow === 4) add("one", m.oneOnOne, at(11, 0), 30, "#33b679");
+    if (dow === 3) add("review", m.review, at(14, 0), 60, "#e67c73");
+    if (dow === 5) add("planning", m.planning, at(15, 0), 90, "#7986cb");
+    // One odd appointment in the middle of each month, to show something that isn't routine.
+    if (day.getDate() === 15 || day.getDate() === 29) add("dentist", m.dentist, at(17, 30), 45, "#f6bf26");
+  }
+  return out.filter((e) => e.end > from && e.start < to);
 }

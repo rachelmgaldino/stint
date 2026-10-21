@@ -25,6 +25,8 @@ type Props = {
 export function SessionDialog(p: Props) {
   const { session, categories, onSave, onDelete, onClose } = p;
   const isNew = session.id === 0;
+  // A new session made from a calendar event is always focus, one at a time.
+  const fromEvent = isNew && !!session.fromEvent;
   const [date, setDate] = useState(isoDate(session.startedAt));
   const today = startOfDay(Date.now());
   const pickedDay = fromIsoDate(date);
@@ -95,14 +97,20 @@ export function SessionDialog(p: Props) {
   );
   const title = (
     <h2 id="session-title">
-      {isNew ? (isFocus ? text.addSession : text.addBreak) : `${isFocus ? text.session : text.break} · ${dayLabel(day)}`}
+      {fromEvent
+        ? t().events.dialogTitle
+        : isNew
+          ? isFocus
+            ? text.addSession
+            : text.addBreak
+          : `${isFocus ? text.session : text.break} · ${dayLabel(day)}`}
     </h2>
   );
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="session-title" onClick={onClose}>
       <form className="sheet" onSubmit={submit} onClick={(e) => e.stopPropagation()}>
-        {isNew && phone ? (
+        {isNew && phone && !fromEvent ? (
           <div className="sheet-head">
             {title}
             {keepAddingSwitch}
@@ -111,7 +119,8 @@ export function SessionDialog(p: Props) {
           title
         )}
         {!isNew && <p className="muted">{text.focused(formatDuration(session.focusedMs))}</p>}
-        {isNew && (
+        {fromEvent && <p className="muted">{t().events.dialogNote}</p>}
+        {isNew && !fromEvent && (
           <div className="segmented small kind-switch" role="group" aria-label={text.type}>
             <button type="button" aria-pressed={isFocus} onClick={() => changeKind("focus")}>
               {t().focus}
@@ -174,7 +183,7 @@ export function SessionDialog(p: Props) {
               {isFocus ? text.deleteSession : text.deleteBreak}
             </button>
           )}
-          {isNew && !phone && keepAddingSwitch}
+          {isNew && !phone && !fromEvent && keepAddingSwitch}
           <span className="spacer" />
           <button type="button" className="secondary" onClick={onClose}>
             {text.cancel}

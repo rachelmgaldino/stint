@@ -21,6 +21,8 @@ export type SessionRecord = {
   /** The Google Calendar event made for this session, once synced. */
   googleEventId?: string | null;
   googleCalendarId?: string | null;
+  /** The Google Calendar event this session was made from ("calendarId/eventId"). */
+  fromEvent?: string | null;
 };
 
 export type Theme = "system" | "light" | "dark";
@@ -131,7 +133,7 @@ export interface Store {
   updateSession(s: SessionRecord): Promise<void>;
   deleteSession(id: number): Promise<void>;
   sessionsBetween(from: number, to: number): Promise<SessionRecord[]>;
-  /** Sessions started since `since` that have no calendar event yet. */
+  /** Sessions started since `since` that have no calendar event yet, leaving out ones made from an event. */
   unsynced(since: number): Promise<SessionRecord[]>;
   setGoogleEvent(id: number, calendarId: string | null, eventId: string | null): Promise<void>;
   settings(): Promise<Settings>;
@@ -151,6 +153,7 @@ type SessionRow = {
   rating: number;
   google_event_id: string | null;
   google_calendar_id: string | null;
+  from_event: string | null;
 };
 
 function fromRow(r: SessionRow): SessionRecord {
@@ -167,6 +170,7 @@ function fromRow(r: SessionRow): SessionRecord {
     rating: r.rating,
     googleEventId: r.google_event_id,
     googleCalendarId: r.google_calendar_id,
+    fromEvent: r.from_event,
   };
 }
 
@@ -206,8 +210,8 @@ async function sqliteStore(): Promise<Store> {
     async addSession(s) {
       const r = await db.execute(
         `INSERT INTO sessions
-           (kind, intention, category_id, started_at, ended_at, planned_ms, focused_ms, reflection, rating)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (kind, intention, category_id, started_at, ended_at, planned_ms, focused_ms, reflection, rating, from_event)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           s.kind,
           s.intention,
@@ -218,6 +222,7 @@ async function sqliteStore(): Promise<Store> {
           s.focusedMs,
           s.reflection,
           s.rating,
+          s.fromEvent ?? null,
         ],
       );
       return r.lastInsertId ?? 0;
@@ -242,7 +247,8 @@ async function sqliteStore(): Promise<Store> {
     },
     async unsynced(since) {
       const rows = await db.select<SessionRow[]>(
-        "SELECT * FROM sessions WHERE started_at >= $1 AND google_event_id IS NULL ORDER BY started_at",
+        // A session made from an event is on the calendar already.
+        "SELECT * FROM sessions WHERE started_at >= $1 AND google_event_id IS NULL AND from_event IS NULL ORDER BY started_at",
         [since],
       );
       return rows.map(fromRow);
@@ -355,7 +361,7 @@ function browserStore(): Store {
     },
     async unsynced(since) {
       return load()
-        .sessions.filter((s) => s.startedAt >= since && !s.googleEventId)
+        .sessions.filter((s) => s.startedAt >= since && !s.googleEventId && !s.fromEvent)
         .sort((a, b) => a.startedAt - b.startedAt);
     },
     async setGoogleEvent(id, calendarId, eventId) {

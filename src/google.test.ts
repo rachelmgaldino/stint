@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventLanes, nearestColorId, sessionEvent, toCalendarEvent, type CalendarEvent } from "./google";
+import { countable, eventKey, eventLanes, nearestColorId, sessionEvent, toCalendarEvent, type CalendarEvent } from "./google";
 import type { SessionRecord } from "./store";
 
 const MIN = 60_000;
@@ -64,5 +64,26 @@ describe("google calendar helpers", () => {
     const laid = eventLanes([ev("a", 9, 11), ev("b", 10, 12), ev("c", 11, 12), ev("d", 13, 14)]);
     const by = Object.fromEntries(laid.map((l) => [l.event.id, [l.lane, l.lanes]]));
     expect(by).toEqual({ a: [0, 2], b: [1, 2], c: [0, 2], d: [0, 1] });
+  });
+
+  it("lays out sessions and events together", () => {
+    const lanes = eventLanes([
+      { start: 0, end: 30 * MIN, kind: "session" },
+      { start: 10 * MIN, end: 20 * MIN, kind: "event" },
+      { start: 40 * MIN, end: 50 * MIN, kind: "event" },
+    ]);
+    expect(lanes.map((l) => [l.event.kind, l.lane, l.lanes])).toEqual([
+      ["session", 0, 2],
+      ["event", 1, 2],
+      ["event", 0, 1],
+    ]);
+  });
+
+  it("counts only timed events that are over", () => {
+    const e: CalendarEvent = { id: "x", calendarId: "me", title: "Review", color: "#e67c73", start: 0, end: 60 * MIN, allDay: false };
+    expect(eventKey(e)).toBe("me/x");
+    expect(countable(e, 60 * MIN)).toBe(true);
+    expect(countable(e, 30 * MIN)).toBe(false);
+    expect(countable({ ...e, allDay: true }, 120 * MIN)).toBe(false);
   });
 });

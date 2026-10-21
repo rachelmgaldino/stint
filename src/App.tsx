@@ -18,6 +18,7 @@ import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
 import { SettingsView } from "./components/SettingsView";
 import { Reflection, type PendingReflection } from "./components/Reflection";
 import { SessionDialog } from "./components/SessionDialog";
+import { CountEventsDialog, EventCard } from "./components/EventDialogs";
 import { AnalyticsView } from "./components/AnalyticsView";
 import { MiniTimer } from "./components/MiniTimer";
 import { ChartIcon, ClockIcon, SlidersIcon } from "./components/icons";
@@ -25,12 +26,18 @@ import { GoalSprouts, Pip } from "./components/Pip";
 import { soft } from "./colors";
 import { setLanguage, t } from "./i18n";
 import { setLook } from "./look";
-import { DEMO } from "./demo";
+import { DEMO, demoEvents } from "./demo";
 import { nextBreak } from "./breaks";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 
 type View = "timer" | "analytics" | "settings";
+
+/** Leaves out the events that already have a session made from them. */
+function unconverted(events: G.CalendarEvent[], sessions: SessionRecord[]): G.CalendarEvent[] {
+  const done = new Set(sessions.map((s) => s.fromEvent).filter(Boolean));
+  return done.size ? events.filter((e) => !done.has(G.eventKey(e))) : events;
+}
 
 // The running timer and what it's for, kept in localStorage so a restart of
 // the app doesn't lose a session in progress.
@@ -54,6 +61,35 @@ function saveLive(l: Live) {
   } catch {
     // Not critical.
   }
+}
+
+/** Keeps `set` filled with the events between two times, checking again every five minutes. */
+function useEvents(
+  fetch: (from: number, to: number) => Promise<G.CalendarEvent[]>,
+  from: number,
+  to: number,
+  set: (e: G.CalendarEvent[]) => void,
+  skip = false,
+) {
+  useEffect(() => {
+    if (skip) {
+      set([]);
+      return;
+    }
+    let stale = false;
+    const load = () =>
+      fetch(from, to)
+        .then((e) => {
+          if (!stale) set(e);
+        })
+        .catch((e) => console.warn("calendar events failed", e));
+    load();
+    const id = setInterval(load, 5 * 60_000);
+    return () => {
+      stale = true;
+      clearInterval(id);
+    };
+  }, [fetch, from, to, skip, set]);
 }
 
 export default function App() {
@@ -81,6 +117,10 @@ export default function App() {
   const [now, setNow] = useState(Date.now());
   const [google, setGoogle] = useState<{ connected: boolean; calendars: G.GoogleCalendar[] }>({ connected: false, calendars: [] });
   const [events, setEvents] = useState<G.CalendarEvent[]>([]);
+  const [rangeEvents, setRangeEvents] = useState<G.CalendarEvent[]>([]);
+  // An event opened from Analytics, and the list for counting several at once.
+  const [openEvent, setOpenEvent] = useState<G.CalendarEvent | null>(null);
+  const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
   const syncing = useRef(false);
 
   const { timer } = live;
@@ -141,26 +181,20 @@ export default function App() {
     await G.updateEvent(s.googleCalendarId, s.googleEventId, s, c).catch((e) => console.warn("calendar update failed", e));
   };
 
-  // Events from the visible Google calendars for the day on screen.
-  useEffect(() => {
-    const cal = settings.calendar;
-    if (!google.connected || !cal.showEvents) {
-      setEvents([]);
-      return;
-    }
-    const shown = google.calendars.filter((c) => !cal.hidden.includes(c.id));
-    let stale = false;
-    const load = () =>
-      G.eventsBetween(shown, day, addDays(day, 1)).then((e) => {
-        if (!stale) setEvents(e);
-      });
-    load();
-    const id = setInterval(load, 5 * 60_000);
-    return () => {
-      stale = true;
-      clearInterval(id);
-    };
-  }, [google, settings.calendar.showEvents, settings.calendar.hidden, day]);
+  // Events from the visible Google calendars, or the demo's pretend calendar.
+  const fetchEvents = useCallback(
+    async (from: number, to: number): Promise<G.CalendarEvent[]> => {
+      if (DEMO) return demoEvents(from, to, settings.language);
+      const cal = settings.calendar;
+      if (!google.connected || !cal.showEvents) return [];
+      return G.eventsBetween(google.calendars.filter((c) => !cal.hidden.includes(c.id)), from, to);
+    },
+    [google, settings.calendar.showEvents, settings.calendar.hidden, settings.language],
+  );
+
+  // The day on the Today ribbon, and the day or week open in Analytics.
+  useEvents(fetchEvents, day, addDays(day, 1), setEvents);
+  useEvents(fetchEvents, range.from, range.to, setRangeEvents, range.kind === "month");
 
   const refresh = useCallback(async () => {
     if (!store) return;
@@ -325,7 +359,7 @@ export default function App() {
       await store.updateSession(s);
       syncEdit(s);
     }
-    if (s.id === 0 && keepAdding) {
+    if (s.id === 0 && keepAdding && !s.fromEvent) {
       // Stay open, cleared, with the next entry starting where this one ended.
       const text = t().dialog.added(s.kind === "focus" ? t().dialog.session : t().dialog.break, clockTime(s.startedAt), clockTime(s.endedAt));
       setJustAdded((j) => ({ text, n: (j?.n ?? 0) + 1 }));
@@ -358,6 +392,37 @@ export default function App() {
     const from = e.start < n && e.end > n ? n : e.start;
     setPlannedMin(Math.min(180, Math.max(1, Math.round((e.end - from) / 60_000))));
     setLive((l) => ({ ...l, intention: e.title }));
+  };
+
+  // An event that's over becomes a focus session with its times, its title as
+  // the intention, and the category picked in the dialog.
+  const eventSession = (e: G.CalendarEvent, categoryId: number | null): SessionRecord => {
+    const end = Math.min(e.end, addDays(startOfDay(e.start), 1) - 60_000);
+    return {
+      ...newSession(startOfDay(e.start)),
+      categoryId,
+      intention: e.title,
+      startedAt: e.start,
+      endedAt: end,
+      plannedMs: end - e.start,
+      focusedMs: end - e.start,
+      fromEvent: G.eventKey(e),
+    };
+  };
+
+  const countEvent = (e: G.CalendarEvent) => {
+    setOpenEvent(null);
+    setEditing(eventSession(e, live.categoryId ?? categories[0]?.id ?? null));
+  };
+
+  const countEvents = async (list: G.CalendarEvent[], categoryId: number | null) => {
+    if (!store) return;
+    for (const e of list) {
+      const { id: _new, ...rest } = eventSession(e, categoryId);
+      await store.addSession(rest);
+    }
+    setCounting(null);
+    refresh();
   };
 
   const nextEntry = (prev: SessionRecord): SessionRecord => {
@@ -549,7 +614,7 @@ export default function App() {
             week={week}
             categories={categories}
             live={liveBlock}
-            events={events}
+            events={unconverted(events, week)}
             compact={mode !== "plan"}
             onEvent={timer.status === "idle" ? planFromEvent : undefined}
             onDay={setDay}
@@ -566,8 +631,12 @@ export default function App() {
           categories={categories}
           now={now}
           dailyGoal={settings.dailyGoal}
+          events={unconverted(rangeEvents, rangeData.sessions)}
           onRange={setRange}
           onOpen={setEditing}
+          onEvent={setOpenEvent}
+          onCountEvent={countEvent}
+          onCountEvents={setCounting}
           onAdd={() => setEditing(newSession(range.kind === "day" ? range.from : startOfDay(Date.now())))}
         />
       ) : (
@@ -608,6 +677,18 @@ export default function App() {
           dailyGoal={settings.dailyGoal}
           onSave={(reflection, rating) => closeReflection({ reflection, rating })}
           onSkip={() => closeReflection()}
+        />
+      )}
+      {openEvent && (
+        <EventCard event={openEvent} now={now} onCount={() => countEvent(openEvent)} onClose={() => setOpenEvent(null)} />
+      )}
+      {counting && (
+        <CountEventsDialog
+          events={counting}
+          categories={categories}
+          categoryId={live.categoryId ?? categories[0]?.id ?? null}
+          onAdd={countEvents}
+          onClose={() => setCounting(null)}
         />
       )}
       {editing && (
