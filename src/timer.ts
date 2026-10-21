@@ -135,6 +135,24 @@ export function formatClock(ms: number): string {
   return over ? `+${body}` : body;
 }
 
+/**
+ * Minutes from what someone types for a length: "90", "90m", "1:30", "1h30",
+ * "1h 30m", "1.5h", "1,5h" or "2h". Null when it can't be read.
+ */
+export function parseDuration(text: string): number | null {
+  const s = text.trim().toLowerCase().replace(/\s+/g, "");
+  if (!s) return null;
+  let m = /^(\d{1,4})(m|min)?$/.exec(s);
+  if (m) return Number(m[1]);
+  m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (m) return Number(m[2]) > 59 ? null : Number(m[1]) * 60 + Number(m[2]);
+  m = /^(\d{1,2})h(?:(\d{1,2})(?:m|min)?)?$/.exec(s);
+  if (m) return m[2] !== undefined && Number(m[2]) > 59 ? null : Number(m[1]) * 60 + Number(m[2] ?? 0);
+  m = /^(\d{1,2})[.,](\d{1,2})h$/.exec(s);
+  if (m) return Math.round(Number(`${m[1]}.${m[2]}`) * 60);
+  return null;
+}
+
 /** "1h 25m", "25m", "0m". */
 export function formatDuration(ms: number): string {
   const minutes = Math.round(ms / 60_000);
