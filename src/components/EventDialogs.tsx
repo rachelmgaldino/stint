@@ -2,14 +2,14 @@ import { useState, type CSSProperties } from "react";
 import type { Category } from "../store";
 import { countable, eventKey, type CalendarEvent } from "../google";
 import { compactDuration } from "../analytics";
-import { clockTime, dayLabel } from "../dates";
+import { dayLabel, timeRange } from "../dates";
 import { capitalize, formatDate, t } from "../i18n";
 import { CalendarIcon } from "./icons";
 
 const when = (e: CalendarEvent) =>
   e.allDay
     ? `${capitalize(formatDate(e.start, { weekday: "long", day: "numeric", month: "long" }))} · ${t().events.allDay}`
-    : `${capitalize(formatDate(e.start, { weekday: "long", day: "numeric", month: "long" }))} · ${t().timer.fromTo(clockTime(e.start), clockTime(e.end))}`;
+    : `${capitalize(formatDate(e.start, { weekday: "long", day: "numeric", month: "long" }))} · ${timeRange(e.start, e.end)}`;
 
 /** A calendar event opened from Analytics, with a way to count it as focus once it's over. */
 export function EventCard({ event, now, onCount, onClose }: { event: CalendarEvent; now: number; onCount(): void; onClose(): void }) {
@@ -97,7 +97,7 @@ export function CountEventsDialog({
                   <span className="count-text">
                     <span className="count-title">{e.title}</span>
                     <span className="count-when">
-                      {dayLabel(e.start)} · {t().timer.fromTo(clockTime(e.start), clockTime(e.end))}
+                      {dayLabel(e.start)} · {timeRange(e.start, e.end)}
                     </span>
                   </span>
                   <span className="count-len">{compactDuration(e.end - e.start)}</span>

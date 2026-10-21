@@ -2,7 +2,7 @@ import type { Category } from "../store";
 import * as T from "../timer";
 import { soft } from "../colors";
 import { dialClock } from "./TimerPane";
-import { PauseIcon, PlayIcon } from "./icons";
+import { CoffeeIcon, PauseIcon, PlayIcon } from "./icons";
 import { t } from "../i18n";
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
   category: Category | undefined;
   onPause(): void;
   onResume(): void;
+  onTakeBreak(): void;
   onAdjust(minutes: number): void;
   onFinish(): void;
   onOpenTimer(): void;
@@ -32,7 +33,11 @@ export function MiniTimer(p: Props) {
       <button className="mini-step" aria-label={text.mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
         −
       </button>
-      {p.timer.status === "running" ? (
+      {p.timer.status === "running" && p.kind === "focus" ? (
+        <button className="mini-play" aria-label={text.timer.takeBreak} title={text.timer.takeBreakHint} onClick={p.onTakeBreak}>
+          <CoffeeIcon />
+        </button>
+      ) : p.timer.status === "running" ? (
         <button className="mini-play" aria-label={text.timer.pause} onClick={p.onPause}>
           <PauseIcon />
         </button>

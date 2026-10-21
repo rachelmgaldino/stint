@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { compactDuration, computeStats, shortDuration, nextRange, previousRange, rangeFor, type Range, type RangeKind } from "../analytics";
-import { clockTime, dayLabel, startOfDay, weekDays } from "../dates";
+import { dayLabel, startOfDay, timeRange, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { CalendarIcon, ChevronLeft, ChevronRight, CoffeeIcon, PlusIcon } from "./icons";
@@ -143,7 +143,7 @@ function WhenChart({
                   const place = { top: `${top}%`, height: `max(8px, ${height}%)`, "--lane": lane, "--lanes": lanes } as CSSProperties;
                   if ("event" in item) {
                     const e = item.event;
-                    const label = `${e.title}, ${t().timer.fromTo(clockTime(e.start), clockTime(e.end))}`;
+                    const label = `${e.title}, ${timeRange(e.start, e.end)}`;
                     return (
                       <button
                         key={eventKey(e)}
@@ -164,8 +164,8 @@ function WhenChart({
                       className="when-block"
                       style={{ ...place, background: colorOf(s) }}
                       onClick={() => onOpen(s)}
-                      title={`${s.intention || t().focus}, ${t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
-                      aria-label={`${s.intention || t().focus}, ${t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}`}
+                      title={`${s.intention || t().focus}, ${timeRange(s.startedAt, s.endedAt)}`}
+                      aria-label={`${s.intention || t().focus}, ${timeRange(s.startedAt, s.endedAt)}`}
                     />
                   );
                 })}
@@ -465,7 +465,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
                         <span className="entry-len">{compactDuration(s.focusedMs)}</span>
                       </span>
                       <span className="entry-when">
-                        {t().timer.fromTo(clockTime(s.startedAt), clockTime(s.endedAt))}
+                        {timeRange(s.startedAt, s.endedAt)}
                         {extra.length > 0 && ` · ${extra.join(" · ")}`}
                         {!isBreak && s.rating > 0 && <RatingFace value={s.rating} size={18} />}
                       </span>

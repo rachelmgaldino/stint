@@ -1,13 +1,13 @@
 import { useState, type CSSProperties } from "react";
 import type { Category } from "../store";
 import type { CalendarEvent } from "../google";
-import { clockTime } from "../dates";
+import { clockTime, timeRange } from "../dates";
 import { soft } from "../colors";
 import * as T from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, CoffeeIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
 import { t } from "../i18n";
 import { look } from "../look";
@@ -20,6 +20,10 @@ type Props = {
   categories: Category[];
   idleKind: T.Kind;
   plannedMin: number;
+  /** The break running (or planned) is a long one. */
+  longBreak: boolean;
+  focusAction: "break" | "end";
+  breakAction: "focus" | "end";
   /** The next Google Calendar event today, if any. */
   nextEvent: CalendarEvent | null;
   /** When the last saved session today ended, if any. */
@@ -31,6 +35,8 @@ type Props = {
   onStart(): void;
   onPause(): void;
   onResume(): void;
+  /** Save the focus session up to now and start a break. */
+  onTakeBreak(): void;
   onSetRemaining(minutes: number): void;
   onAdjust(minutes: number): void;
   /** Say the running session really began at another time. */
@@ -80,7 +86,9 @@ export function TimerPane(p: Props) {
       ? text.paused
       : overtime
         ? text.overSince(clockTime(plannedEnd))
-        : text.fromTo(clockTime(timer.startedAt), clockTime(plannedEnd));
+        : kind === "focus"
+          ? "" // The times sit in the pill between − and + instead.
+          : timeRange(timer.startedAt, plannedEnd);
 
   // The dial stops at the longest length; say so under the clock.
   const atMax = left > 0 && Math.round(minutes) >= maxMinutes;
@@ -120,17 +128,6 @@ export function TimerPane(p: Props) {
     </Dial>
   );
 
-  const startLink = active && (
-    <button
-      className="start-edit-button"
-      aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
-      onClick={() => setEditingStart(true)}
-    >
-      <PencilIcon />
-      {text.startedAt(clockTime(timer.startedAt))}
-    </button>
-  );
-
   const startEditor = active && editingStart && (
     <StartEditor
       timer={timer}
@@ -145,6 +142,24 @@ export function TimerPane(p: Props) {
   );
 
   if (active && kind === "focus") {
+    // The big button is the one chosen in Settings; the other sits beside it,
+    // or under it as a link while paused, when Resume takes its place.
+    const breakButton = (big: boolean) => (
+      <button
+        className={big ? "squishy apricot big grow" : "soft-button big"}
+        title={text.takeBreakHint}
+        onClick={p.onTakeBreak}
+      >
+        {big && <CoffeeIcon />} {text.takeBreak}
+      </button>
+    );
+    const endButton = (big: boolean) => (
+      <button className={big ? "squishy apricot big grow" : "soft-button big"} onClick={p.onFinish}>
+        {big && <StopIcon />} {text.endSession}
+      </button>
+    );
+    const breakFirst = p.focusAction === "break";
+    const running = timer.status === "running";
     return (
       <section className="stage focus-stage" aria-label={text.focusing}>
         <div className="stage-dial">{dial(88)}</div>
@@ -159,30 +174,49 @@ export function TimerPane(p: Props) {
             <h1>{p.intention.trim() || text.focusing}</h1>
           </div>
           <div className="button-row">
-            <button className="squishy apricot big grow" onClick={p.onFinish}>
-              <StopIcon /> {text.endSession}
-            </button>
-            {timer.status === "running" ? (
-              <button className="soft-button big" onClick={p.onPause}>
-                {text.pause}
-              </button>
-            ) : (
+            {breakFirst ? breakButton(true) : endButton(true)}
+            {!running ? (
               <button className="soft-button big" onClick={p.onResume}>
                 {text.resume}
               </button>
+            ) : breakFirst ? (
+              endButton(false)
+            ) : (
+              breakButton(false)
             )}
           </div>
-          <div className="button-row">
-            <button className="soft-button grow" disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
-              {text.minus5}
+          {/* − and + move the end by 5 minutes; the times between them open the start editor. */}
+          <div className="button-row adjust-row">
+            <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
+              −
             </button>
-            <button className="soft-button grow" onClick={() => p.onAdjust(5)}>
-              {text.plus5}
+            <button
+              className="start-edit-button time-range"
+              aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
+              onClick={() => setEditingStart(true)}
+            >
+              <PencilIcon />
+              {running ? timeRange(timer.startedAt, plannedEnd) : text.startedAt(clockTime(timer.startedAt))}
+            </button>
+            <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
+              +
             </button>
           </div>
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
           <div className="stage-links">
-            {startLink}
+            {running ? (
+              <button className="quiet-link" onClick={p.onPause}>
+                {text.pauseSession}
+              </button>
+            ) : breakFirst ? (
+              <button className="quiet-link" onClick={p.onFinish}>
+                {text.endSession}
+              </button>
+            ) : (
+              <button className="quiet-link" onClick={p.onTakeBreak}>
+                {text.takeBreakLink}
+              </button>
+            )}
             <button className="quiet-link" onClick={p.onDiscard}>
               {text.discard}
             </button>
@@ -197,7 +231,7 @@ export function TimerPane(p: Props) {
     return (
       <section className="stage break-stage" aria-label={t().break}>
         <div className="stage-side">
-          <div className="eyebrow">{overtime ? text.breakOver : timer.status === "paused" ? text.breakPaused : text.breakLeft}</div>
+          <div className="eyebrow">{overtime ? text.breakOver : timer.status === "paused" ? text.breakPaused : p.longBreak ? text.longBreakLeft : text.breakLeft}</div>
           <div className="break-clock">{dialClock(left)}</div>
           <p className="break-note">
             {overtime
@@ -205,14 +239,27 @@ export function TimerPane(p: Props) {
               : text.breakNote(clockTime(plannedEnd))}
           </p>
           <div className="button-row">
-            <button className="squishy ink big" onClick={p.onBackToFocus}>
-              <PlayIcon /> {text.backToFocus}
-            </button>
-            <button className="soft-button big" onClick={p.onFinish}>
-              {text.endBreak}
-            </button>
+            {p.breakAction === "focus" ? (
+              <>
+                <button className="squishy ink big" onClick={p.onBackToFocus}>
+                  <PlayIcon /> {text.backToFocus}
+                </button>
+                <button className="soft-button big" onClick={p.onFinish}>
+                  {text.endBreak}
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="squishy ink big" onClick={p.onFinish}>
+                  <StopIcon /> {text.endBreak}
+                </button>
+                <button className="soft-button big" onClick={p.onBackToFocus}>
+                  {text.backToFocus}
+                </button>
+              </>
+            )}
           </div>
-          <div className="button-row">
+          <div className="stage-links">
             {timer.status === "running" ? (
               <button className="quiet-link" onClick={p.onPause}>
                 {text.pauseBreak}
@@ -226,10 +273,8 @@ export function TimerPane(p: Props) {
               {text.discard}
             </button>
           </div>
-          {startLink}
         </div>
         <div className="stage-dial">{dial(150)}</div>
-        {startEditor}
       </section>
     );
   }
@@ -277,7 +322,7 @@ export function TimerPane(p: Props) {
           </>
         ) : (
           <>
-            <h1>{text.breakTime}</h1>
+            <h1>{p.longBreak ? text.longBreakTime : text.breakTime}</h1>
             <p className="plan-note">{text.breakPlanNote}</p>
           </>
         )}

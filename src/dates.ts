@@ -1,4 +1,4 @@
-import { capitalize, formatDate } from "./i18n";
+import { capitalize, formatDate, language, t } from "./i18n";
 
 // Local-time calendar helpers. Days are identified by the timestamp of their
 // local midnight; adding days goes through Date so DST changes are handled.
@@ -27,10 +27,36 @@ export function weekDays(ms: number): number[] {
   return Array.from({ length: 7 }, (_, i) => addDays(first, i));
 }
 
-/** "21:14" */
-export function clockTime(ms: number): string {
+/** "21:14", the form time fields and the CSV export use whatever the language. */
+export function inputTime(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** A time to show: "9:14 PM" in English, "21:14" in Portuguese. */
+export function clockTime(ms: number): string {
+  if (language() !== "en") return inputTime(ms);
+  const d = new Date(ms);
+  const h = d.getHours();
+  // A no-break space keeps "PM" on the same line as the time.
+  return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}\u00a0${h < 12 ? "AM" : "PM"}`;
+}
+
+/** "9:14 to 9:39 PM" (AM/PM said once when both share it), "21:14 às 21:39". */
+export function timeRange(from: number, to: number): string {
+  return t().timer.fromTo(...shortPair(from, to));
+}
+
+/** "9:00–10:30 AM", "09:00–10:30". */
+export function timeSpan(from: number, to: number): string {
+  return shortPair(from, to).join("–");
+}
+
+function shortPair(from: number, to: number): [string, string] {
+  const a = clockTime(from);
+  const b = clockTime(to);
+  const sameHalf = language() === "en" && a.slice(-2) === b.slice(-2);
+  return [sameHalf ? a.slice(0, -3) : a, b];
 }
 
 /** "Sat 17 Oct", or "Sáb 17 out" in Portuguese. */

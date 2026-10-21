@@ -1,5 +1,5 @@
 import { compactDuration } from "./analytics";
-import { clockTime } from "./dates";
+import { inputTime, timeRange, timeSpan } from "./dates";
 import { capitalize, formatDate, language, t } from "./i18n";
 import type { Category, SessionRecord } from "./store";
 
@@ -58,8 +58,8 @@ export function dayCsv(day: number, sessions: SessionRecord[], categories: Categ
     lines.push(
       line([
         date,
-        clockTime(s.startedAt),
-        clockTime(s.endedAt),
+        inputTime(s.startedAt),
+        inputTime(s.endedAt),
         isBreak ? t().break : t().focus,
         isBreak ? "" : c?.name ?? "",
         isBreak ? "" : s.intention,
@@ -96,7 +96,7 @@ export function daySummary(day: number, sessions: SessionRecord[], categories: C
   const out = [`Stint · ${title}`];
   if (ordered.length === 0) return [...out, t().analytics.noSessions].join("\n");
   out.push(text.focusedLine(compactDuration(focusMs), focus.length, compactDuration(breakMs)));
-  out.push(t().timer.fromTo(clockTime(ordered[0].startedAt), clockTime(ordered[ordered.length - 1].endedAt)));
+  out.push(timeRange(ordered[0].startedAt, ordered[ordered.length - 1].endedAt));
   const cats = totalsByCategory(ordered, categories);
   if (cats.length) {
     out.push("");
@@ -104,7 +104,7 @@ export function daySummary(day: number, sessions: SessionRecord[], categories: C
   }
   out.push("");
   for (const s of ordered) {
-    const span = `${clockTime(s.startedAt)}–${clockTime(s.endedAt)}`;
+    const span = timeSpan(s.startedAt, s.endedAt);
     if (s.kind === "break") {
       out.push(`${span}  ${t().break} (${compactDuration(s.focusedMs)})`);
       continue;

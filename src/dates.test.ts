@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { addDays, atTime, clockTime, fromIsoDate, isoDate, startOfDay, startOfWeek, weekDays } from "./dates";
+import { addDays, atTime, clockTime, fromIsoDate, inputTime, isoDate, startOfDay, startOfWeek, timeRange, timeSpan, weekDays } from "./dates";
+import { setLanguage } from "./i18n";
+
+// setLanguage sets the page's lang, so tests give it a stand-in document.
+(globalThis as { document?: unknown }).document ??= { documentElement: {} };
 
 describe("dates", () => {
   const sat = new Date(2026, 9, 17, 21, 14).getTime();
@@ -30,10 +34,28 @@ describe("dates", () => {
   });
 
   it("formats and parses clock times", () => {
+    setLanguage("en");
+    expect(clockTime(sat)).toBe("9:14\u00a0PM");
+    expect(clockTime(startOfDay(sat) + 5 * 60_000)).toBe("12:05\u00a0AM");
+    expect(inputTime(sat)).toBe("21:14");
+    setLanguage("pt-BR");
     expect(clockTime(sat)).toBe("21:14");
+    setLanguage("en");
     const day = startOfDay(sat);
     expect(atTime(day, "9:05")).toBe(new Date(2026, 9, 17, 9, 5).getTime());
     expect(atTime(day, "24:00")).toBeNull();
     expect(atTime(day, "nope")).toBeNull();
+  });
+
+  it("says AM or PM once when a range stays in the same half of the day", () => {
+    setLanguage("en");
+    const day = startOfDay(sat);
+    const at = (h: number, m: number) => day + (h * 60 + m) * 60_000;
+    expect(timeRange(at(21, 14), at(21, 39))).toBe("9:14 to 9:39\u00a0PM");
+    expect(timeRange(at(11, 30), at(12, 15))).toBe("11:30\u00a0AM to 12:15\u00a0PM");
+    expect(timeSpan(at(9, 0), at(10, 30))).toBe("9:00–10:30\u00a0AM");
+    setLanguage("pt-BR");
+    expect(timeRange(at(21, 14), at(21, 39))).toBe("21:14 às 21:39");
+    setLanguage("en");
   });
 });

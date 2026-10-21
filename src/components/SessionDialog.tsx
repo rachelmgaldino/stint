@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Category, SessionRecord } from "../store";
 import type { Kind as SessionKind } from "../timer";
-import { atTime, clockTime, dayLabel, fromIsoDate, isoDate, startOfDay } from "../dates";
+import { atTime, dayLabel, inputTime, fromIsoDate, isoDate, startOfDay } from "../dates";
 import { formatDuration } from "../timer";
 import { RatingPicker } from "./Reflection";
 import { t } from "../i18n";
@@ -35,8 +35,8 @@ export function SessionDialog(p: Props) {
   const [kind, setKind] = useState<SessionKind>(session.kind);
   const [categoryId, setCategoryId] = useState(session.categoryId);
   const [intention, setIntention] = useState(session.intention);
-  const [start, setStart] = useState(clockTime(session.startedAt));
-  const [end, setEnd] = useState(clockTime(session.endedAt));
+  const [start, setStart] = useState(inputTime(session.startedAt));
+  const [end, setEnd] = useState(inputTime(session.endedAt));
   const [reflection, setReflection] = useState(session.reflection);
   const [rating, setRating] = useState(session.rating);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -64,7 +64,7 @@ export function SessionDialog(p: Props) {
     setKind(k);
     const from = startMs ?? session.startedAt;
     const to = Math.min(from + p.lengths[k] * 60_000, day + 86_400_000 - 60_000);
-    if (to > from) setEnd(clockTime(to));
+    if (to > from) setEnd(inputTime(to));
   };
 
   const submit = (e: React.FormEvent) => {

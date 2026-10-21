@@ -341,14 +341,10 @@
 
   .stage-links {
     justify-content: center;
-    gap: 4px 6px;
+    gap: 4px 16px;
   }
 
-  .stage-links .start-edit-button {
-    padding: 0 10px 0 9px;
-  }
-
-  .break-stage .start-edit-button {
+  .stage-side > .start-edit-button {
     align-self: center;
   }
 
@@ -362,6 +358,26 @@
     padding-left: 18px;
     padding-right: 18px;
     white-space: nowrap;
+  }
+
+  /* Both buttons start from their own label's width and share what is left, so
+     a long label ("Encerrar sessão") never spills past its button; on the
+     narrowest phones it wraps onto two lines instead. */
+  .focus-stage .button-row .big {
+    flex: 2 1 auto;
+    min-width: 0;
+  }
+
+  .focus-stage .button-row .big svg {
+    flex-shrink: 0;
+  }
+
+  .focus-stage .button-row .soft-button.big {
+    flex-grow: 1;
+    padding-left: 14px;
+    padding-right: 14px;
+    white-space: normal;
+    line-height: 1.15;
   }
 
   .break-clock {
@@ -861,5 +877,21 @@
   from {
     transform: translateY(60px);
     opacity: 0;
+  }
+}
+
+/* Settings with two named options put the options on their own line. */
+@media (max-width: 640px) {
+  .row.choice-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .row.choice-row .segmented {
+    flex: 1 1 100%;
+  }
+
+  .row.choice-row .segmented button {
+    flex: 1 1 0;
   }
 }
