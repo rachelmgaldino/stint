@@ -1814,6 +1814,12 @@ button.ribbon-seg:hover {
   align-items: center;
 }
 
+.round-button.today-button {
+  width: auto;
+  padding: 0 16px;
+  font-weight: 700;
+}
+
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
