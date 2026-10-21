@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { compactDuration, computeStats, shortDuration, nextRange, previousRange, rangeFor, type Range, type RangeKind } from "../analytics";
+import { compactDuration, computeStats, shortDuration, nextRange, previousRange, rangeFor, switchRange, type Range, type RangeKind } from "../analytics";
 import { dayLabel, startOfDay, timeRange, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
@@ -289,7 +289,14 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
       <div className="page-head">
         <h1>{periodLabel(range, now)}</h1>
         <div className="period-nav">
-          <button className="round-button" aria-label={text.previous} onClick={() => onRange(previousRange(range))}>
+          <button
+            className="round-button today-button"
+            disabled={range.anchor === startOfDay(now)}
+            onClick={() => onRange(rangeFor(range.kind, now))}
+          >
+            {text.today}
+          </button>
+          <button className="round-button" aria-label={text.previous} onClick={() => onRange(previousRange(range, now))}>
             <ChevronLeft />
           </button>
           <div className="segmented dark" role="group" aria-label={text.range}>
@@ -297,13 +304,13 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
               <button
                 key={k}
                 aria-pressed={range.kind === k}
-                onClick={() => onRange(rangeFor(k, k === "day" && range.kind !== "day" ? Math.min(now, range.to - 1) : range.from))}
+                onClick={() => onRange(switchRange(range, k))}
               >
                 {text.kinds[k]}
               </button>
             ))}
           </div>
-          <button className="round-button" aria-label={text.next} onClick={() => onRange(nextRange(range))}>
+          <button className="round-button" aria-label={text.next} onClick={() => onRange(nextRange(range, now))}>
             <ChevronRight />
           </button>
         </div>

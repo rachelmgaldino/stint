@@ -3,31 +3,53 @@ import type { Category, SessionRecord } from "./store";
 import { t } from "./i18n";
 
 export type RangeKind = "day" | "week" | "month";
-export type Range = { kind: RangeKind; from: number; to: number };
+/** anchor is the day the person is looking at inside the range, so switching between
+ * Day, Week and Month keeps to it instead of drifting to the start of each period. */
+export type Range = { kind: RangeKind; from: number; to: number; anchor: number };
 
 export function rangeFor(kind: RangeKind, ms: number): Range {
+  const anchor = startOfDay(ms);
   if (kind === "day") {
-    const from = startOfDay(ms);
-    return { kind, from, to: addDays(from, 1) };
+    return { kind, from: anchor, to: addDays(anchor, 1), anchor };
   }
   if (kind === "week") {
     const from = startOfWeek(ms);
-    return { kind, from, to: addDays(from, 7) };
+    return { kind, from, to: addDays(from, 7), anchor };
   }
   const d = new Date(ms);
   const from = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
   const to = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
-  return { kind, from, to };
+  return { kind, from, to, anchor };
+}
+
+/** The same anchor day seen as another kind of range: the week holding the day, the month holding the week's day. */
+export function switchRange(r: Range, kind: RangeKind): Range {
+  return rangeFor(kind, r.anchor);
+}
+
+/** Moves a range by whole periods, keeping the anchor's place in it (a Wednesday stays a
+ * Wednesday, the 31st becomes the month's last day). Lands on today when today is in the new range. */
+function shiftRange(r: Range, steps: number, now?: number): Range {
+  let anchor: number;
+  if (r.kind === "month") {
+    const a = new Date(r.anchor);
+    const last = new Date(a.getFullYear(), a.getMonth() + steps + 1, 0).getDate();
+    anchor = new Date(a.getFullYear(), a.getMonth() + steps, Math.min(a.getDate(), last)).getTime();
+  } else {
+    anchor = addDays(r.anchor, steps * (r.kind === "week" ? 7 : 1));
+  }
+  const next = rangeFor(r.kind, anchor);
+  return now !== undefined && now >= next.from && now < next.to ? rangeFor(r.kind, now) : next;
 }
 
 /** The range of the same kind just before this one. */
-export function previousRange(r: Range): Range {
-  return rangeFor(r.kind, r.from - 1);
+export function previousRange(r: Range, now?: number): Range {
+  return shiftRange(r, -1, now);
 }
 
 /** The range of the same kind just after this one. */
-export function nextRange(r: Range): Range {
-  return rangeFor(r.kind, r.to);
+export function nextRange(r: Range, now?: number): Range {
+  return shiftRange(r, 1, now);
 }
 
 export type CategoryRow = {

@@ -439,6 +439,23 @@
     flex: 1;
   }
 
+  /* No room beside the arrows: Today sits at the end of the title row. */
+  .analytics .page-head {
+    position: relative;
+  }
+
+  .analytics .page-head h1 {
+    padding-right: 96px;
+  }
+
+  .round-button.today-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 40px;
+    border-radius: 14px;
+  }
+
   /* Summary cards swipe sideways. */
   .tiles {
     display: flex;
