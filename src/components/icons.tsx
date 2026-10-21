@@ -173,3 +173,11 @@ export const PencilIcon = () => (
     <path d="M13.5 6.5l4 4" />
   </svg>
 );
+
+export const UpdateIcon = () => (
+  <svg {...base}>
+    <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+    <path d="M20 4v4.5h-4.5" />
+    <path d="M12 8v6M9.5 11.5 12 14l2.5-2.5" />
+  </svg>
+);

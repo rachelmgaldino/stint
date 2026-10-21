@@ -69,6 +69,8 @@ export type Settings = {
   overflowBreak: boolean;
   overflowBreakMinutes: number;
   calendar: CalendarSettings;
+  /** Look for a new version when Stint opens and every few hours. */
+  checkUpdates: boolean;
 };
 
 export type CalendarSettings = {
@@ -115,6 +117,7 @@ export const defaultSettings: Settings = {
   overflowPauseMinutes: 10,
   overflowBreak: true,
   overflowBreakMinutes: 10,
+  checkUpdates: true,
   calendar: { syncSessions: false, syncBreaks: false, targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
 

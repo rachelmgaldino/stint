@@ -18,11 +18,13 @@ import {
   SparkIcon,
   SunMoonIcon,
   TagIcon,
+  UpdateIcon,
   XIcon,
 } from "./icons";
 import { languages, t } from "../i18n";
 import type { Look } from "../look";
 import { Pip } from "./Pip";
+import { updatesAvailable, type Updater } from "../updates";
 
 type Props = {
   settings: Settings;
@@ -32,6 +34,7 @@ type Props = {
   onGoogleChanged(): void;
   onSettings(s: Settings): void;
   onCategoriesChanged(): void;
+  updater: Updater;
 };
 
 const themes: Theme[] = ["system", "light", "dark"];
@@ -455,6 +458,12 @@ export function SettingsView(p: Props) {
             </div>
           </Card>
 
+          <UpdatesCard
+            updater={p.updater}
+            auto={settings.checkUpdates}
+            onAuto={(v) => set("checkUpdates", v)}
+          />
+
           <Categories {...p} />
 
           <CalendarSection {...p} set={(c) => set("calendar", c)} />
@@ -462,6 +471,86 @@ export function SettingsView(p: Props) {
       </div>
       <p className="muted small page-foot">{text.savedLocally}</p>
     </>
+  );
+}
+
+function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolean; onAuto(v: boolean): void }) {
+  const text = t().settings;
+  const { state, current } = updater;
+  if (!updatesAvailable()) {
+    return (
+      <Card title={text.updates} sub={text.updatesSub} tone="peri" icon={<UpdateIcon />}>
+        <p className="muted">{text.updatesDesktopOnly}</p>
+      </Card>
+    );
+  }
+
+  const pct = state.phase === "downloading" && state.fraction !== null ? Math.round(state.fraction * 100) : null;
+  const status =
+    state.phase === "checking"
+      ? text.updateChecking
+      : state.phase === "latest"
+        ? text.updateLatest
+        : state.phase === "available"
+          ? text.updateAvailable(state.version)
+          : state.phase === "downloading"
+            ? text.updateDownloading(state.version, pct)
+            : state.phase === "installing"
+              ? text.updateInstalling
+              : state.phase === "failed"
+                ? state.during === "check"
+                  ? text.updateCheckFailed
+                  : text.updateInstallFailed
+                : text.updateIdle;
+  const working = state.phase === "downloading" || state.phase === "installing";
+  const ready = state.phase === "available" || (state.phase === "failed" && state.during === "install");
+
+  return (
+    <Card title={text.updates} sub={text.updatesSub} tone="peri" icon={<UpdateIcon />}>
+      <div className="row update-row" data-phase={state.phase}>
+        <span>
+          {text.version(current)}
+          <span className="hint" role="status">
+            {state.phase === "latest" && <span className="update-tick" aria-hidden />}
+            {status}
+          </span>
+        </span>
+        {ready ? (
+          <button className="squishy small peri" onClick={updater.install}>
+            {state.phase === "failed" ? text.tryAgain : text.updateNow}
+          </button>
+        ) : (
+          !working && (
+            <button
+              className="soft-button small"
+              disabled={state.phase === "checking"}
+              onClick={updater.checkAndInstall}
+            >
+              {state.phase === "checking"
+                ? text.checking
+                : state.phase === "latest"
+                  ? text.checkAgain
+                  : state.phase === "failed"
+                    ? text.tryAgain
+                    : text.checkForUpdates}
+            </button>
+          )
+        )}
+      </div>
+      {working && (
+        <div
+          className={`update-bar${state.phase === "installing" || pct === null ? " busy" : ""}`}
+          role="progressbar"
+          aria-valuenow={pct ?? undefined}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <span style={{ width: `${state.phase === "installing" ? 100 : (pct ?? 30)}%` }} />
+        </div>
+      )}
+      <Switch label={text.autoUpdates} hint={text.autoUpdatesHint} checked={auto} onChange={onAuto} />
+      <p className="card-note">{text.updateKeeps}</p>
+    </Card>
   );
 }
 

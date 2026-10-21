@@ -3670,3 +3670,92 @@ select.select-pill {
     padding-right: 4px;
   }
 }
+
+/* Updates card and the "Update to" pill beside the name. */
+.squishy.peri {
+  --lip: var(--peri-lip);
+  background: var(--peri);
+  box-shadow: 0 4px 0 var(--lip);
+}
+
+.squishy.small {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+
+.update-row .hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-tick {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--matcha);
+  position: relative;
+}
+
+.update-tick::after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 2.5px;
+  width: 3px;
+  height: 6px;
+  border: solid var(--on-pastel);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.update-bar {
+  height: 10px;
+  margin: 2px 0 10px;
+  border-radius: 999px;
+  background: var(--sunken);
+  overflow: hidden;
+}
+
+.update-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--peri);
+  transition: width 0.3s;
+}
+
+.update-bar.busy span {
+  animation: update-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes update-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.update-pill {
+  margin-left: 10px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--peri);
+  color: var(--on-pastel);
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: normal;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 var(--peri-lip);
+  cursor: pointer;
+}
+
+.update-pill.busy {
+  box-shadow: none;
+  cursor: default;
+}

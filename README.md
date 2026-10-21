@@ -18,6 +18,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - A short reflection afterwards (what got done, how it felt), which can be switched off
 - Analytics by day, week and month: a timeline of the day with notes and breaks, focus by category and intention, and change from the previous period
 - Two-way link with Google Calendar: each session is written to a calendar you pick, and your calendar's events show beside your sessions
+- Updates itself: Settings checks GitHub for a newer version, downloads it and restarts, with a quiet check when it opens
 - Two looks (Lavender with Pip, Mochi the cat), each with light, dark and match-Windows themes, in English or Portuguese (Brazil)
 
 ![Two timer screens side by side: Lavender in its dark plum theme, and the Mochi look with a cat in the dial on sage-green paper.](screenshots/looks.png)
@@ -32,13 +33,15 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 
 **Google sign-in without a server.** Calendar access uses OAuth for installed apps: Stint opens a one-time loopback port on `127.0.0.1`, sends you to Google with a PKCE challenge, and catches the redirect itself (`src-tauri/src/google.rs`). The refresh token goes into Windows Credential Manager, never into the app's database or the interface. The UI asks Rust to make Calendar requests on its behalf and never sees a token, and those requests can only reach Calendar endpoints. Each person supplies their own Google OAuth client, so there's no shared secret in the repository and no third party in the middle.
 
+**Updates that can't be swapped.** Stint updates itself from GitHub Releases with Tauri's updater (`src-tauri/src/updates.rs`). The manual Release workflow signs the installer with a private key kept only in GitHub Actions secrets and publishes a `latest.json` next to it; the app holds the matching public key and refuses any installer whose signature doesn't match. It only looks at the latest published release, so the test builds attached to pull requests are never offered as updates.
+
 **Your data stays on your machine.** Sessions, categories and settings live in a local SQLite file, with the schema in versioned migrations. There's no account and no sync service. Events Stint writes to Google are tagged with a private property, so when it reads your calendar back it skips its own sessions instead of showing them twice.
 
 **One interface, three places.** The same React code runs as the desktop app, as `npm run dev` in a browser (with data in localStorage instead of SQLite), and as the public demo on GitHub Pages. Below 640px it switches to a phone layout with a bottom tab bar and bottom sheets, which is what the demo shows on a phone.
 
 ## Tech
 
-- **Desktop shell:** Tauri 2 and Rust (tray, notifications, single instance, OAuth with `reqwest`, `keyring`, `sha2`)
+- **Desktop shell:** Tauri 2 and Rust (tray, notifications, single instance, signed self-updates, OAuth with `reqwest`, `keyring`, `sha2`)
 - **Interface:** React 19 and TypeScript, built with Vite; plain CSS with custom properties for the two looks and their themes
 - **Data:** SQLite through `tauri-plugin-sql`
 - **Tests:** Vitest for timer, dial, date, analytics and calendar logic; Rust unit tests for PKCE and the OAuth redirect parser
@@ -67,6 +70,10 @@ To try it without building, download the `.exe` from the [latest release](https:
 ### Google Calendar
 
 Optional. You need your own OAuth client: in Google Cloud Console, enable the Google Calendar API, set up the consent screen as External and publish it, then create an OAuth client of type **Desktop app**. Paste its client ID and secret into **Settings, Calendar** and click **Connect**. Stint asks only to read your calendar list and manage events; **Disconnect** deletes the stored token and revokes it at Google.
+
+### Updates
+
+Releases are signed so installed copies can update themselves. The Release workflow needs two repository secrets, `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and stops before bumping the version if the key is missing. The public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. A fork needs its own key pair (`npx tauri signer generate`) and its own endpoint.
 
 ## What I'd improve
 
