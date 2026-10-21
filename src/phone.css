@@ -960,3 +960,28 @@
     flex: 1 1 0;
   }
 }
+
+/* Three time fields don't fit across a phone: Start and End share a row, Duration sits under them. */
+@media (max-width: 640px) {
+  .time-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "start end"
+      "duration duration";
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+
+  .time-fields label:nth-child(1) {
+    grid-area: start;
+  }
+
+  .time-fields .duration-field {
+    grid-area: duration;
+  }
+
+  .time-fields label:nth-child(3) {
+    grid-area: end;
+  }
+}

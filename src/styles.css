@@ -1599,9 +1599,31 @@ button.ribbon-seg:hover {
 
 .time-fields label {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.time-fields .duration-field {
+  flex: 0.8;
+}
+
+/* A field that changed on its own glows for a moment so the change is seen. */
+.time-fields input.auto-set {
+  animation: auto-set 1.2s ease-out;
+}
+
+@keyframes auto-set {
+  from {
+    background: color-mix(in srgb, var(--peri) 55%, transparent);
+  }
+}
+
+.time-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .sheet-actions {

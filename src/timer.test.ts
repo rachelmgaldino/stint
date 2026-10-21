@@ -3,6 +3,7 @@ import {
   elapsed,
   formatClock,
   formatDuration,
+  parseDuration,
   heat,
   idle,
   moveStart,
@@ -105,6 +106,24 @@ describe("formatting", () => {
     expect(formatDuration(25 * MIN)).toBe("25m");
     expect(formatDuration(60 * MIN)).toBe("1h");
     expect(formatDuration(85 * MIN)).toBe("1h 25m");
+  });
+
+  it("reads typed durations", () => {
+    for (const [text, min] of [
+      ["25", 25],
+      ["90m", 90],
+      ["45 min", 45],
+      ["1:30", 90],
+      ["1h30", 90],
+      ["1h 30m", 90],
+      ["1h30min", 90],
+      ["2h", 120],
+      ["1.5h", 90],
+      ["1,5h", 90],
+      ["0", 0],
+    ] as const)
+      expect(parseDuration(text), text).toBe(min);
+    for (const text of ["", "abc", "1:75", "1h75", "-5", "1h-"]) expect(parseDuration(text), text).toBeNull();
   });
 
   it("warms the mascot after an hour of focus and overheats it after two", () => {
