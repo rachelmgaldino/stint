@@ -693,9 +693,74 @@
     display: none;
   }
 
-  /* Settings stay one column with tighter cards. */
-  .settings-card {
-    padding: 18px;
+  /* Settings: the section list is its own page, and a section opens over it. */
+  .shelf {
+    display: block;
+  }
+
+  .shelf.has-open .shelf-nav {
+    display: none;
+  }
+
+  .shelf-nav {
+    position: static;
+  }
+
+  .shelf-nav ul {
+    background: var(--surface);
+    border-radius: 28px;
+    padding: 6px;
+    gap: 0;
+  }
+
+  .shelf-item[aria-current="page"] {
+    background: none;
+    box-shadow: none;
+  }
+
+  .shelf-chevron {
+    opacity: 1;
+  }
+
+  .shelf-foot {
+    margin-top: 8px;
+  }
+
+  .shelf-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-start;
+    font-weight: 800;
+    color: var(--muted);
+    font-size: 16px;
+    padding: 6px 2px;
+  }
+
+  .shelf-back svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .shelf-body {
+    gap: 12px;
+  }
+
+  .shelf-head {
+    margin: 0;
+  }
+
+  .shelf-head h2 {
+    font-size: 26px;
+  }
+
+  .settings-panels,
+  .settings-panels.one {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-panel {
+    padding: 16px 18px;
     border-radius: 28px;
   }
 
