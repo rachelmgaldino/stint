@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactDuration, computeStats, daysCounted, nextRange, percentChange, previousRange, rangeFor } from "./analytics";
+import { compactDuration, computeStats, daysCounted, nextRange, percentChange, previousRange, rangeFor, switchRange } from "./analytics";
 import type { Category, SessionRecord } from "./store";
 
 const MIN = 60_000;
@@ -39,6 +39,30 @@ describe("ranges", () => {
   it("steps to the previous and next period", () => {
     expect(previousRange(rangeFor("month", sat)).from).toBe(new Date(2026, 8, 1).getTime());
     expect(nextRange(rangeFor("week", sat)).from).toBe(new Date(2026, 9, 19).getTime());
+  });
+
+  it("keeps the same day when switching between day, week and month", () => {
+    const wed = new Date(2026, 9, 21, 10).getTime();
+    let r = rangeFor("day", wed);
+    for (const kind of ["week", "month", "week", "day", "week", "month", "week", "month", "week"] as const) {
+      r = switchRange(r, kind);
+      expect(r.kind).toBe(kind);
+      expect(r.anchor).toBe(new Date(2026, 9, 21).getTime());
+    }
+    expect(r.from).toBe(new Date(2026, 9, 19).getTime());
+    expect(switchRange(r, "month").from).toBe(new Date(2026, 9, 1).getTime());
+    expect(switchRange(r, "day").from).toBe(new Date(2026, 9, 21).getTime());
+  });
+
+  it("moves the anchor along with the arrows", () => {
+    const wed = new Date(2026, 9, 21).getTime();
+    const lastWeek = previousRange(rangeFor("week", wed));
+    expect(lastWeek.from).toBe(new Date(2026, 9, 12).getTime());
+    expect(switchRange(lastWeek, "day").from).toBe(new Date(2026, 9, 14).getTime());
+    const sep = previousRange(rangeFor("month", new Date(2026, 9, 31).getTime()));
+    expect(sep.anchor).toBe(new Date(2026, 8, 30).getTime());
+    // Coming back to the period with today in it lands on today.
+    expect(nextRange(lastWeek, wed + 3600_000).anchor).toBe(wed);
   });
 
   it("counts days elapsed in the current period only", () => {
