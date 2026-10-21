@@ -430,13 +430,11 @@ export default function App() {
   };
 
   const nextEntry = (prev: SessionRecord): SessionRecord => {
-    const day = startOfDay(prev.startedAt);
-    const lastMinute = addDays(day, 1) - 60_000;
-    const start = Math.min(prev.endedAt, lastMinute - 60_000);
-    const minutes = prev.kind === "focus" ? settings.focusMinutes : settings.breakMinutes;
-    const end = Math.min(start + minutes * 60_000, lastMinute);
+    // Same length as the one just added, so a run of 25 min blocks is quick to log.
+    const start = prev.endedAt;
+    const end = start + (prev.endedAt - prev.startedAt);
     return {
-      ...newSession(day),
+      ...newSession(startOfDay(start)),
       kind: prev.kind,
       categoryId: prev.categoryId,
       startedAt: start,

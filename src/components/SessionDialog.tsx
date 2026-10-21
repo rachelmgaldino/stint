@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Category, SessionRecord } from "../store";
 import type { Kind as SessionKind } from "../timer";
-import { atTime, dayLabel, inputTime, fromIsoDate, isoDate, startOfDay } from "../dates";
-import { formatDuration } from "../timer";
+import { addDays, atTime, clockTime, dayLabel, inputTime, fromIsoDate, isoDate, startOfDay } from "../dates";
+import { formatDuration, parseDuration } from "../timer";
 import { RatingPicker } from "./Reflection";
 import { t } from "../i18n";
 
@@ -37,6 +37,13 @@ export function SessionDialog(p: Props) {
   const [intention, setIntention] = useState(session.intention);
   const [start, setStart] = useState(inputTime(session.startedAt));
   const [end, setEnd] = useState(inputTime(session.endedAt));
+  const [duration, setDuration] = useState(formatDuration(session.endedAt - session.startedAt));
+  // Which of Duration and End stays put when Start changes: the one typed last.
+  // A new entry starts by keeping its length; a saved one keeps the end it recorded.
+  const [held, setHeld] = useState<"duration" | "end">(isNew ? "duration" : "end");
+  // A line saying what moved on its own, and which field to light up for a moment.
+  const [moved, setMoved] = useState<{ field: "end" | "duration" | null; note: string; n: number } | null>(null);
+  const [touched, setTouched] = useState(false);
   const [reflection, setReflection] = useState(session.reflection);
   const [rating, setRating] = useState(session.rating);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -45,7 +52,11 @@ export function SessionDialog(p: Props) {
   const phone = typeof matchMedia === "function" && matchMedia("(max-width: 640px)").matches;
 
   const startMs = atTime(day, start);
-  const endMs = atTime(day, end);
+  const sameDayEnd = atTime(day, end);
+  // An end before the start is on the next day: 23:30 to 00:30 is an hour.
+  const nextDay = startMs !== null && sameDayEnd !== null && sameDayEnd <= startMs;
+  const endMs = sameDayEnd !== null && nextDay ? atTime(addDays(day, 1), end) : sameDayEnd;
+  const minutes = parseDuration(duration);
   const error =
     isNew && pickedDay === null
       ? text.badDate
@@ -53,18 +64,79 @@ export function SessionDialog(p: Props) {
         ? text.futureDate
         : startMs === null || endMs === null
           ? text.badTime
-          : endMs <= startMs
-            ? text.endBeforeStart
-            : "";
+          : minutes === null || minutes < 1
+            ? text.badDuration
+            : minutes >= 24 * 60
+              ? text.tooLong
+              : endMs === startMs
+                ? text.endBeforeStart
+                : "";
+  useEffect(() => {
+    if (!moved?.field) return;
+    const id = setTimeout(() => setMoved((m) => (m === moved ? { ...m, field: null } : m)), 1200);
+    return () => clearTimeout(id);
+  }, [moved]);
+  const flash = (field: "end" | "duration", note: string) => setMoved((m) => ({ field, note, n: (m?.n ?? 0) + 1 }));
+
+  /** The end that keeps a length from a start, as HH:MM. */
+  const endFor = (from: number, min: number) => inputTime(from + min * 60_000);
+  /** The length from a start to an end, rolling past midnight. */
+  const lengthOf = (from: number, to: string) => {
+    let toMs = atTime(day, to);
+    if (toMs === null) return null;
+    if (toMs <= from) toMs = atTime(addDays(day, 1), to) ?? toMs;
+    return toMs - from;
+  };
+
+  const changeStart = (v: string) => {
+    setStart(v);
+    setTouched(true);
+    const from = atTime(day, v);
+    if (from === null) return;
+    if (held === "duration" && minutes !== null && minutes > 0) {
+      setEnd(endFor(from, minutes));
+      flash("end", text.keptLength(formatDuration(minutes * 60_000)));
+    } else {
+      const ms = lengthOf(from, end);
+      if (ms === null) return;
+      setDuration(formatDuration(ms));
+      flash("duration", text.keptEnd(clockTime(from + ms)));
+    }
+  };
+  const changeDuration = (v: string) => {
+    setDuration(v);
+    setHeld("duration");
+    setTouched(true);
+    const min = parseDuration(v);
+    if (startMs === null || min === null || min < 1 || min >= 24 * 60) return;
+    setEnd(endFor(startMs, min));
+    flash("end", "");
+  };
+  const changeEnd = (v: string) => {
+    setEnd(v);
+    setHeld("end");
+    setTouched(true);
+    if (startMs === null) return;
+    const ms = lengthOf(startMs, v);
+    if (ms === null) return;
+    setDuration(formatDuration(ms));
+    flash("duration", "");
+  };
+  // Tidy what was typed ("90" becomes "1h 30m") once the field is left.
+  const tidyDuration = () => {
+    if (minutes !== null && minutes > 0) setDuration(formatDuration(minutes * 60_000));
+  };
   const isFocus = kind === "focus";
 
-  // Switching type on a new entry resizes it to that type's usual length.
+  // Switching type on a new entry resizes it to that type's usual length,
+  // unless the times were already set by hand.
   const changeKind = (k: SessionKind) => {
     if (k === kind) return;
     setKind(k);
+    if (touched) return;
     const from = startMs ?? session.startedAt;
-    const to = Math.min(from + p.lengths[k] * 60_000, day + 86_400_000 - 60_000);
-    if (to > from) setEnd(inputTime(to));
+    setEnd(endFor(from, p.lengths[k]));
+    setDuration(formatDuration(p.lengths[k] * 60_000));
   };
 
   const submit = (e: React.FormEvent) => {
@@ -155,14 +227,51 @@ export function SessionDialog(p: Props) {
         <div className="time-fields">
           <label>
             {text.start}
-            <input type="time" value={start} onChange={(e) => setStart(e.target.value)} required />
+            <input type="time" value={start} onChange={(e) => changeStart(e.target.value)} required />
+          </label>
+          <label className="duration-field">
+            {text.duration}
+            <input
+              key={moved?.field === "duration" ? `d${moved.n}` : "d"}
+              className={moved?.field === "duration" ? "auto-set" : undefined}
+              value={duration}
+              inputMode="text"
+              placeholder={text.durationPlaceholder}
+              maxLength={12}
+              onChange={(e) => changeDuration(e.target.value)}
+              onBlur={tidyDuration}
+              onKeyDown={(e) => {
+                // Arrow keys step by 5 minutes.
+                if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+                e.preventDefault();
+                const now = minutes ?? 0;
+                const next = e.key === "ArrowUp" ? Math.floor(now / 5) * 5 + 5 : Math.ceil(now / 5) * 5 - 5;
+                if (next >= 5) changeDuration(formatDuration(next * 60_000));
+              }}
+              required
+            />
           </label>
           <label>
             {text.end}
-            <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required />
+            <input
+              key={moved?.field === "end" ? `e${moved.n}` : "e"}
+              className={moved?.field === "end" ? "auto-set" : undefined}
+              type="time"
+              value={end}
+              onChange={(e) => changeEnd(e.target.value)}
+              required
+            />
           </label>
         </div>
-        {error && <p className="error">{error}</p>}
+        {error ? (
+          <p className="error">{error}</p>
+        ) : (
+          (nextDay || moved?.note) && (
+            <p className="time-note" role="status">
+              {[moved?.note, nextDay && endMs !== null ? text.endsNextDay(dayLabel(startOfDay(endMs))) : ""].filter(Boolean).join(" ")}
+            </p>
+          )
+        )}
 
         {isFocus && (
           <>
