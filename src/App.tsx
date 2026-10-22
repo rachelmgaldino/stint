@@ -200,10 +200,12 @@ export default function App() {
   useEvents(fetchEvents, day, addDays(day, 1), setEvents);
   useEvents(fetchEvents, range.from, range.to, setRangeEvents, range.kind === "month");
 
+  // Changes at midnight, so the lists below reload even while Stint sits in the tray.
+  const todayStart = startOfDay(now);
   const refresh = useCallback(async () => {
     if (!store) return;
     const from = startOfWeek(day);
-    const t = startOfDay(Date.now());
+    const t = todayStart;
     const prev = previousRange(range);
     const rangeWeek = startOfWeek(range.from);
     const [w, td, rs, ps, rw] = await Promise.all([
@@ -216,11 +218,19 @@ export default function App() {
     setWeek(w);
     setToday(td);
     setRangeData({ sessions: rs, previous: ps, week: rw });
-  }, [store, day, range]);
+  }, [store, day, range, todayStart]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // The Today ribbon follows the date over to the new day when it was on today.
+  const lastToday = useRef(todayStart);
+  useEffect(() => {
+    const before = lastToday.current;
+    lastToday.current = todayStart;
+    setDay((d) => (d === before ? todayStart : d));
+  }, [todayStart]);
 
   useEffect(() => saveLive(live), [live]);
 
