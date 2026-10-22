@@ -5,15 +5,17 @@ import "@fontsource-variable/figtree";
 import "@fontsource-variable/fraunces/full.css";
 import "@fontsource-variable/manrope";
 import App from "./App";
+import { FloatProto } from "./components/FloatProto";
 import { startFitting } from "./fit";
 import "./styles.css";
 import "./mochi.css";
 import "./phone.css";
 
-startFitting();
+const proto = new URLSearchParams(location.search).has("float");
+if (!proto) startFitting();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    {proto ? <FloatProto /> : <App />}
   </StrictMode>,
 );

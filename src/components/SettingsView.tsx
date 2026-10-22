@@ -517,7 +517,7 @@ export function SettingsView(p: Props) {
         );
       case "look":
         return (
-          <div className="settings-panels one">
+          <div className="settings-panels">
             <Panel>
               <div className="look-picker" role="group" aria-label={text.look}>
                 {looks.map((id) => (
@@ -562,6 +562,29 @@ export function SettingsView(p: Props) {
                 />
                 <p className="card-note">{text.sizeKeys}</p>
               </div>
+            </Panel>
+            <Panel title={text.floatTitle}>
+              <Switch
+                label={text.floatOn}
+                hint={text.floatOnHint}
+                checked={settings.floatTimer}
+                onChange={(v) => set("floatTimer", v)}
+              />
+              {settings.floatTimer && (
+                <>
+                  <Switch
+                    sub
+                    label={text.floatTop}
+                    hint={text.floatTopHint}
+                    checked={settings.floatOnTop}
+                    onChange={(v) => set("floatOnTop", v)}
+                  />
+                  <div className="row sub-row">
+                    <span>{text.floatReset}</span>
+                    <MiniButton label={text.floatReset2} onClick={() => {}} />
+                  </div>
+                </>
+              )}
             </Panel>
           </div>
         );

@@ -1,0 +1,505 @@
+/* Throwaway styles for the floating timer prototype. */
+
+.fp-desktop {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #9ab7d8 0%, #c7b9de 55%, #e9c8c8 100%);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.fp-app {
+  position: absolute;
+  left: 60px;
+  top: 40px;
+  right: 60px;
+  bottom: 110px;
+  background: #fbfbfb;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .fp-desktop {
+  background: linear-gradient(135deg, #1d2840 0%, #2b2445 55%, #3a2a36 100%);
+}
+
+:root[data-theme="dark"] .fp-app {
+  background: #202020;
+}
+
+.fp-app-bar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: #ececec;
+  color: #333;
+  font-size: 12px;
+}
+
+:root[data-theme="dark"] .fp-app-bar {
+  background: #2b2b2b;
+  color: #ccc;
+}
+
+.fp-app-bar span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cfcfcf;
+}
+
+:root[data-theme="dark"] .fp-app-bar span {
+  background: #4a4a4a;
+}
+
+.fp-app-bar b {
+  margin-left: 10px;
+  font-weight: 600;
+}
+
+.fp-app-body {
+  padding: 40px 120px;
+}
+
+.fp-app-body h2 {
+  font: 600 26px "Segoe UI", system-ui, sans-serif;
+  color: #222;
+  margin: 0 0 24px;
+}
+
+:root[data-theme="dark"] .fp-app-body h2 {
+  color: #ddd;
+}
+
+.fp-app-body p {
+  height: 10px;
+  border-radius: 5px;
+  background: #e2e2e2;
+  margin: 0 0 16px;
+}
+
+:root[data-theme="dark"] .fp-app-body p {
+  background: #3a3a3a;
+}
+
+.fp-taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: rgb(243 243 243 / 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+:root[data-theme="dark"] .fp-taskbar {
+  background: rgb(32 32 32 / 0.94);
+}
+
+.fp-start,
+.fp-task {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: #c9d3e3;
+}
+
+.fp-start {
+  background: #5b8fd6;
+}
+
+.fp-task.stint {
+  background: #a7aeec;
+  box-shadow: 0 3px 0 -1px #8a8a8a;
+}
+
+:root[data-look="mochi"] .fp-task.stint {
+  background: #edb66b;
+}
+
+:root[data-theme="dark"] .fp-task {
+  background: #444;
+}
+
+.fp-time {
+  position: absolute;
+  right: 18px;
+  font-size: 12px;
+  color: #333;
+}
+
+:root[data-theme="dark"] .fp-time {
+  color: #ddd;
+}
+
+.fp-spot {
+  position: absolute;
+  right: 24px;
+  bottom: 72px;
+}
+
+.fp-bare {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+/* The pill itself, using the mini bar's tokens so Lavender and Mochi follow. */
+
+.fp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 7px 7px 10px;
+  border-radius: 22px;
+  background: var(--bar);
+  color: var(--bar-text);
+  box-shadow: 0 0 0 var(--bar-ring) var(--bar-edge), 0 10px 30px var(--bar-shadow);
+  font-family: var(--body);
+  cursor: grab;
+  user-select: none;
+}
+
+.fp.break,
+.fp-c.break .fp-bubble,
+.fp-c.break .fp-shelf {
+  background: var(--matcha);
+  color: var(--on-pastel);
+}
+
+.fp .dot,
+.fp-sub .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.fp-grip {
+  font-size: 11px;
+  letter-spacing: -3px;
+  opacity: 0.45;
+  padding-right: 2px;
+}
+
+.fp-label {
+  font-weight: 800;
+  font-size: 14px;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fp-clock {
+  font-family: var(--heading);
+  font-weight: 800;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.fp-clock.over {
+  color: var(--apricot);
+}
+
+.break .fp-clock.over {
+  color: var(--on-pastel);
+}
+
+.fp button {
+  cursor: pointer;
+}
+
+.fp-break,
+.fp-end,
+.fp-icon {
+  height: 36px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: 800 13px var(--body);
+  color: inherit;
+  border: 0;
+  white-space: nowrap;
+}
+
+.fp-break {
+  padding: 0 12px 0 9px;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.fp-break svg {
+  width: 18px;
+  height: 18px;
+}
+
+.fp-end {
+  padding: 0 14px;
+  background: var(--apricot);
+  color: var(--on-pastel);
+}
+
+.break .fp-end {
+  background: var(--bar-deep);
+  color: var(--bar-deep-text);
+}
+
+.break .fp-break,
+.break .fp-icon {
+  background: rgb(255 255 255 / 0.45);
+}
+
+.fp-sep {
+  width: 1px;
+  height: 22px;
+  background: currentColor;
+  opacity: 0.18;
+}
+
+.fp-tools {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.fp-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.fp-icon.on {
+  background: var(--lemon);
+  color: var(--on-pastel);
+}
+
+/* B: chip */
+
+.fp-b {
+  padding: 6px 14px 6px 6px;
+  border-radius: 26px;
+}
+
+.fp-b.open {
+  padding-right: 7px;
+}
+
+.fp-face {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.break .fp-face {
+  background: rgb(255 255 255 / 0.45);
+}
+
+.fp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 4px;
+}
+
+.fp-b .fp-clock {
+  font-size: 20px;
+  padding: 0;
+}
+
+.fp-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  opacity: 0.82;
+}
+
+.fp-sub .dot {
+  width: 8px;
+  height: 8px;
+}
+
+.fp-pinned {
+  display: inline-flex;
+  color: var(--lemon);
+  margin-left: 2px;
+}
+
+.fp-pinned svg {
+  width: 12px;
+  height: 12px;
+}
+
+.break .fp-pinned {
+  color: var(--on-pastel);
+}
+
+.fp-b .fp-end {
+  width: 36px;
+  padding: 0;
+}
+
+.fp-b .fp-break {
+  width: 36px;
+  padding: 0;
+}
+
+/* C: bubble */
+
+.fp-c {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--body);
+  color: var(--bar-text);
+}
+
+.fp-bubble {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--bar);
+  box-shadow: 0 0 0 var(--bar-ring) var(--bar-edge), 0 10px 30px var(--bar-shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.fp-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.fp-ring circle {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.fp-ring .track {
+  stroke: rgb(255 255 255 / 0.12);
+}
+
+.break .fp-ring .track {
+  stroke: rgb(255 255 255 / 0.5);
+}
+
+.fp-ring .fill {
+  stroke: var(--bar-deep);
+}
+
+.fp-ring .fill.over {
+  stroke: var(--apricot);
+}
+
+.break .fp-ring .fill {
+  stroke: var(--bar-deep);
+}
+
+.fp-bubble-face {
+  margin-top: -6px;
+}
+
+.fp-c .fp-clock {
+  font-size: 16px;
+  padding: 0;
+  margin-top: -2px;
+}
+
+.fp-bubble-pin {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--lemon);
+  color: var(--on-pastel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px var(--bar-shadow);
+}
+
+.fp-bubble-pin svg {
+  width: 13px;
+  height: 13px;
+}
+
+.fp-shelf {
+  display: flex;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--bar);
+  box-shadow: 0 0 0 var(--bar-ring) var(--bar-edge), 0 10px 30px var(--bar-shadow);
+}
+
+.fp-shelf .fp-break,
+.fp-shelf .fp-end {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border-radius: 11px;
+}
+
+.fp-shelf .fp-break {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.fp-board {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 28px 40px;
+  padding: 24px;
+  background: linear-gradient(135deg, #9ab7d8 0%, #c7b9de 55%, #e9c8c8 100%);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+:root[data-theme="dark"] .fp-board {
+  background: linear-gradient(135deg, #1d2840 0%, #2b2445 55%, #3a2a36 100%);
+}
+
+.fp-board figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.fp-board figcaption {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(20 20 40 / 0.75);
+}
+
+:root[data-theme="dark"] .fp-board figcaption {
+  color: rgb(255 255 255 / 0.75);
+}
