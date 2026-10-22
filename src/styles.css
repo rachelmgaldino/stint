@@ -35,6 +35,16 @@
   --break-eyebrow: #3e6630;
   --break-petal: #c5deb9;
   --break-track: #9fcb8f;
+  /* The floating mini timer bar, and the tint of soft shadows. */
+  --bar: #221e37;
+  --bar-text: #f1ecfb;
+  --bar-ring: 0px;
+  --bar-edge: transparent;
+  --bar-shadow: rgb(23 20 42 / 0.3);
+  --bar-deep: #2a2340;
+  --bar-deep-text: #f8f6fc;
+  --shade: 42 35 64;
+  --rose: #e58fa9;
   --heading: "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif;
   --body: "Figtree Variable", "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
@@ -64,6 +74,10 @@
     --break-eyebrow: #b9d9a9;
     --break-petal: #2a4232;
     --break-track: #3f5c45;
+    --bar: #2d2847;
+    --bar-ring: 1px;
+    --bar-edge: #3a3456;
+    --bar-shadow: rgb(8 6 18 / 0.5);
     color-scheme: dark;
   }
 }
@@ -92,6 +106,10 @@
   --break-eyebrow: #b9d9a9;
   --break-petal: #2a4232;
   --break-track: #3f5c45;
+  --bar: #2d2847;
+  --bar-ring: 1px;
+  --bar-edge: #3a3456;
+  --bar-shadow: rgb(8 6 18 / 0.5);
   color-scheme: dark;
 }
 
@@ -1335,16 +1353,16 @@ button.ribbon-seg:hover {
   gap: 8px;
   padding: 8px 8px 8px 16px;
   border-radius: 24px;
-  background: #221e37;
-  color: #f1ecfb;
-  box-shadow: 0 10px 30px rgb(23 20 42 / 0.3);
+  background: var(--bar);
+  color: var(--bar-text);
+  box-shadow: 0 0 0 var(--bar-ring) var(--bar-edge), 0 10px 30px var(--bar-shadow);
   z-index: 5;
   max-width: calc(100% - 40px);
 }
 
 .mini-timer.break {
   background: var(--matcha);
-  color: #2a2340;
+  color: var(--on-pastel);
 }
 
 .mini-info {
@@ -1375,7 +1393,7 @@ button.ribbon-seg:hover {
 }
 
 .mini-timer.break .mini-clock.overtime {
-  color: #2a2340;
+  color: var(--on-pastel);
 }
 
 .mini-step,
@@ -1399,15 +1417,15 @@ button.ribbon-seg:hover {
   height: 40px;
   padding: 0 16px;
   border-radius: 14px;
-  background: #f4a988;
-  color: #2a2340;
+  background: var(--apricot);
+  color: var(--on-pastel);
   font-weight: 800;
   white-space: nowrap;
 }
 
 .mini-timer.break .mini-finish {
-  background: #2a2340;
-  color: #f8f6fc;
+  background: var(--bar-deep);
+  color: var(--bar-deep-text);
 }
 
 /* Reflection drawer */
@@ -1519,7 +1537,7 @@ button.ribbon-seg:hover {
 
 .rating-option[aria-pressed="true"] {
   color: var(--on-pastel);
-  box-shadow: 0 4px 0 rgb(42 35 64 / 0.18);
+  box-shadow: 0 4px 0 rgb(var(--shade) / 0.18);
 }
 
 .rating-option.r1[aria-pressed="true"] {
@@ -1887,7 +1905,7 @@ button.ribbon-seg:hover {
 }
 
 .felt-bar .r1 {
-  background: #e58fa9;
+  background: var(--rose);
 }
 
 .analytics-row {
@@ -2935,7 +2953,7 @@ select.select-pill {
 
 .category-item.dragging {
   background: var(--surface);
-  box-shadow: 0 6px 18px rgb(40 30 80 / 0.14);
+  box-shadow: 0 6px 18px rgb(var(--shade) / 0.14);
   position: relative;
   z-index: 1;
 }

@@ -84,7 +84,7 @@
     padding: 6px;
     gap: 6px;
     border-radius: 26px;
-    box-shadow: 0 10px 30px rgb(23 20 42 / 0.16);
+    box-shadow: 0 10px 30px rgb(var(--shade) / 0.16);
   }
 
   .tab {
