@@ -25,6 +25,8 @@ import { languages, t } from "../i18n";
 import type { Look } from "../look";
 import { Pip } from "./Pip";
 import { updatesAvailable, type Updater } from "../updates";
+import { resetFloat } from "../float";
+import { isTauri } from "@tauri-apps/api/core";
 
 type Props = {
   settings: Settings;
@@ -517,7 +519,7 @@ export function SettingsView(p: Props) {
         );
       case "look":
         return (
-          <div className="settings-panels one">
+          <div className={isTauri() ? "settings-panels" : "settings-panels one"}>
             <Panel>
               <div className="look-picker" role="group" aria-label={text.look}>
                 {looks.map((id) => (
@@ -563,6 +565,31 @@ export function SettingsView(p: Props) {
                 <p className="card-note">{text.sizeKeys}</p>
               </div>
             </Panel>
+            {isTauri() && (
+              <Panel title={text.floatTitle}>
+                <Switch
+                  label={text.floatOn}
+                  hint={text.floatOnHint}
+                  checked={settings.floatTimer}
+                  onChange={(v) => set("floatTimer", v)}
+                />
+                {settings.floatTimer && (
+                  <>
+                    <Switch
+                      sub
+                      label={text.floatTop}
+                      hint={text.floatTopHint}
+                      checked={settings.floatOnTop}
+                      onChange={(v) => set("floatOnTop", v)}
+                    />
+                    <div className="row sub-row">
+                      <span>{text.floatReset}</span>
+                      <MiniButton label={text.floatReset2} onClick={resetFloat} />
+                    </div>
+                  </>
+                )}
+              </Panel>
+            )}
           </div>
         );
       case "app":

@@ -1,12 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the main window",
-  "windows": ["main"],
+  "description": "Permissions for the main window and the floating timer",
+  "windows": [
+    "main",
+    "float"
+  ],
   "permissions": [
     "core:default",
     "sql:default",
     "sql:allow-execute",
-    "notification:default"
+    "notification:default",
+    "core:window:allow-start-dragging"
   ]
 }

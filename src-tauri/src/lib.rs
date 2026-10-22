@@ -1,3 +1,4 @@
+mod float;
 mod google;
 mod updates;
 
@@ -78,6 +79,13 @@ fn show_main(app: &AppHandle) {
         let _ = w.show();
         let _ = w.set_focus();
     }
+    float::set_away(app, false);
+}
+
+/// Brings Stint back from the floating timer.
+#[tauri::command]
+fn float_open(app: AppHandle) {
+    show_main(&app);
 }
 
 #[tauri::command]
@@ -209,6 +217,7 @@ pub fn run() {
         .manage(Alarms::default())
         .manage(google::Google::default())
         .manage(updates::Pending::default())
+        .manage(float::Float::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_tooltip,
             set_tray_menu,
@@ -222,6 +231,10 @@ pub fn run() {
             google::google_request,
             updates::update_check,
             updates::update_install,
+            float::float_config,
+            float::float_expand,
+            float::float_reset,
+            float_open,
         ])
         .setup(|app| {
             let menu = tray_menu(app.handle(), "Open Stint", "Quit")?;
@@ -246,14 +259,32 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+            float::create(app.handle());
             Ok(())
         })
         // Closing the window keeps the timer running in the tray; quit from
-        // the tray menu.
+        // the tray menu. The floating timer shows while the window is away.
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+            let app = window.app_handle();
+            let main = window.label() == "main";
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    if main {
+                        float::set_away(app, true);
+                    }
+                }
+                WindowEvent::Resized(_) if main => {
+                    if window.is_minimized().unwrap_or(false) {
+                        float::set_away(app, true);
+                    } else if window.is_visible().unwrap_or(false) {
+                        float::set_away(app, false);
+                    }
+                }
+                WindowEvent::Focused(true) if main => float::set_away(app, false),
+                WindowEvent::Moved(p) if window.label() == float::LABEL => float::moved(app, p.x, p.y),
+                _ => {}
             }
         })
         .run(tauri::generate_context!())
