@@ -3,7 +3,7 @@ name: Build
 # Tests and builds the Windows installer on every push to main and every PR.
 # Each pull request also gets a "PR #N test" pre-release, replaced on each push
 # and removed by release-cleanup.yml when the PR is closed or merged.
-# Real versions (Stint vX.Y.Z) are published by hand with release.yml.
+# Real versions (Stint vX.Y.Z) are published by release.yml when a PR is merged.
 on:
   push:
     branches: [main]

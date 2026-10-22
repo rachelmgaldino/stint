@@ -33,7 +33,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 
 **Google sign-in without a server.** Calendar access uses OAuth for installed apps: Stint opens a one-time loopback port on `127.0.0.1`, sends you to Google with a PKCE challenge, and catches the redirect itself (`src-tauri/src/google.rs`). The refresh token goes into Windows Credential Manager, never into the app's database or the interface. The UI asks Rust to make Calendar requests on its behalf and never sees a token, and those requests can only reach Calendar endpoints. Each person supplies their own Google OAuth client, so there's no shared secret in the repository and no third party in the middle.
 
-**Updates that can't be swapped.** Stint updates itself from GitHub Releases with Tauri's updater (`src-tauri/src/updates.rs`). The manual Release workflow signs the installer with a private key kept only in GitHub Actions secrets and publishes a `latest.json` next to it; the app holds the matching public key and refuses any installer whose signature doesn't match. It only looks at the latest published release, so the test builds attached to pull requests are never offered as updates.
+**Updates that can't be swapped.** Stint updates itself from GitHub Releases with Tauri's updater (`src-tauri/src/updates.rs`). The Release workflow, which runs each time a pull request is merged, signs the installer with a private key kept only in GitHub Actions secrets and publishes a `latest.json` next to it; the app holds the matching public key and refuses any installer whose signature doesn't match. It only looks at the latest published release, so the test builds attached to pull requests are never offered as updates.
 
 **Your data stays on your machine.** Sessions, categories and settings live in a local SQLite file, with the schema in versioned migrations. There's no account and no sync service. Events Stint writes to Google are tagged with a private property, so when it reads your calendar back it skips its own sessions instead of showing them twice.
 
@@ -45,7 +45,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - **Interface:** React 19 and TypeScript, built with Vite; plain CSS with custom properties for the two looks and their themes
 - **Data:** SQLite through `tauri-plugin-sql`
 - **Tests:** Vitest for timer, dial, date, analytics and calendar logic; Rust unit tests for PKCE and the OAuth redirect parser
-- **CI:** GitHub Actions tests and builds the Windows installer on every push, attaches a test installer to every pull request, publishes a versioned GitHub Release from a manual "Release" workflow that bumps the version, and deploys the web demo to GitHub Pages
+- **CI:** GitHub Actions tests and builds the Windows installer on every push, attaches a test installer to every pull request, publishes a versioned GitHub Release (with a version bump) every time a pull request is merged, and deploys the web demo to GitHub Pages
 
 ## Running it locally
 
@@ -73,7 +73,7 @@ Optional. You need your own OAuth client: in Google Cloud Console, enable the Go
 
 ### Updates
 
-Releases are signed so installed copies can update themselves. The Release workflow needs two repository secrets, `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and stops before bumping the version if the key is missing. The public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. A fork needs its own key pair (`npx tauri signer generate`) and its own endpoint.
+Every merged pull request becomes a release: a patch version by default, or minor or major when the PR has that label (`no release` skips it). Releases are signed so installed copies can update themselves. The Release workflow needs two repository secrets, `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and stops before bumping the version if the key is missing. The public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. A fork needs its own key pair (`npx tauri signer generate`) and its own endpoint.
 
 ## What I'd improve
 

@@ -1,8 +1,8 @@
 name: Release
 
-# Publishes a new Stint version, only when started by hand:
-# Actions tab > Release > Run workflow. It bumps the version on main
-# (patch 0.16.0 -> 0.16.1, minor -> 0.17.0, major -> 1.0.0), tags it, builds
+# Every pull request merged into main becomes a new Stint version: this bumps
+# the version on main (patch 1.2.0 -> 1.2.1 by default; a "minor" label on the
+# PR gives 1.3.0, "major" gives 2.0.0, "no release" skips it), tags it, builds
 # the Windows installer and publishes "Stint vX.Y.Z" as the latest release,
 # with notes listing the PRs merged since the previous version.
 #
@@ -10,28 +10,37 @@ name: Release
 # update themselves (Settings > Updates). The installer is signed with the key
 # in the TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 # secrets; its public half is plugins.updater.pubkey in tauri.conf.json.
+#
+# No loops: the "Release vX.Y.Z" commit is pushed straight to main by the bot,
+# not merged through a PR, so it never starts this workflow again.
 on:
-  workflow_dispatch:
-    inputs:
-      bump:
-        description: Which part of the version to raise
-        type: choice
-        options: [minor, patch, major]
-        default: minor
+  # pull_request_target so the run has the secrets and a write token. It only
+  # ever checks out main, never the PR's own code.
+  pull_request_target:
+    types: [closed]
+    branches: [main]
 
 permissions:
   contents: write
+  issues: write
 
+# One release at a time. If several PRs are merged while one is building, the
+# newest waiting run releases them all together (GitHub drops the older
+# waiting runs), and its notes still list every PR.
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
   test:
-    if: github.ref == 'refs/heads/main'
+    if: github.event.pull_request.merged && !contains(github.event.pull_request.labels.*.name, 'no release')
     runs-on: ubuntu-latest
+    outputs:
+      bump: ${{ steps.bump.outputs.bump }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -45,6 +54,26 @@ jobs:
             echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is missing, so the update can't be signed. See \"Updates\" in the README."
             exit 1
           fi
+      # Makes sure the labels exist so they can be picked on the next PRs.
+      - name: Create the version labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create minor --color c5b3f6 --description "Release as a minor version (1.2.0 -> 1.3.0)" 2>/dev/null || true
+          gh label create major --color f6b3c9 --description "Release as a major version (1.2.0 -> 2.0.0)" 2>/dev/null || true
+          gh label create "no release" --color d9d9d9 --description "Merge without publishing a new version" 2>/dev/null || true
+      - id: bump
+        name: Pick the bump from the PR's labels
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          bump=$(node -e '
+            const labels = JSON.parse(process.env.LABELS);
+            console.log(labels.includes("major") ? "major" : labels.includes("minor") ? "minor" : "patch");
+          ')
+          echo "Releasing a $bump version"
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
       - run: npm ci
       - run: npm test
       - run: npm run build
@@ -64,10 +93,10 @@ jobs:
         name: Bump version, commit and tag
         run: |
           set -euo pipefail
-          version=$(node scripts/bump-version.mjs "${{ inputs.bump }}")
+          version=$(node scripts/bump-version.mjs "${{ needs.test.outputs.bump }}")
           tag="v$version"
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "::error::Tag $tag already exists. Pick a bigger bump."
+            echo "::error::Tag $tag already exists."
             exit 1
           fi
           previous=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
