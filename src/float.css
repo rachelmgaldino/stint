@@ -1,0 +1,211 @@
+/* The floating timer window. Sizes match REST, OPEN and SHIFT in
+   src-tauri/src/float.rs: resting the window is 112 x 112 with the bubble
+   10px in; open it is 220 x 204 with the bubble at 64, 48. */
+
+html.float-window,
+html.float-window body,
+html.float-window #root {
+  background: transparent;
+  overflow: hidden;
+}
+
+.float {
+  position: fixed;
+  inset: 0;
+  font-family: var(--body);
+  color: var(--bar-text);
+  --float-shadow: 0 0 0 var(--bar-ring) var(--bar-edge), 0 4px 10px var(--bar-shadow);
+}
+
+.float-bubble {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--bar);
+  box-shadow: var(--float-shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.float.open .float-bubble {
+  left: 64px;
+  top: 48px;
+}
+
+.float.break .float-bubble,
+.float.break .float-shelf,
+.float.break .float-tag {
+  background: var(--matcha);
+  color: var(--on-pastel);
+}
+
+.float-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.float-ring circle {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.float-ring .track {
+  stroke: rgb(255 255 255 / 0.12);
+}
+
+.float.break .float-ring .track {
+  stroke: rgb(255 255 255 / 0.5);
+}
+
+.float-ring .fill {
+  stroke: var(--apricot);
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+.float.break .float-ring .fill {
+  stroke: var(--bar-deep);
+}
+
+.float-ring .fill.over {
+  stroke: var(--apricot);
+}
+
+.float-face {
+  margin-top: -6px;
+  pointer-events: none;
+}
+
+.float-clock {
+  font-family: var(--heading);
+  font-weight: 800;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-top: -2px;
+  pointer-events: none;
+}
+
+.float-clock.over {
+  color: var(--apricot);
+}
+
+.float.break .float-clock.over {
+  color: var(--on-pastel);
+}
+
+.float.paused .float-clock {
+  opacity: 0.6;
+}
+
+.float-pinned {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--lemon);
+  color: var(--on-pastel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.float-pinned svg {
+  width: 13px;
+  height: 13px;
+}
+
+.float-tag {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 196px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: var(--bar);
+  box-shadow: var(--float-shadow);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.float-tag .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.float-tag-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.float-shelf {
+  position: absolute;
+  top: 148px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--bar);
+  box-shadow: var(--float-shadow);
+}
+
+.float-btn {
+  width: 34px;
+  height: 32px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  background: rgb(255 255 255 / 0.12);
+  cursor: pointer;
+}
+
+.float-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.float-btn.main {
+  background: var(--apricot);
+  color: var(--on-pastel);
+}
+
+.float.break .float-btn {
+  background: rgb(255 255 255 / 0.45);
+}
+
+.float.break .float-btn.main {
+  background: var(--bar-deep);
+  color: var(--bar-deep-text);
+}
+
+.float-btn.pin.on {
+  background: var(--lemon);
+  color: var(--on-pastel);
+}
+
+.float-btn:focus-visible {
+  outline: 2px solid var(--bar-text);
+  outline-offset: 1px;
+}

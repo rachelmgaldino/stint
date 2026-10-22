@@ -1,0 +1,173 @@
+/* Dev-only screenshot page for the floating timer. */
+
+.fpv-board,
+.fpv-desk {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #9ab7d8 0%, #c7b9de 55%, #e9c8c8 100%);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+:root[data-theme="dark"] .fpv-board,
+:root[data-theme="dark"] .fpv-desk {
+  background: linear-gradient(135deg, #1d2840 0%, #2b2445 55%, #3a2a36 100%);
+}
+
+.fpv-board {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+  padding: 30px 20px;
+}
+
+.fpv-fig {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.fpv-board .fpv-fig:not(:has(.open)) {
+  margin-top: 38px;
+}
+
+.fpv-fig figcaption {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(20 20 40 / 0.75);
+}
+
+:root[data-theme="dark"] .fpv-fig figcaption {
+  color: rgb(255 255 255 / 0.75);
+}
+
+/* The window's own size; the transform makes the bubble's fixed layout sit inside it. */
+.fpv-frame {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  transform: translateZ(0);
+}
+
+.fpv-frame.open {
+  width: 220px;
+  height: 204px;
+}
+
+.fpv-app {
+  position: absolute;
+  left: 60px;
+  top: 40px;
+  right: 60px;
+  bottom: 110px;
+  background: #fbfbfb;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .fpv-app {
+  background: #202020;
+}
+
+.fpv-bar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  background: #ececec;
+  color: #333;
+  font-size: 12px;
+}
+
+:root[data-theme="dark"] .fpv-bar {
+  background: #2b2b2b;
+  color: #ccc;
+}
+
+.fpv-body {
+  padding: 40px 120px;
+}
+
+.fpv-body h2 {
+  font: 600 26px "Segoe UI", system-ui, sans-serif;
+  color: #222;
+  margin: 0 0 24px;
+}
+
+:root[data-theme="dark"] .fpv-body h2 {
+  color: #ddd;
+}
+
+.fpv-body p {
+  height: 10px;
+  border-radius: 5px;
+  background: #e2e2e2;
+  margin: 0 0 16px;
+}
+
+:root[data-theme="dark"] .fpv-body p {
+  background: #3a3a3a;
+}
+
+/* Where the Rust side puts it by default: room for the open window's edges. */
+.fpv-spot {
+  position: absolute;
+  right: 70px;
+  bottom: 120px;
+}
+
+.fpv-spot.open {
+  right: 16px;
+  bottom: 66px;
+}
+
+.fpv-taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: rgb(243 243 243 / 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+:root[data-theme="dark"] .fpv-taskbar {
+  background: rgb(32 32 32 / 0.94);
+}
+
+.fpv-taskbar span {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: #c9d3e3;
+}
+
+:root[data-theme="dark"] .fpv-taskbar span {
+  background: #444;
+}
+
+.fpv-taskbar span.stint {
+  background: #a7aeec;
+}
+
+:root[data-look="mochi"] .fpv-taskbar span.stint {
+  background: #edb66b;
+}
+
+.fpv-taskbar i {
+  position: absolute;
+  right: 18px;
+  font-style: normal;
+  font-size: 12px;
+  color: #333;
+}
+
+:root[data-theme="dark"] .fpv-taskbar i {
+  color: #ddd;
+}
