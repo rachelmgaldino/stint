@@ -3,6 +3,7 @@
 import { t } from "../i18n";
 import { look, type Look } from "../look";
 import type { Heat } from "../timer";
+import { isProto, ProtoMascot, ProtoGoalMark } from "./ProtoLooks";
 
 export type Mood = "awake" | "asleep" | "break" | "cheer";
 
@@ -177,7 +178,9 @@ type PipProps = {
 
 export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0, heat = 0 }: PipProps) {
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
-  if ((as ?? look()) === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} heat={heat} />;
+  const which = as ?? look();
+  if (isProto(which)) return <ProtoMascot look={which} mood={mood} size={size} a11y={a11y} />;
+  if (which === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} heat={heat} />;
   const hot = heat > 0;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
@@ -228,6 +231,8 @@ const faces: Record<number, { body: string; eyes: string; eyeWidth: number; mout
 
 export function RatingFace({ value, size = 36 }: { value: number; size?: number }) {
   const f = faces[value] ?? faces[2];
+  const l = look();
+  if (isProto(l)) return <ProtoMascot look={l} mood={value === 3 ? "cheer" : value === 1 ? "asleep" : "awake"} size={size} a11y={{ "aria-hidden": true }} />;
   if (isMochi()) {
     const fur = value === 1 ? "#d9c3a0" : value === 2 ? "#e8c58f" : FUR;
     return (
@@ -256,7 +261,9 @@ export function GoalSprouts({ done, goal }: { done: number; goal: number }) {
     <div className="goal" aria-label={t().goalAria(done, goal)}>
       <span className="goal-sprouts" aria-hidden="true">
         {Array.from({ length: total }, (_, i) =>
-          isMochi() ? (
+          isProto(look()) ? (
+            <ProtoGoalMark key={i} look={look() as never} done={i < done} />
+          ) : isMochi() ? (
             <svg key={i} width="22" height="22" viewBox="0 0 24 24">
               <g fill={i < done ? STRIPE : "var(--seed)"}>
                 <ellipse cx="12" cy="15.5" rx="5" ry="4.2" />
