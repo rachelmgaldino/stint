@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { playSound, setTrayMenu, setTrayTooltip, syncAlarms, type Sound } from "./platform";
 import { plannedAlarms } from "./alarms";
 import * as G from "./google";
@@ -32,6 +32,7 @@ import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 import { UpdatePill } from "./components/UpdatePill";
 import { useUpdater } from "./updates";
+import { openMain, useFloatTimer, type FloatAction, type FloatState } from "./float";
 
 type View = "timer" | "analytics" | "settings";
 
@@ -526,9 +527,47 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // The floating timer, shown by the desktop shell while this window is away.
+  const floatCategory = categories.find((c) => c.id === live.categoryId);
+  const floatState = useMemo<FloatState>(
+    () => ({
+      timer,
+      long: !!live.long,
+      category: floatCategory ? { name: floatCategory.name, color: floatCategory.color } : null,
+      look: settings.look,
+      theme: settings.theme,
+      language: settings.language,
+      onTop: settings.floatOnTop,
+    }),
+    [timer, live.long, floatCategory, settings.look, settings.theme, settings.language, settings.floatOnTop],
+  );
+  useFloatTimer(floatState, settings.floatTimer, (action: FloatAction) => {
+    // The reflection opens in this window, so bring it back for it.
+    const reflecting = timer.status !== "idle" && timer.kind === "focus" && settings.askReflection;
+    switch (action) {
+      case "break":
+        void takeBreak();
+        if (reflecting) openMain();
+        break;
+      case "end":
+        void finish();
+        if (reflecting) openMain();
+        break;
+      case "focus":
+        void backToFocus();
+        break;
+      case "open":
+        openMain();
+        break;
+      case "pin":
+        void updateSettings({ ...settings, floatOnTop: !settings.floatOnTop });
+        break;
+    }
+  });
+
   if (!store) return <div className="loading">{text.loading}</div>;
 
-  const category = categories.find((c) => c.id === live.categoryId);
+  const category = floatCategory;
   const liveBlock: LiveBlock | null =
     timer.status === "idle"
       ? null
