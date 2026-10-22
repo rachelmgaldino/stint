@@ -39,6 +39,15 @@
   --body: "Manrope Variable", "Segoe UI", system-ui, sans-serif;
   --sticker: #ffffff;
   --dots: #c2cfba;
+  --bar: #23362c;
+  --bar-text: #eef2e8;
+  --bar-ring: 4px;
+  --bar-edge: var(--sticker);
+  --bar-shadow: rgb(35 54 44 / 0.22);
+  --bar-deep: #23362c;
+  --bar-deep-text: #eef2e8;
+  --shade: 35 54 44;
+  --rose: #dc93a6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,6 +76,10 @@
     --break-track: #3f6149;
     --sticker: #3a5045;
     --dots: #2c3f35;
+    --bar: #2f4539;
+    --bar-text: #eef2e8;
+    --bar-edge: var(--sticker);
+    --bar-shadow: rgb(8 16 12 / 0.5);
   }
 }
 
@@ -96,6 +109,10 @@
   --break-track: #3f6149;
   --sticker: #3a5045;
   --dots: #2c3f35;
+  --bar: #2f4539;
+  --bar-text: #eef2e8;
+  --bar-edge: var(--sticker);
+  --bar-shadow: rgb(8 16 12 / 0.5);
 }
 
 :root[data-look="mochi"] .shell {
@@ -151,6 +168,11 @@
 
 :root[data-look="mochi"] .theme-option.system .theme-swatch {
   background: linear-gradient(135deg, #dde6d6 50%, #1e2e26 50%);
+}
+
+/* The focus stage's darker apricot edge, in Mochi's marigold. */
+:root[data-look="mochi"] .focus-stage .squishy.apricot {
+  --lip: #a8722c;
 }
 
 /* Mochi's fur matches the focus card, so a soft shadow lifts Mochi off it. */
