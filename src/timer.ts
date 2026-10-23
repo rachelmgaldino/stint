@@ -86,13 +86,13 @@ export function heatFor(minutes: number): Heat {
 }
 
 /**
- * The heat of a focus session: its length on the dial (time focused so far
- * plus what is left), so planning a long one already shows, and so does
- * running into overtime.
+ * The heat of a running focus session: the time focused so far, so the
+ * mascot starts calm and tires as the session goes on, overtime included.
+ * While picking a length, use heatFor(planned minutes) instead.
  */
 export function heat(t: Timer, now: number): Heat {
   if (t.status === "idle" || t.kind !== "focus") return 0;
-  return heatFor((elapsed(t, now) + Math.max(0, remaining(t, now))) / 60_000);
+  return heatFor(elapsed(t, now) / 60_000);
 }
 
 /**

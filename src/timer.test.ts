@@ -134,13 +134,13 @@ describe("formatting", () => {
     expect(heatFor(121)).toBe(2);
   });
 
-  it("heats a session by its length on the dial, overtime included", () => {
-    expect(heat(start("focus", 50 * MIN, 0), 10 * MIN)).toBe(0);
-    expect(heat(start("focus", 90 * MIN, 0), 1 * MIN)).toBe(1);
-    expect(heat(start("focus", 150 * MIN, 0), 1 * MIN)).toBe(2);
+  it("heats a running session by the time focused so far, overtime included", () => {
+    expect(heat(start("focus", 150 * MIN, 0), 1 * MIN)).toBe(0);
+    expect(heat(start("focus", 150 * MIN, 0), 61 * MIN)).toBe(1);
+    expect(heat(start("focus", 150 * MIN, 0), 121 * MIN)).toBe(2);
     // A 50 minute session left running into overtime.
     expect(heat(start("focus", 50 * MIN, 0), 70 * MIN)).toBe(1);
-    expect(heat(pause(start("focus", 90 * MIN, 0), 30 * MIN), 200 * MIN)).toBe(1);
+    expect(heat(pause(start("focus", 90 * MIN, 0), 30 * MIN), 200 * MIN)).toBe(0);
     expect(heat(start("break", 180 * MIN, 0), 150 * MIN)).toBe(0);
     expect(heat(idle, 150 * MIN)).toBe(0);
   });
