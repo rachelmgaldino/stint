@@ -262,7 +262,7 @@ export function GoalSprouts({ done, goal }: { done: number; goal: number }) {
       <span className="goal-sprouts" aria-hidden="true">
         {Array.from({ length: total }, (_, i) =>
           isProto(look()) ? (
-            <ProtoGoalMark key={i} look={look() as never} done={i < done} />
+            <ProtoGoalMark key={i} look={look() as never} done={i < done} index={i} total={total} />
           ) : isMochi() ? (
             <svg key={i} width="22" height="22" viewBox="0 0 24 24">
               <g fill={i < done ? STRIPE : "var(--seed)"}>

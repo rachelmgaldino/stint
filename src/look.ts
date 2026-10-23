@@ -1,6 +1,6 @@
 // Stint's two looks. Lavender is Pip's; Mochi is the ginger cat's.
 
-export type Look = "lavender" | "mochi" | "tide" | "pixel" | "notebook" | "orbit" | "riso";
+export type Look = "lavender" | "mochi" | "notebook" | "riso" | "luna";
 
 let current: Look = "lavender";
 

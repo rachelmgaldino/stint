@@ -61,11 +61,9 @@ const lengths = { focus: [25, 50, 60, 90], break: [5, 10, 15, 20] };
 
 // Peach for the first hour, then pink, then periwinkle.
 const PROTO_HINT: Record<string, string> = {
-  tide: "Drag the pebble around the wave to pick any length.",
-  pixel: "Drag the block around the ring to pick any length.",
   notebook: "Drag the tick around the doodle to pick any length.",
-  orbit: "Drag the planet along its orbit to pick any length.",
   riso: "Drag the dot around the print to pick any length.",
+  luna: "Drag the crescent around the moon's phases to pick any length.",
 };
 
 const focusLaps: Lap[] = [
