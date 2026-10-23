@@ -343,7 +343,7 @@ export function TimerPane(p: Props) {
             </button>
           ))}
         </div>
-        <p className="hint">{look() === "mochi" ? text.dialHintMochi : text.dialHint}</p>
+        <p className="hint">{text.dialHints[look()]}</p>
       </section>
     </div>
   );
