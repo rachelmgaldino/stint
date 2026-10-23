@@ -4144,3 +4144,18 @@ select.select-pill {
 .stage-title.is-empty .stage-title-pen {
   display: none;
 }
+
+/* Flow: focus that counts up with no time limit. Timer | Flow sits under the dial. */
+
+.mode-switch {
+  width: min(320px, 100%);
+}
+
+.mode-switch button {
+  gap: 6px;
+}
+
+.mode-switch svg {
+  width: 16px;
+  height: 16px;
+}

@@ -3,10 +3,11 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as T from "../timer";
 import { soft } from "../colors";
+import { lapAt } from "../dial";
 import { setLanguage, t } from "../i18n";
 import { setLook } from "../look";
 import type { FloatAction, FloatState } from "../float";
-import { dialClock } from "./TimerPane";
+import { dialClock, upClock } from "./TimerPane";
 import { Pip } from "./Pip";
 import { CoffeeIcon, PlayIcon } from "./icons";
 import "../float.css";
@@ -133,7 +134,11 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   const left = T.remaining(timer, now);
   const over = left < 0;
   const paused = timer.status === "paused";
-  const done = over ? 1 : Math.min(1, Math.max(0, 1 - left / Math.max(1, timer.plannedMs)));
+  // Flow counts up, and its ring fills once an hour, like the dial's laps.
+  const flow = T.isFlow(timer);
+  const spent = T.elapsed(timer, now);
+  const done = flow ? lapAt(spent / 60_000).fraction : over ? 1 : Math.min(1, Math.max(0, 1 - left / Math.max(1, timer.plannedMs)));
+  const clock = flow ? upClock(spent) : dialClock(left);
   const color = focus && state.category ? soft(state.category.color) : undefined;
   const tag = focus ? (state.category?.name ?? text.focus) : state.long ? text.float.longBreak : text.float.shortBreak;
 
@@ -155,7 +160,7 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
       <div
         className="float-bubble"
         role="timer"
-        aria-label={`${tag} ${dialClock(left)}`}
+        aria-label={`${tag} ${clock}`}
         title={text.float.open}
         onMouseDown={drag}
         onDoubleClick={() => send("open")}
@@ -175,7 +180,7 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
         <span className="float-face">
           <Pip size={30} mood={paused ? "asleep" : focus ? "awake" : "break"} />
         </span>
-        <span className={over ? "float-clock over" : "float-clock"}>{dialClock(left)}</span>
+        <span className={over ? "float-clock over" : "float-clock"}>{clock}</span>
         {state.onTop && !open && (
           <span className="float-pinned" aria-hidden="true">
             <PinIcon on />

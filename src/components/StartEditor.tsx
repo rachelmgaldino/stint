@@ -46,7 +46,7 @@ export function StartEditor({ timer, now, previousEnd, onSave, onClose }: Props)
   const moved = T.moveStart(timer, picked, now);
   const left = T.remaining(moved, now);
   const preview =
-    moved.status !== "running"
+    moved.status !== "running" || T.isFlow(moved)
       ? text.startPreviewPaused(T.formatDuration(T.elapsed(moved, now)))
       : left > 0
         ? text.startPreview(clockTime(moved.startedAt), clockTime(moved.endsAt))
@@ -73,7 +73,7 @@ export function StartEditor({ timer, now, previousEnd, onSave, onClose }: Props)
         }}
       >
         <h3 id="start-title">{timer.kind === "focus" ? text.startTitle : text.startTitleBreak}</h3>
-        <p>{text.startBody}</p>
+        <p>{T.isFlow(timer) ? text.startBodyFlow : text.startBody}</p>
         <div className="start-chips" role="group" aria-label={text.earlierBy}>
           <span>{text.earlierBy}</span>
           <div className="segmented round">
