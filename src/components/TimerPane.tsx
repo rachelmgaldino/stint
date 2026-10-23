@@ -9,6 +9,8 @@ import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
 import { CalendarIcon, CoffeeIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
+import { IntentionField } from "./IntentionField";
+import type { PastIntention } from "../intentions";
 import { t } from "../i18n";
 import { look } from "../look";
 
@@ -28,7 +30,11 @@ type Props = {
   nextEvent: CalendarEvent | null;
   /** When the last saved session today ended, if any. */
   previousEnd: number | null;
+  /** Intentions used before, for the suggestions under the field. */
+  past: PastIntention[];
   onIntention(v: string): void;
+  /** A past intention was picked: fills the field and its category. */
+  onPickIntention(text: string, categoryId: number | null): void;
   onCategory(id: number): void;
   onIdleKind(k: T.Kind): void;
   onPlannedMin(m: number): void;
@@ -79,6 +85,7 @@ export function TimerPane(p: Props) {
   const plannedEnd = timer.status === "running" ? timer.endsAt : now + Math.max(0, left);
   const text = t().timer;
   const [editingStart, setEditingStart] = useState(false);
+  const [editingIntention, setEditingIntention] = useState(false);
 
   const subline = !active
     ? text.endsAt(clockTime(now + left))
@@ -171,7 +178,46 @@ export function TimerPane(p: Props) {
                 {category.name}
               </span>
             )}
-            <h1>{p.intention.trim() || text.focusing}</h1>
+            {editingIntention ? (
+              <div className="stage-intention">
+                <IntentionField
+                  value={p.intention}
+                  categoryId={p.categoryId}
+                  categories={p.categories}
+                  past={p.past}
+                  now={now}
+                  label={text.intention}
+                  autoFocus
+                  onChange={p.onIntention}
+                  onPick={(v, c) => {
+                    p.onPickIntention(v, c);
+                    setEditingIntention(false);
+                  }}
+                  onDone={() => setEditingIntention(false)}
+                  onCancel={() => setEditingIntention(false)}
+                />
+              </div>
+            ) : p.intention.trim() ? (
+              <button className="stage-title" title={text.editIntention} onClick={() => setEditingIntention(true)}>
+                <h1>{p.intention.trim()}</h1>
+                <span className="stage-title-pen" aria-hidden="true">
+                  <PencilIcon />
+                </span>
+              </button>
+            ) : (
+              <>
+                {/* On a phone the pencil sits beside the title; the pill below needs a row it doesn't have. */}
+                <button className="stage-title is-empty" title={text.addIntention} onClick={() => setEditingIntention(true)}>
+                  <h1>{text.focusing}</h1>
+                  <span className="stage-title-pen" aria-hidden="true">
+                    <PencilIcon />
+                  </span>
+                </button>
+                <button className="add-intention" onClick={() => setEditingIntention(true)}>
+                  <PencilIcon /> {text.addIntention}
+                </button>
+              </>
+            )}
           </div>
           <div className="button-row">
             {breakFirst ? breakButton(true) : endButton(true)}
@@ -293,16 +339,15 @@ export function TimerPane(p: Props) {
         {kind === "focus" ? (
           <>
             <h1>{text.whatAreWeWorkingOn}</h1>
-            <label className="field">
-              <span>{text.intention}</span>
-              <input
-                aria-label={text.intention}
-                placeholder={text.intentionPlaceholder}
-                value={p.intention}
-                maxLength={120}
-                onChange={(e) => p.onIntention(e.target.value)}
-              />
-            </label>
+            <IntentionField
+              value={p.intention}
+              categoryId={p.categoryId}
+              categories={p.categories}
+              past={p.past}
+              now={now}
+              onChange={p.onIntention}
+              onPick={p.onPickIntention}
+            />
             <div className="field" role="group" aria-label={text.category}>
               <span>{text.category}</span>
               <div className="chips">

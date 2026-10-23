@@ -28,6 +28,7 @@ import { setLanguage, t } from "./i18n";
 import { setLook } from "./look";
 import { DEMO, demoEvents } from "./demo";
 import { nextBreak } from "./breaks";
+import { pastIntentions } from "./intentions";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 import { UpdatePill } from "./components/UpdatePill";
@@ -111,6 +112,8 @@ export default function App() {
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   const [week, setWeek] = useState<SessionRecord[]>([]);
   const [today, setToday] = useState<SessionRecord[]>([]);
+  // The last 90 days, for the intention suggestions.
+  const [history, setHistory] = useState<SessionRecord[]>([]);
   const [range, setRange] = useState<Range>(() => rangeFor("day", Date.now()));
   const [rangeData, setRangeData] = useState<{ sessions: SessionRecord[]; previous: SessionRecord[]; week: SessionRecord[] }>({
     sessions: [],
@@ -209,13 +212,15 @@ export default function App() {
     const t = todayStart;
     const prev = previousRange(range);
     const rangeWeek = startOfWeek(range.from);
-    const [w, td, rs, ps, rw] = await Promise.all([
+    const [w, td, rs, ps, rw, h] = await Promise.all([
       store.sessionsBetween(from, addDays(from, 7)),
       store.sessionsBetween(t, addDays(t, 1)),
       store.sessionsBetween(range.from, range.to),
       store.sessionsBetween(prev.from, prev.to),
       store.sessionsBetween(rangeWeek, addDays(rangeWeek, 7)),
+      store.sessionsBetween(addDays(t, -90), addDays(t, 1)),
     ]);
+    setHistory(h);
     setWeek(w);
     setToday(td);
     setRangeData({ sessions: rs, previous: ps, week: rw });
@@ -234,6 +239,7 @@ export default function App() {
   }, [todayStart]);
 
   useEffect(() => saveLive(live), [live]);
+  const past = useMemo(() => pastIntentions(history, todayStart), [history, todayStart]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 250);
@@ -286,7 +292,9 @@ export default function App() {
 
   // `thenBreak` ends a focus session and starts a break straight away, whatever
   // the auto-break setting says. The reflection, if asked for, opens over the break.
-  const finish = useCallback(async (thenBreak = false) => {
+  // The intention is cleared once you're back at the plan card, and kept when
+  // the session goes on: through a break taken with Break, and Back to focus.
+  const finish = useCallback(async (thenBreak = false, goingOn = false) => {
     if (timer.status === "idle" || !store) return;
     const end = Date.now();
     const asking = timer.kind === "focus" && settings.askReflection;
@@ -304,7 +312,9 @@ export default function App() {
     const breakNow = thenBreak && record.kind === "focus";
     const next = nextBreak(today, settings, record.kind === "focus" ? record.focusedMs : 0);
     setLive((l) =>
-      breakNow ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long } : { ...l, timer: T.idle },
+      breakNow
+        ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long }
+        : { ...l, timer: T.idle, intention: goingOn ? l.intention : "" },
     );
     const id = await store.addSession(record);
     chooseKind(record.kind === "focus" ? "break" : "focus");
@@ -324,7 +334,7 @@ export default function App() {
   const takeBreak = () => finish(true);
 
   const backToFocus = async () => {
-    await finish();
+    await finish(false, true);
     setIdleKind("focus");
     setPlannedMin(settings.focusMinutes);
     startTimer("focus", settings.focusMinutes);
@@ -352,9 +362,15 @@ export default function App() {
     setLive((l) => ({ ...l, timer: T.scrub(l.timer, delta, n) }));
   };
 
-  const closeReflection = async (update?: { reflection: string; rating: number }) => {
+  const closeReflection = async (
+    update?: Partial<Pick<SessionRecord, "reflection" | "rating" | "intention" | "categoryId">>,
+  ) => {
     if (!store || !pending) return;
     if (update) await store.updateSession({ ...pending, ...update });
+    // On a break taken with Break, Back to focus carries on with what was just named.
+    if (update?.intention !== undefined && timer.status !== "idle" && timer.kind === "break") {
+      setLive((l) => ({ ...l, intention: update.intention ?? l.intention, categoryId: update.categoryId ?? l.categoryId }));
+    }
     setPending(null);
     refresh();
     syncPending();
@@ -642,6 +658,8 @@ export default function App() {
             plannedMin={plannedMin}
             nextEvent={nextEvent}
             onIntention={(intention) => setLive((l) => ({ ...l, intention }))}
+            past={past}
+            onPickIntention={(intention, categoryId) => setLive((l) => ({ ...l, intention, categoryId }))}
             onCategory={(categoryId) => setLive((l) => ({ ...l, categoryId }))}
             onIdleKind={chooseKind}
             onPlannedMin={setPlannedMin}
@@ -725,11 +743,12 @@ export default function App() {
       {pending && (
         <Reflection
           pending={pending}
-          category={categories.find((c) => c.id === pending.categoryId)}
+          categories={categories}
+          past={past}
           sessionNumber={today.filter((s) => s.kind === "focus" && s.id !== pending.id && s.startedAt < pending.startedAt).length + 1}
           dailyGoal={settings.dailyGoal}
-          onSave={(reflection, rating) => closeReflection({ reflection, rating })}
-          onSkip={() => closeReflection()}
+          onSave={closeReflection}
+          onSkip={closeReflection}
         />
       )}
       {openEvent && (

@@ -5,6 +5,8 @@ import { formatDuration } from "../timer";
 import { soft } from "../colors";
 import { Pip, RatingFace } from "./Pip";
 import { t } from "../i18n";
+import { IntentionField } from "./IntentionField";
+import type { PastIntention } from "../intentions";
 
 export type PendingReflection = SessionRecord;
 
@@ -33,21 +35,29 @@ export function RatingPicker({ value, onChange }: { value: number; onChange(v: n
 
 export function Reflection({
   pending,
-  category,
+  categories,
+  past,
   sessionNumber,
   dailyGoal,
   onSave,
   onSkip,
 }: {
   pending: PendingReflection;
-  category: Category | undefined;
+  categories: Category[];
+  past: PastIntention[];
   sessionNumber: number;
   dailyGoal: number;
-  onSave(reflection: string, rating: number): void;
-  onSkip(): void;
+  onSave(update: { reflection: string; rating: number; intention: string; categoryId: number | null }): void;
+  /** Skips the reflection; a changed intention is still kept. */
+  onSkip(update: { intention: string; categoryId: number | null }): void;
 }) {
   const [text, setText] = useState("");
   const [rating, setRating] = useState(pending.rating);
+  // Started without knowing what it'd be? Say it here.
+  const [intention, setIntention] = useState(pending.intention);
+  const [categoryId, setCategoryId] = useState(pending.categoryId);
+  const category = categories.find((c) => c.id === categoryId);
+  const what = { intention: intention.trim(), categoryId };
   const words = t().reflection;
 
   return (
@@ -59,7 +69,7 @@ export function Reflection({
         aria-labelledby="reflect-title"
         onSubmit={(e) => {
           e.preventDefault();
-          onSave(text.trim(), rating);
+          onSave({ ...what, reflection: text.trim(), rating });
         }}
       >
         <div className="drawer-head">
@@ -74,16 +84,30 @@ export function Reflection({
         <div className="drawer-session">
           <span className="dot" style={{ background: soft(category?.color ?? "#f4a988") }} />
           <div>
-            <div className="strong">{pending.intention || category?.name || t().focusSession}</div>
-            <div className="small muted">
-              {category && pending.intention ? `${category.name} · ` : ""}
-              {words.sessionOf(sessionNumber, Math.max(dailyGoal, sessionNumber))}
-            </div>
+            <div className="strong">{category?.name || t().focusSession}</div>
+            <div className="small muted">{words.sessionOf(sessionNumber, Math.max(dailyGoal, sessionNumber))}</div>
           </div>
         </div>
+        <IntentionField
+          value={intention}
+          categoryId={categoryId}
+          categories={categories}
+          past={past}
+          now={pending.endedAt}
+          label={words.whatDidYouWorkOn}
+          placeholder={words.intentionPlaceholder}
+          chips={false}
+          autoFocus={!pending.intention}
+          onChange={setIntention}
+          onPick={(v, c) => {
+            setIntention(v);
+            setCategoryId(c);
+          }}
+          onDone={() => {}}
+        />
         <label className="field">
           <span>{words.whatDidYouGetDone}</span>
-          <textarea autoFocus rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={words.placeholder} />
+          <textarea autoFocus={!!pending.intention} rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={words.placeholder} />
         </label>
         <div className="field">
           <span>{words.howDidItGo}</span>
@@ -91,7 +115,7 @@ export function Reflection({
         </div>
         <span className="grow" />
         <div className="drawer-actions">
-          <button type="button" className="quiet-link" onClick={onSkip}>
+          <button type="button" className="quiet-link" onClick={() => onSkip(what)}>
             {words.skip}
           </button>
           <button type="submit" className="squishy apricot big grow">
