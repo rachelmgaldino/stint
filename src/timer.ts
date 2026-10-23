@@ -97,13 +97,21 @@ export function elapsed(t: Timer, now: number): number {
 export type Heat = 0 | 1 | 2;
 
 /**
- * How hot the mascot gets from a long focus: 0 for the first hour, 1 (warm)
- * after one hour, 2 (overheating) after two. A nudge to take a break.
+ * How hot the mascot gets from a long focus: 0 up to one hour, 1 (warm) past
+ * one hour, 2 (overheating) past two. A nudge to take a break.
+ */
+export function heatFor(minutes: number): Heat {
+  return minutes > 120 ? 2 : minutes > 60 ? 1 : 0;
+}
+
+/**
+ * The heat of a running focus session: the time focused so far, so the
+ * mascot starts calm and tires as the session goes on, overtime included.
+ * While picking a length, use heatFor(planned minutes) instead.
  */
 export function heat(t: Timer, now: number): Heat {
   if (t.status === "idle" || t.kind !== "focus") return 0;
-  const minutes = elapsed(t, now) / 60_000;
-  return minutes > 120 ? 2 : minutes > 60 ? 1 : 0;
+  return heatFor(elapsed(t, now) / 60_000);
 }
 
 /**

@@ -2,6 +2,8 @@
 // Notebook is drawn in pen on a ruled page; Riso is printed in two inks that never quite line up.
 
 import type { Look } from "../look";
+import type { Heat } from "../timer";
+import { GhostHeat, MemoHeat, ShroomHeat } from "./PrintHeat";
 
 export const PRINT_LOOKS = ["notebook", "riso"] as const;
 export type PrintLook = (typeof PRINT_LOOKS)[number];
@@ -56,17 +58,17 @@ const PEN = "var(--pen, #263a6e)";
 const FACE = "#263a6e";
 const pen = { stroke: PEN, strokeWidth: 3, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 
-function Memo({ mood }: { mood: Mood }) {
+function Memo({ mood, heat }: { mood: Mood; heat: Heat }) {
   return (
     <g {...pen} transform="rotate(-5 60 64)">
       <path d="M18 20 H102 V86 L84 106 H18 Z" fill="#ffdf5e" />
       <path d="M102 86 L84 88 L84 106 Z" fill="#f2c94c" />
       <path d="M44 14 h32 v14 h-32 Z" fill="rgb(169 196 245 / 0.8)" strokeWidth="0" />
-      <Face mood={mood} l={46} r={74} y={58} m={72} ink={FACE} eye={5.5} />
+      {heat ? <MemoHeat heat={heat} /> : <Face mood={mood} l={46} r={74} y={58} m={72} ink={FACE} eye={5.5} />}
       <path d="M30 70 q5 -3 9 0 M81 70 q5 -3 9 0" stroke="#f28da6" strokeWidth="3.5" fill="none" />
       <path d="M28 92 h30" stroke={FACE} strokeWidth="2" />
       <path d="M26 36 c0 -4 6 -4 6 0 c0 -4 6 -4 6 0 c0 5 -6 8 -6 8 c0 0 -6 -3 -6 -8 Z" fill="#ffb3c7" strokeWidth="2" />
-      {mood === "asleep" && <Zz x={90} y={0} ink={PEN} />}
+      {mood === "asleep" && !heat && <Zz x={90} y={0} ink={PEN} />}
       {mood === "break" && <Cup x={-4} y={84} rim="#fffdf6" tea="#b7e3a1" stroke={PEN} />}
     </g>
   );
@@ -91,7 +93,7 @@ function Print({ d, fill, under = PINK, dx = 4, dy = 3 }: { d: string; fill: str
   );
 }
 
-function Shroom({ mood }: { mood: Mood }) {
+function Shroom({ mood, heat }: { mood: Mood; heat: Heat }) {
   return (
     <>
       <Print d="M38 58 H82 V100 a14 14 0 0 1 -14 14 H52 a14 14 0 0 1 -14 -14 Z" fill={YELLOW} under={BLUE} />
@@ -99,15 +101,15 @@ function Shroom({ mood }: { mood: Mood }) {
       <circle cx="36" cy="40" r="7" fill={PAPER} />
       <circle cx="62" cy="28" r="5" fill={PAPER} />
       <circle cx="86" cy="44" r="8" fill={PAPER} />
-      <Face mood={mood} l={50} r={70} y={84} m={96} ink={RISO_INK} eye={4.5} shine={PAPER} />
+      {heat ? <ShroomHeat heat={heat} /> : <Face mood={mood} l={50} r={70} y={84} m={96} ink={RISO_INK} eye={4.5} shine={PAPER} />}
       <path d="M42 94 q4 -2 7 0 M71 94 q4 -2 7 0" stroke={PINK} strokeWidth="3" fill="none" strokeLinecap="round" />
-      {mood === "asleep" && <Zz x={94} y={4} ink={RISO_INK} />}
+      {mood === "asleep" && !heat && <Zz x={94} y={4} ink={RISO_INK} />}
       {mood === "break" && <Cup x={30} y={92} rim={PAPER} tea={MINT} />}
     </>
   );
 }
 
-function Ghost({ mood }: { mood: Mood }) {
+function Ghost({ mood, heat }: { mood: Mood; heat: Heat }) {
   return (
     <>
       <Print d="M20 60 C20 32 38 16 60 16 C82 16 100 32 100 60 V108 Q92 98 84 108 Q76 118 68 108 Q60 98 52 108 Q44 118 36 108 Q28 98 20 108 Z" fill={BLUE} under={PINK} />
@@ -115,29 +117,29 @@ function Ghost({ mood }: { mood: Mood }) {
       <path d="M20 66 C10 62 6 54 8 46" stroke={BLUE} strokeWidth="8" strokeLinecap="round" fill="none" />
       <circle cx="47" cy="56" r="10" fill={PAPER} />
       <circle cx="73" cy="56" r="10" fill={PAPER} />
-      <Face mood={mood} l={47} r={73} y={56} m={76} ink={RISO_INK} eye={5} shine={PAPER} />
+      {heat ? <GhostHeat heat={heat} /> : <Face mood={mood} l={47} r={73} y={56} m={76} ink={RISO_INK} eye={5} shine={PAPER} />}
       <ellipse cx="38" cy="72" rx="6" ry="3.5" fill={PINK} />
       <ellipse cx="82" cy="72" rx="6" ry="3.5" fill={PINK} />
       <path d="M104 18 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5 Z" fill={YELLOW} />
-      {mood === "asleep" && <Zz x={86} y={10} ink={RISO_INK} />}
+      {mood === "asleep" && !heat && <Zz x={86} y={10} ink={RISO_INK} />}
       {mood === "break" && <Cup y={90} rim={PAPER} tea={MINT} />}
     </>
   );
 }
 
-export function PrintMascot({ look, mood, size, a11y }: { look: PrintLook; mood: Mood; size: number; a11y: object }) {
+export function PrintMascot({ look, mood, size, a11y, heat = 0 }: { look: PrintLook; mood: Mood; size: number; a11y: object; heat?: Heat }) {
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" overflow="visible" {...a11y}>
       {look === "notebook" ? (
-        <Memo mood={mood} />
+        <Memo mood={mood} heat={heat} />
       ) : (
         // Both are drawn; riso.css shows the mushroom by day and the ghost by night.
         <>
           <g className="by-day">
-            <Shroom mood={mood} />
+            <Shroom mood={mood} heat={heat} />
           </g>
           <g className="by-night">
-            <Ghost mood={mood} />
+            <Ghost mood={mood} heat={heat} />
           </g>
         </>
       )}

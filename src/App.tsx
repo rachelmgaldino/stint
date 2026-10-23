@@ -621,7 +621,7 @@ export default function App() {
     <div className="shell" data-mode={mode}>
       <header className="topbar">
         <div className="brand">
-          <Pip size={40} label="Pip" heat={T.heat(timer, now)} />
+          <Pip size={40} label="Pip" heat={timer.status !== "idle" ? T.heat(timer, now) : idleKind === "focus" ? T.heatFor(plannedMin) : 0} />
           <span>Stint</span>
           {DEMO && <DemoBanner language={settings.language} />}
           <UpdatePill updater={updater} />

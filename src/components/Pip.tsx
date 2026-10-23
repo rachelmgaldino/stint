@@ -108,8 +108,8 @@ const STRIPE = "#c98b3a";
 const BLUSH = "#e7a3b5";
 const MOSS = "#23362c";
 
-// Mochi, the ginger cat who stands in for Pip in the Mochi look. Hours on the
-// dial still show as leaves, tucked between Mochi's ears.
+// Mochi, the ginger cat who stands in for Pip in the Mochi look. No leaves:
+// the lap colours on the dial already show the hours.
 function MochiHead({ children }: { children?: React.ReactNode }) {
   return (
     <>
@@ -124,14 +124,11 @@ function MochiHead({ children }: { children?: React.ReactNode }) {
   );
 }
 
-function Mochi({ mood, size, a11y, leaves, heat }: { mood: Mood; size: number; a11y: object; leaves: number; heat: Heat }) {
+function Mochi({ mood, size, a11y, heat }: { mood: Mood; size: number; a11y: object; heat: Heat }) {
   const hot = heat > 0;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
       <MochiHead>
-        {LEAVES.slice(0, leaves).map((l, i) => (
-          <ellipse key={l.cx} cx={i ? 70 : 50} cy={i ? 24 : 26} rx="8" ry="4" fill="#9fcba4" transform={`rotate(${i ? -30 : 30} ${i ? 70 : 50} ${i ? 24 : 26})`} />
-        ))}
         {mood === "awake" && !hot && (
           <>
             <circle cx="44" cy="72" r="6" fill={MOSS} />
@@ -179,8 +176,8 @@ type PipProps = {
 export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0, heat = 0 }: PipProps) {
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
   const which = as ?? look();
-  if (isPrintLook(which)) return <PrintMascot look={which} mood={mood} size={size} a11y={a11y} />;
-  if (which === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} heat={heat} />;
+  if (isPrintLook(which)) return <PrintMascot look={which} mood={mood} size={size} a11y={a11y} heat={heat} />;
+  if (which === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} heat={heat} />;
   const hot = heat > 0;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className="pip" {...a11y}>
