@@ -31,7 +31,7 @@ import { nextBreak } from "./breaks";
 import { pastIntentions } from "./intentions";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
-import { UpdatePill } from "./components/UpdatePill";
+import { TestTag, UpdatePill } from "./components/UpdatePill";
 import { useUpdater } from "./updates";
 import { openMain, useFloatTimer, type FloatAction, type FloatState } from "./float";
 
@@ -624,6 +624,7 @@ export default function App() {
           <Pip size={40} label="Pip" heat={timer.status !== "idle" ? T.heat(timer, now) : idleFlow ? 0 : idleKind === "focus" ? T.heatFor(plannedMin) : 0} />
           <span>Stint</span>
           {DEMO && <DemoBanner language={settings.language} />}
+          <TestTag current={updater.current} />
           <UpdatePill updater={updater} />
         </div>
         <nav className="tabs" aria-label={text.tabs.main}>
