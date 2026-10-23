@@ -378,6 +378,258 @@
   --offset: #5b73ff;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root[data-look="notebook"][data-night="graphite"]:not([data-theme="light"]) {
+    --ground: #232429;
+    --surface: #2c2d33;
+    --sunken: #27282d;
+    --soft: #35363d;
+    --raised: #35363d;
+    --line: #45464e;
+    --text: #ecebe6;
+    --muted: #b4b3ae;
+    --placeholder: #8d8c88;
+    --seed: #47484f;
+    --petal: #303137;
+    --track: #3b3c43;
+    --ink: #ecebe6;
+    --ink-lip: #b4b3ae;
+    --on-ink: #232429;
+    --pen: #ecebe6;
+    --margin: #7d5656;
+    --dots: rgb(236 235 230 / 0.05);
+    --break-stage: #2a3330;
+    --break-text: #e3f2d8;
+    --break-eyebrow: #b7e3a1;
+    --break-petal: #323d39;
+    --break-track: #4f6a5a;
+    --sticker: #2c2d33;
+    --bar: #35363d;
+    --bar-text: #ecebe6;
+    --bar-edge: #ecebe6;
+  }
+}
+
+:root[data-look="notebook"][data-night="graphite"][data-theme="dark"],
+:root[data-look="notebook"][data-night="graphite"] .shell[data-mode="focus"] {
+  --ground: #232429;
+  --surface: #2c2d33;
+  --sunken: #27282d;
+  --soft: #35363d;
+  --raised: #35363d;
+  --line: #45464e;
+  --text: #ecebe6;
+  --muted: #b4b3ae;
+  --placeholder: #8d8c88;
+  --seed: #47484f;
+  --petal: #303137;
+  --track: #3b3c43;
+  --ink: #ecebe6;
+  --ink-lip: #b4b3ae;
+  --on-ink: #232429;
+  --pen: #ecebe6;
+  --margin: #7d5656;
+  --dots: rgb(236 235 230 / 0.05);
+  --break-stage: #2a3330;
+  --break-text: #e3f2d8;
+  --break-eyebrow: #b7e3a1;
+  --break-petal: #323d39;
+  --break-track: #4f6a5a;
+  --sticker: #2c2d33;
+  --bar: #35363d;
+  --bar-text: #ecebe6;
+  --bar-edge: #ecebe6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look="notebook"][data-night="blueprint"]:not([data-theme="light"]) {
+    --ground: #16284a;
+    --surface: #1d3359;
+    --sunken: #192d51;
+    --soft: #253e69;
+    --raised: #253e69;
+    --line: #2f4b7d;
+    --text: #eaf2ff;
+    --muted: #a9c0e2;
+    --placeholder: #7f97bd;
+    --seed: #34507f;
+    --petal: #1a3054;
+    --track: #2a4573;
+    --ink: #eaf2ff;
+    --ink-lip: #a9c0e2;
+    --on-ink: #16284a;
+    --pen: #eaf2ff;
+    --margin: #6f8fc8;
+    --dots: rgb(234 242 255 / 0.07);
+    --break-stage: #183a4a;
+    --break-text: #dff4ec;
+    --break-eyebrow: #b7e3a1;
+    --break-petal: #1f4656;
+    --break-track: #3f7a7a;
+    --sticker: #1d3359;
+    --bar: #253e69;
+    --bar-text: #eaf2ff;
+    --bar-edge: #eaf2ff;
+  }
+}
+
+:root[data-look="notebook"][data-night="blueprint"][data-theme="dark"],
+:root[data-look="notebook"][data-night="blueprint"] .shell[data-mode="focus"] {
+  --ground: #16284a;
+  --surface: #1d3359;
+  --sunken: #192d51;
+  --soft: #253e69;
+  --raised: #253e69;
+  --line: #2f4b7d;
+  --text: #eaf2ff;
+  --muted: #a9c0e2;
+  --placeholder: #7f97bd;
+  --seed: #34507f;
+  --petal: #1a3054;
+  --track: #2a4573;
+  --ink: #eaf2ff;
+  --ink-lip: #a9c0e2;
+  --on-ink: #16284a;
+  --pen: #eaf2ff;
+  --margin: #6f8fc8;
+  --dots: rgb(234 242 255 / 0.07);
+  --break-stage: #183a4a;
+  --break-text: #dff4ec;
+  --break-eyebrow: #b7e3a1;
+  --break-petal: #1f4656;
+  --break-track: #3f7a7a;
+  --sticker: #1d3359;
+  --bar: #253e69;
+  --bar-text: #eaf2ff;
+  --bar-edge: #eaf2ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look="notebook"][data-night="espresso"]:not([data-theme="light"]) {
+    --ground: #2a211c;
+    --surface: #342a24;
+    --sunken: #2f2520;
+    --soft: #3e332c;
+    --raised: #3e332c;
+    --line: #4f4239;
+    --text: #f4eadd;
+    --muted: #c6b6a4;
+    --placeholder: #9a8a7a;
+    --seed: #54473d;
+    --petal: #382d27;
+    --track: #463a32;
+    --ink: #f4eadd;
+    --ink-lip: #c6b6a4;
+    --on-ink: #2a211c;
+    --pen: #f4eadd;
+    --margin: #9b5f52;
+    --dots: rgb(244 234 221 / 0.05);
+    --break-stage: #2f3328;
+    --break-text: #e6f0d4;
+    --break-eyebrow: #b7e3a1;
+    --break-petal: #3a3f31;
+    --break-track: #5e6b4a;
+    --sticker: #342a24;
+    --bar: #3e332c;
+    --bar-text: #f4eadd;
+    --bar-edge: #f4eadd;
+  }
+}
+
+:root[data-look="notebook"][data-night="espresso"][data-theme="dark"],
+:root[data-look="notebook"][data-night="espresso"] .shell[data-mode="focus"] {
+  --ground: #2a211c;
+  --surface: #342a24;
+  --sunken: #2f2520;
+  --soft: #3e332c;
+  --raised: #3e332c;
+  --line: #4f4239;
+  --text: #f4eadd;
+  --muted: #c6b6a4;
+  --placeholder: #9a8a7a;
+  --seed: #54473d;
+  --petal: #382d27;
+  --track: #463a32;
+  --ink: #f4eadd;
+  --ink-lip: #c6b6a4;
+  --on-ink: #2a211c;
+  --pen: #f4eadd;
+  --margin: #9b5f52;
+  --dots: rgb(244 234 221 / 0.05);
+  --break-stage: #2f3328;
+  --break-text: #e6f0d4;
+  --break-eyebrow: #b7e3a1;
+  --break-petal: #3a3f31;
+  --break-track: #5e6b4a;
+  --sticker: #342a24;
+  --bar: #3e332c;
+  --bar-text: #f4eadd;
+  --bar-edge: #f4eadd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look="notebook"][data-night="burgundy"]:not([data-theme="light"]) {
+    --ground: #2a161c;
+    --surface: #351d25;
+    --sunken: #2f1920;
+    --soft: #42252f;
+    --raised: #42252f;
+    --line: #552f3c;
+    --text: #f7eaec;
+    --muted: #cfaeb5;
+    --placeholder: #a3848b;
+    --seed: #5a3442;
+    --petal: #3a2029;
+    --track: #4a2a35;
+    --ink: #f7eaec;
+    --ink-lip: #cfaeb5;
+    --on-ink: #2a161c;
+    --pen: #f7eaec;
+    --margin: #c77d8c;
+    --dots: rgb(247 234 236 / 0.05);
+    --break-stage: #2f2a2a;
+    --break-text: #e9f0dc;
+    --break-eyebrow: #b7e3a1;
+    --break-petal: #3a3433;
+    --break-track: #62674f;
+    --sticker: #351d25;
+    --bar: #42252f;
+    --bar-text: #f7eaec;
+    --bar-edge: #f7eaec;
+  }
+}
+
+:root[data-look="notebook"][data-night="burgundy"][data-theme="dark"],
+:root[data-look="notebook"][data-night="burgundy"] .shell[data-mode="focus"] {
+  --ground: #2a161c;
+  --surface: #351d25;
+  --sunken: #2f1920;
+  --soft: #42252f;
+  --raised: #42252f;
+  --line: #552f3c;
+  --text: #f7eaec;
+  --muted: #cfaeb5;
+  --placeholder: #a3848b;
+  --seed: #5a3442;
+  --petal: #3a2029;
+  --track: #4a2a35;
+  --ink: #f7eaec;
+  --ink-lip: #cfaeb5;
+  --on-ink: #2a161c;
+  --pen: #f7eaec;
+  --margin: #c77d8c;
+  --dots: rgb(247 234 236 / 0.05);
+  --break-stage: #2f2a2a;
+  --break-text: #e9f0dc;
+  --break-eyebrow: #b7e3a1;
+  --break-petal: #3a3433;
+  --break-track: #62674f;
+  --sticker: #351d25;
+  --bar: #42252f;
+  --bar-text: #f7eaec;
+  --bar-edge: #f7eaec;
+}
+
 /* ---------- Notebook: a ruled page by day, a chalkboard by night ---------- */
 :root[data-look="notebook"] .shell {
   background-image:
@@ -507,3 +759,45 @@
 :root[data-look="luna"] .dial-time,
 :root[data-look="luna"] .tile-value,
 :root[data-look="luna"] .float-clock { font-size-adjust: 0.52; }
+
+/* Notebook night colour candidates: textures. */
+:root[data-look="notebook"][data-night][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night] .shell[data-mode="focus"] {
+  background-image:
+    linear-gradient(90deg, transparent 54px, var(--margin) 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 31px, var(--dots) 31px 32px);
+}
+:root[data-look="notebook"][data-night="graphite"][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night="graphite"] .shell[data-mode="focus"] {
+  background-image:
+    radial-gradient(var(--dots) 1.4px, transparent 1.8px);
+  background-size: 22px 22px;
+}
+:root[data-look="notebook"][data-night="blueprint"][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night="blueprint"] .shell[data-mode="focus"] {
+  background-image:
+    linear-gradient(var(--dots) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dots) 1px, transparent 1px),
+    linear-gradient(rgb(234 242 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(234 242 255 / 0.035) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+}
+:root[data-look="notebook"][data-night="espresso"][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night="espresso"] .shell[data-mode="focus"] {
+  background-image:
+    radial-gradient(circle at 88% 82%, transparent 58px, rgb(160 110 70 / 0.16) 60px, transparent 66px),
+    radial-gradient(circle at 6% 12%, transparent 40px, rgb(160 110 70 / 0.12) 42px, transparent 47px),
+    linear-gradient(90deg, transparent 54px, var(--margin) 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 31px, var(--dots) 31px 32px);
+}
+
+/* Riso's mascot: the mushroom by day, the ghost by night and while focusing. */
+.pip .by-night { display: none; }
+:root[data-theme="dark"] .pip .by-day,
+.shell[data-mode="focus"] .pip .by-day { display: none; }
+:root[data-theme="dark"] .pip .by-night,
+.shell[data-mode="focus"] .pip .by-night { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pip .by-day { display: none; }
+  :root:not([data-theme="light"]) .pip .by-night { display: inline; }
+}

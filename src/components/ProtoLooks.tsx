@@ -8,8 +8,8 @@ export type ProtoLook = (typeof PROTO_LOOKS)[number];
 export const isProto = (l: Look): l is ProtoLook => (PROTO_LOOKS as readonly string[]).includes(l);
 
 export const MASCOTS: Record<ProtoLook, string[]> = {
-  notebook: ["crane", "blot", "worm", "memo", "snail"],
-  riso: ["fish", "shroom", "ghost", "cactus", "whale"],
+  notebook: ["memo", "crane", "blot", "worm", "snail"],
+  riso: ["daynight", "fish", "shroom", "ghost", "cactus", "whale"],
   luna: ["rabbit", "moth", "owl"],
 };
 
@@ -345,6 +345,13 @@ const DRAW: Record<string, (p: { mood: Mood }) => React.ReactElement> = {
   crane: Crane, blot: Blot, worm: Worm, memo: Memo, snail: Snail,
   fish: Fish, shroom: Shroom, ghost: Ghost, cactus: Cactus, whale: Whale,
   rabbit: Rabbit, moth: Moth, owl: Owl,
+  // Riso's pick: the mushroom by day and the ghost by night; CSS shows one.
+  daynight: ({ mood }) => (
+    <>
+      <g className="by-day"><Shroom mood={mood} /></g>
+      <g className="by-night"><Ghost mood={mood} /></g>
+    </>
+  ),
 };
 
 export function ProtoMascot({ look, mood, size, a11y, as }: { look: ProtoLook; mood: Mood; size: number; a11y: object; as?: string }) {

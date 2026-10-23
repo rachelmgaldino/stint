@@ -23,6 +23,9 @@ import "./phone.css";
 import "./looks-proto.css";
 
 const float = isFloatWindow();
+// Mockups only: tries a night colour for Notebook (?night=graphite|blueprint|espresso|burgundy).
+const night = new URLSearchParams(location.search).get("night");
+if (night) document.documentElement.dataset.night = night;
 // A browser-only look at the bubble in every state, for screenshots.
 const preview = import.meta.env.DEV && new URLSearchParams(location.search).has("float");
 const sheet = import.meta.env.DEV && new URLSearchParams(location.search).has("mascots");

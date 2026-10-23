@@ -32,5 +32,18 @@ for (const [n, {day, night}] of Object.entries(looks)) {
   css += `@media (prefers-color-scheme: dark) {\n  :root[data-look="${n}"]:not([data-theme="light"]) {\n${block(night).replace(/^/gm,'  ')}\n  }\n}\n\n`;
   css += `:root[data-look="${n}"][data-theme="dark"],\n:root[data-look="${n}"] .shell[data-mode="focus"],\n:root[data-look="${n}"] .night {\n${block(night)}\n}\n\n`;
 }
+
+// Night colours to try for Notebook, picked with ?night=<name>.
+const nights = {
+  graphite: { ground:'#232429', surface:'#2c2d33', sunken:'#27282d', soft:'#35363d', raised:'#35363d', line:'#45464e', text:'#ecebe6', muted:'#b4b3ae', placeholder:'#8d8c88', seed:'#47484f', petal:'#303137', track:'#3b3c43', ink:'#ecebe6', 'ink-lip':'#b4b3ae', 'on-ink':'#232429', pen:'#ecebe6', margin:'#7d5656', dots:'rgb(236 235 230 / 0.05)', 'break-stage':'#2a3330', 'break-text':'#e3f2d8', 'break-eyebrow':'#b7e3a1', 'break-petal':'#323d39', 'break-track':'#4f6a5a', sticker:'#2c2d33', bar:'#35363d', 'bar-text':'#ecebe6', 'bar-edge':'#ecebe6' },
+  blueprint: { ground:'#16284a', surface:'#1d3359', sunken:'#192d51', soft:'#253e69', raised:'#253e69', line:'#2f4b7d', text:'#eaf2ff', muted:'#a9c0e2', placeholder:'#7f97bd', seed:'#34507f', petal:'#1a3054', track:'#2a4573', ink:'#eaf2ff', 'ink-lip':'#a9c0e2', 'on-ink':'#16284a', pen:'#eaf2ff', margin:'#6f8fc8', dots:'rgb(234 242 255 / 0.07)', 'break-stage':'#183a4a', 'break-text':'#dff4ec', 'break-eyebrow':'#b7e3a1', 'break-petal':'#1f4656', 'break-track':'#3f7a7a', sticker:'#1d3359', bar:'#253e69', 'bar-text':'#eaf2ff', 'bar-edge':'#eaf2ff' },
+  espresso: { ground:'#2a211c', surface:'#342a24', sunken:'#2f2520', soft:'#3e332c', raised:'#3e332c', line:'#4f4239', text:'#f4eadd', muted:'#c6b6a4', placeholder:'#9a8a7a', seed:'#54473d', petal:'#382d27', track:'#463a32', ink:'#f4eadd', 'ink-lip':'#c6b6a4', 'on-ink':'#2a211c', pen:'#f4eadd', margin:'#9b5f52', dots:'rgb(244 234 221 / 0.05)', 'break-stage':'#2f3328', 'break-text':'#e6f0d4', 'break-eyebrow':'#b7e3a1', 'break-petal':'#3a3f31', 'break-track':'#5e6b4a', sticker:'#342a24', bar:'#3e332c', 'bar-text':'#f4eadd', 'bar-edge':'#f4eadd' },
+  burgundy: { ground:'#2a161c', surface:'#351d25', sunken:'#2f1920', soft:'#42252f', raised:'#42252f', line:'#552f3c', text:'#f7eaec', muted:'#cfaeb5', placeholder:'#a3848b', seed:'#5a3442', petal:'#3a2029', track:'#4a2a35', ink:'#f7eaec', 'ink-lip':'#cfaeb5', 'on-ink':'#2a161c', pen:'#f7eaec', margin:'#c77d8c', dots:'rgb(247 234 236 / 0.05)', 'break-stage':'#2f2a2a', 'break-text':'#e9f0dc', 'break-eyebrow':'#b7e3a1', 'break-petal':'#3a3433', 'break-track':'#62674f', sticker:'#351d25', bar:'#42252f', 'bar-text':'#f7eaec', 'bar-edge':'#f7eaec' },
+};
+for (const [n, t] of Object.entries(nights)) {
+  const sel = `:root[data-look="notebook"][data-night="${n}"]`;
+  css += `@media (prefers-color-scheme: dark) {\n  ${sel}:not([data-theme="light"]) {\n${block(t).replace(/^/gm,'  ')}\n  }\n}\n\n`;
+  css += `${sel}[data-theme="dark"],\n${sel} .shell[data-mode="focus"] {\n${block(t)}\n}\n\n`;
+}
 css += readFileSync(new URL('./extra.css', import.meta.url),'utf8');
 writeFileSync('/home/claude/stint/src/looks-proto.css', css);

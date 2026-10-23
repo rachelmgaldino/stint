@@ -127,3 +127,45 @@
 :root[data-look="luna"] .dial-time,
 :root[data-look="luna"] .tile-value,
 :root[data-look="luna"] .float-clock { font-size-adjust: 0.52; }
+
+/* Notebook night colour candidates: textures. */
+:root[data-look="notebook"][data-night][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night] .shell[data-mode="focus"] {
+  background-image:
+    linear-gradient(90deg, transparent 54px, var(--margin) 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 31px, var(--dots) 31px 32px);
+}
+:root[data-look="notebook"][data-night="graphite"][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night="graphite"] .shell[data-mode="focus"] {
+  background-image:
+    radial-gradient(var(--dots) 1.4px, transparent 1.8px);
+  background-size: 22px 22px;
+}
+:root[data-look="notebook"][data-night="blueprint"][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night="blueprint"] .shell[data-mode="focus"] {
+  background-image:
+    linear-gradient(var(--dots) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dots) 1px, transparent 1px),
+    linear-gradient(rgb(234 242 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(234 242 255 / 0.035) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+}
+:root[data-look="notebook"][data-night="espresso"][data-theme="dark"] .shell,
+:root[data-look="notebook"][data-night="espresso"] .shell[data-mode="focus"] {
+  background-image:
+    radial-gradient(circle at 88% 82%, transparent 58px, rgb(160 110 70 / 0.16) 60px, transparent 66px),
+    radial-gradient(circle at 6% 12%, transparent 40px, rgb(160 110 70 / 0.12) 42px, transparent 47px),
+    linear-gradient(90deg, transparent 54px, var(--margin) 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 31px, var(--dots) 31px 32px);
+}
+
+/* Riso's mascot: the mushroom by day, the ghost by night and while focusing. */
+.pip .by-night { display: none; }
+:root[data-theme="dark"] .pip .by-day,
+.shell[data-mode="focus"] .pip .by-day { display: none; }
+:root[data-theme="dark"] .pip .by-night,
+.shell[data-mode="focus"] .pip .by-night { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pip .by-day { display: none; }
+  :root:not([data-theme="light"]) .pip .by-night { display: inline; }
+}
