@@ -34,6 +34,8 @@ export type Settings = {
   longBreakMinutes: number;
   /** Minutes of focus, since the last long break, that earn a long break. */
   longBreakAfter: number;
+  /** Focus counts up with no time limit (flow) instead of down from a length. Remembers the last choice. */
+  flow: boolean;
   /** Which button is the big one during focus. */
   focusAction: "break" | "end";
   /** Which button is the big one on a break. */
@@ -97,6 +99,7 @@ export const defaultSettings: Settings = {
   breakMinutes: 5,
   longBreakMinutes: 15,
   longBreakAfter: 90,
+  flow: false,
   focusAction: "break",
   breakAction: "focus",
   theme: "system",

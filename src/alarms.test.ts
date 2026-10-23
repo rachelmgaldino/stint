@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { plannedAlarms } from "./alarms";
 import { defaultSettings, type Settings } from "./store";
-import { idle, pause, start } from "./timer";
+import { idle, pause, start, startFlow } from "./timer";
 
 const MIN = 60_000;
 const s = (over: Partial<Settings> = {}): Settings => ({ ...defaultSettings, ...over });
@@ -57,5 +57,16 @@ describe("plannedAlarms", () => {
     expect(at(22 * MIN)).toBeUndefined();
     const brk = start("break", 25 * MIN, 0);
     expect(keys(plannedAlarms(brk, s({ presence: true }), "", 0))).not.toContain("presence");
+  });
+
+  it("plans no end, heads-up or overflow in flow, and keeps the presence sound going", () => {
+    const t = startFlow(0);
+    expect(plannedAlarms(t, s(), "Write", 0)).toEqual([]);
+    const a = plannedAlarms(t, s({ presence: true, presenceMinutes: 10 }), "Write", 300 * MIN + 1);
+    expect(a).toEqual([{ key: "presence", at: 310 * MIN, sound: "presence" }]);
+  });
+
+  it("still nudges about a long pause in flow", () => {
+    expect(keys(plannedAlarms(pause(startFlow(0), 5 * MIN), s(), "", 5 * MIN))).toEqual(["pause"]);
   });
 });

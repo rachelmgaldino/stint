@@ -31,9 +31,11 @@ export function plannedAlarms(timer: Timer, s: Settings, intention: string, now:
     return alarms;
   }
 
-  const end = timer.endsAt;
+  // Flow has no end, so only the presence sound applies.
+  const flow = !!timer.flow;
+  const end = flow ? Infinity : timer.endsAt;
   const wantsEnd = focus ? s.notifyFocusEnd : s.notifyBreakEnd;
-  add({
+  if (!flow) add({
     key: "end",
     at: end,
     notice: wantsEnd
@@ -46,7 +48,7 @@ export function plannedAlarms(timer: Timer, s: Settings, intention: string, now:
   });
 
   // A heads-up only makes sense if the session is longer than the warning.
-  if (s.notifySoon && s.soonMinutes * MIN < timer.plannedMs) {
+  if (!flow && s.notifySoon && s.soonMinutes * MIN < timer.plannedMs) {
     add({
       key: "soon",
       at: end - s.soonMinutes * MIN,
@@ -56,7 +58,7 @@ export function plannedAlarms(timer: Timer, s: Settings, intention: string, now:
   }
 
   const over = focus ? s.overflowFocus : s.overflowBreak;
-  if (over) {
+  if (over && !flow) {
     const n = focus ? s.overflowFocusMinutes : s.overflowBreakMinutes;
     add({
       key: "overflow",
@@ -68,7 +70,7 @@ export function plannedAlarms(timer: Timer, s: Settings, intention: string, now:
   }
 
   // Every N minutes of focus (pauses don't count), up to the end, where the
-  // end chime takes over.
+  // end chime takes over. In flow it keeps going.
   if (focus && s.presence) {
     const every = s.presenceMinutes * MIN;
     const focusStart = timer.startedAt + timer.pausedMs;

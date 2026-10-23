@@ -15,6 +15,7 @@ import {
   scrub,
   start,
 } from "./timer";
+import * as T from "./timer";
 
 const MIN = 60_000;
 
@@ -90,6 +91,30 @@ describe("timer", () => {
     expect(scrub(idle, MIN, 0)).toBe(idle);
     const running = start("focus", MIN, 0);
     expect(resume(running, 0)).toBe(running);
+  });
+});
+
+describe("flow", () => {
+  it("counts up with no end, through a pause", () => {
+    let t = T.startFlow(0);
+    expect(T.isFlow(t)).toBe(true);
+    expect(T.remaining(t, 90 * MIN)).toBe(Infinity);
+    expect(T.progress(t, 90 * MIN)).toBe(0);
+    t = T.pause(t, 30 * MIN);
+    expect(T.isFlow(t)).toBe(true);
+    t = T.resume(t, 40 * MIN);
+    expect(T.isFlow(t)).toBe(true);
+    expect(T.elapsed(t, 50 * MIN)).toBe(40 * MIN);
+  });
+
+  it("can't be scrubbed, but its start can move", () => {
+    const t = T.startFlow(10 * MIN);
+    expect(T.scrub(t, 5 * MIN, 20 * MIN)).toBe(t);
+    expect(T.elapsed(T.moveStart(t, 0, 20 * MIN), 20 * MIN)).toBe(20 * MIN);
+  });
+
+  it("gets warm after an hour", () => {
+    expect(T.heat(T.startFlow(0), 61 * MIN)).toBe(1);
   });
 });
 

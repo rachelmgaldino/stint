@@ -185,6 +185,12 @@
     padding: 0 6px;
   }
 
+  .dial-card > .mode-switch {
+    order: 6;
+    align-self: stretch;
+    width: auto;
+  }
+
   .dial-card > .hint,
   .plan-card > .grow {
     display: none;

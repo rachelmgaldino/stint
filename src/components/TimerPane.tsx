@@ -7,7 +7,7 @@ import * as T from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, CoffeeIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
 import { IntentionField } from "./IntentionField";
 import type { PastIntention } from "../intentions";
@@ -22,6 +22,8 @@ type Props = {
   categories: Category[];
   idleKind: T.Kind;
   plannedMin: number;
+  /** Focus is set to flow: it counts up with no planned length. */
+  flow: boolean;
   /** The break running (or planned) is a long one. */
   longBreak: boolean;
   focusAction: "break" | "end";
@@ -38,6 +40,7 @@ type Props = {
   onCategory(id: number): void;
   onIdleKind(k: T.Kind): void;
   onPlannedMin(m: number): void;
+  onFlow(on: boolean): void;
   onStart(): void;
   onPause(): void;
   onResume(): void;
@@ -63,7 +66,14 @@ export function dialClock(ms: number): string {
   return h ? `${h}:${rest}` : rest;
 }
 
-const lengths = { focus: [25, 50, 60, 90], break: [5, 10, 15, 20] };
+/** "0:42" style count-up for flow: whole seconds gone, never rounded up. */
+export function upClock(ms: number): string {
+  const total = Math.floor(Math.max(0, ms) / 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const h = Math.floor(total / 3600);
+  const rest = `${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
+  return h ? `${h}:${rest}` : rest;
+}
 
 // Peach for the first hour, then pink, then periwinkle.
 const focusLaps: Lap[] = [
@@ -77,17 +87,26 @@ export function TimerPane(p: Props) {
   const { timer, now } = p;
   const active = timer.status !== "idle";
   const kind = active ? timer.kind : p.idleKind;
+  // Flow counts up, so the dial shows the time gone instead of the time left.
+  const flow = active ? T.isFlow(timer) : kind === "focus" && p.flow;
+  const spent = active ? T.elapsed(timer, now) : 0;
   const left = active ? T.remaining(timer, now) : p.plannedMin * 60_000;
   const category = p.categories.find((c) => c.id === p.categoryId);
   const overtime = active && left <= 0;
   const maxMinutes = kind === "focus" ? 180 : 60;
-  const minutes = Math.max(0, left) / 60_000;
+  const minutes = flow ? spent / 60_000 : Math.max(0, left) / 60_000;
   const plannedEnd = timer.status === "running" ? timer.endsAt : now + Math.max(0, left);
   const text = t().timer;
   const [editingStart, setEditingStart] = useState(false);
   const [editingIntention, setEditingIntention] = useState(false);
 
-  const subline = !active
+  const subline = flow
+    ? !active
+      ? text.flowIdleSub
+      : timer.status === "paused"
+        ? text.paused
+        : text.flowRunning
+    : !active
     ? text.endsAt(clockTime(now + left))
     : timer.status === "paused"
       ? text.paused
@@ -98,10 +117,11 @@ export function TimerPane(p: Props) {
           : timeRange(timer.startedAt, plannedEnd);
 
   // The dial stops at the longest length; say so under the clock.
-  const atMax = left > 0 && Math.round(minutes) >= maxMinutes;
+  const atMax = !flow && left > 0 && Math.round(minutes) >= maxMinutes;
 
   // Pip grows a leaf for every full hour on the dial, and gets hot after a long focus.
-  const hot = active ? T.heat(timer, now) : kind === "focus" ? T.heatFor(p.plannedMin) : 0;
+  // Flow has no length to pick, so the mascot starts calm and heats up as time goes by.
+  const hot = active ? T.heat(timer, now) : kind === "focus" && !flow ? T.heatFor(p.plannedMin) : 0;
   const extraLeaves = kind === "focus" ? lapAt(minutes).lap - 1 : 0;
 
   const dial = (pipSize: number) => (
@@ -109,8 +129,10 @@ export function TimerPane(p: Props) {
       minutes={minutes}
       laps={kind === "focus" ? focusLaps : breakLaps}
       maxMinutes={maxMinutes}
-      label={active ? text.dialRunning : text.dialIdle}
-      onChange={active ? p.onSetRemaining : p.onPlannedMin}
+      label={flow ? text.dialFlow : active ? text.dialRunning : text.dialIdle}
+      // A running flow can't be dragged: there's no end to move. Dragging the
+      // idle dial picks a length, which turns flow off.
+      onChange={flow && active ? undefined : active ? p.onSetRemaining : p.onPlannedMin}
     >
       <span className="dial-pip">
         <Pip
@@ -127,7 +149,7 @@ export function TimerPane(p: Props) {
       </span>
       {!(kind === "break" && active) && (
         <>
-          <span className={overtime ? "dial-time overtime" : "dial-time"}>{dialClock(left)}</span>
+          <span className={overtime ? "dial-time overtime" : "dial-time"}>{flow ? upClock(spent) : dialClock(left)}</span>
           {atMax && <span className="dial-max">{text.max}</span>}
           <span className="dial-sub">{subline}</span>
         </>
@@ -231,22 +253,27 @@ export function TimerPane(p: Props) {
               breakButton(false)
             )}
           </div>
-          {/* − and + move the end by 5 minutes; the times between them open the start editor. */}
+          {/* − and + move the end by 5 minutes; the times between them open the start editor.
+              Flow has no end to move, so only the start is left. */}
           <div className="button-row adjust-row">
-            <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
-              −
-            </button>
+            {!flow && (
+              <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
+                −
+              </button>
+            )}
             <button
               className="start-edit-button time-range"
               aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
               onClick={() => setEditingStart(true)}
             >
               <PencilIcon />
-              {running ? timeRange(timer.startedAt, plannedEnd) : text.startedAt(clockTime(timer.startedAt))}
+              {running && !flow ? timeRange(timer.startedAt, plannedEnd) : text.startedAt(clockTime(timer.startedAt))}
             </button>
-            <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
-              +
-            </button>
+            {!flow && (
+              <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
+                +
+              </button>
+            )}
           </div>
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
           <div className="stage-links">
@@ -375,20 +402,24 @@ export function TimerPane(p: Props) {
         {p.nextEvent && <NextEvent event={p.nextEvent} />}
         <button className={kind === "focus" ? "squishy apricot huge" : "squishy matcha huge"} onClick={p.onStart}>
           <PlayIcon />
-          {kind === "focus" ? text.startFocusing : text.startBreak}
+          {flow ? text.startFlow : kind === "focus" ? text.startFocusing : text.startBreak}
         </button>
       </section>
 
       <section className="card dial-card" aria-label={text.sessionLength}>
         {dial(80)}
-        <div className="segmented round" role="group" aria-label={text.quickLengths}>
-          {lengths[kind].map((m) => (
-            <button key={m} aria-pressed={p.plannedMin === m} onClick={() => p.onPlannedMin(m)}>
-              {text.minutes(m)}
+        {/* How the session ends: at the length set on the dial, or when you stop. Breaks only have the dial. */}
+        {kind === "focus" && (
+          <div className="segmented round mode-switch" role="group" aria-label={text.endsHow}>
+            <button aria-pressed={!flow} onClick={() => p.onFlow(false)}>
+              <ClockIcon /> {text.timerMode}
             </button>
-          ))}
-        </div>
-        <p className="hint">{text.dialHints[look()]}</p>
+            <button aria-pressed={flow} title={text.flowNote} onClick={() => p.onFlow(true)}>
+              <InfinityIcon /> {text.flow}
+            </button>
+          </div>
+        )}
+        <p className="hint">{flow ? text.flowHint : text.dialHints[look()]}</p>
       </section>
     </div>
   );
