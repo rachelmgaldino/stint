@@ -1002,3 +1002,53 @@
     grid-area: end;
   }
 }
+
+/* No room for the recent chips on a phone: the field lists them when tapped. */
+@media (max-width: 640px) {
+  .recent-chips {
+    display: none;
+  }
+
+  .intention-list.recent-list {
+    display: flex;
+  }
+
+  .intention-row {
+    min-height: 48px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .stage-what {
+    text-align: center;
+  }
+
+  .stage-title {
+    align-items: center;
+    text-align: center;
+  }
+
+  .stage-title-pen {
+    margin-top: 0;
+  }
+
+  .add-intention {
+    align-self: center;
+  }
+
+  .stage-intention {
+    align-self: stretch;
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .stage-title.is-empty .stage-title-pen {
+    display: grid;
+  }
+
+  .add-intention {
+    display: none;
+  }
+}
