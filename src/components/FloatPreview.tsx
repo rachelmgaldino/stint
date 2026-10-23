@@ -1,5 +1,5 @@
 // Dev-only page that draws the floating timer in each state, for screenshots:
-// /?float&look=lavender|mochi&theme=light|dark&lang=en|pt-BR, add &desk=1
+// /?float&look=lavender|mochi|notebook|riso&theme=light|dark&lang=en|pt-BR, add &desk=1
 // (with &open=1&kind=break) for one bubble over a pretend desktop.
 
 import type { Language } from "../i18n";

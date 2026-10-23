@@ -1,0 +1,220 @@
+/* The Riso look: a zine printed in pink and blue ink on cream paper, the mushroom by day and the ghost by night. */
+
+:root[data-look="riso"] {
+  --ground: #f2ede1;
+  --surface: #fbf8f0;
+  --sunken: #ece6d6;
+  --soft: #f6f2e8;
+  --raised: #ece6d6;
+  --line: #ddd5c1;
+  --text: #1d2a78;
+  --muted: #4d5899;
+  --placeholder: #7f86b4;
+  --seed: #d8cfba;
+  --petal: #ffd9e8;
+  --track: #efe7d6;
+  --ink: #1d2a78;
+  --ink-lip: #ff5fa2;
+  --on-ink: #fbf8f0;
+  --on-pastel: #1d2a78;
+  --apricot: #ff6fa8;
+  --apricot-lip: #2f45e0;
+  --peri: #5b73ff;
+  --peri-lip: #ff6fa8;
+  --matcha: #4fd1a1;
+  --matcha-lip: #2f45e0;
+  --lemon: #ffd23f;
+  --lemon-lip: #ff6fa8;
+  --bubblegum: #ffd23f;
+  --bubblegum-lip: #2f45e0;
+  --sky: #7fc8ff;
+  --danger: #e5303f;
+  --scrim: rgb(29 42 120 / 0.35);
+  --break-stage: #d6f3e6;
+  --break-text: #1d2a78;
+  --break-eyebrow: #1d7a5c;
+  --break-petal: #b6ead3;
+  --break-track: #4fd1a1;
+  --heading: "Syne Variable", "Segoe UI", system-ui, sans-serif;
+  --body: "Space Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+  --sticker: #fbf8f0;
+  --dots: rgb(255 95 162 / 0.28);
+  --bar: #1d2a78;
+  --bar-text: #fbf8f0;
+  --bar-ring: 0px;
+  --bar-edge: transparent;
+  --bar-shadow: rgb(255 95 162 / 0.9);
+  --bar-deep: #1d2a78;
+  --bar-deep-text: #fbf8f0;
+  --shade: 29 42 120;
+  --rose: #ff6fa8;
+  --offset: #ff6fa8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look="riso"]:not([data-theme="light"]) {
+    --ground: #141219;
+    --surface: #1e1b26;
+    --sunken: #191720;
+    --soft: #272331;
+    --raised: #272331;
+    --line: #363044;
+    --text: #f2ede1;
+    --muted: #b9b2c8;
+    --placeholder: #8a839a;
+    --seed: #3a3448;
+    --petal: #2a1f30;
+    --track: #2b2636;
+    --ink: #f2ede1;
+    --ink-lip: #ff5fa2;
+    --on-ink: #141219;
+    --danger: #ff7b86;
+    --scrim: rgb(0 0 0 / 0.6);
+    --break-stage: #14271f;
+    --break-text: #d6f3e6;
+    --break-eyebrow: #4fd1a1;
+    --break-petal: #1b3a2c;
+    --break-track: #2d7a5c;
+    --sticker: #1e1b26;
+    --dots: rgb(255 95 162 / 0.16);
+    --bar: #1e1b26;
+    --bar-text: #f2ede1;
+    --bar-shadow: rgb(255 95 162 / 0.8);
+    --offset: #5b73ff;
+  }
+}
+
+:root[data-look="riso"][data-theme="dark"],
+:root[data-look="riso"] .shell[data-mode="focus"] {
+  --ground: #141219;
+  --surface: #1e1b26;
+  --sunken: #191720;
+  --soft: #272331;
+  --raised: #272331;
+  --line: #363044;
+  --text: #f2ede1;
+  --muted: #b9b2c8;
+  --placeholder: #8a839a;
+  --seed: #3a3448;
+  --petal: #2a1f30;
+  --track: #2b2636;
+  --ink: #f2ede1;
+  --ink-lip: #ff5fa2;
+  --on-ink: #141219;
+  --danger: #ff7b86;
+  --scrim: rgb(0 0 0 / 0.6);
+  --break-stage: #14271f;
+  --break-text: #d6f3e6;
+  --break-eyebrow: #4fd1a1;
+  --break-petal: #1b3a2c;
+  --break-track: #2d7a5c;
+  --sticker: #1e1b26;
+  --dots: rgb(255 95 162 / 0.16);
+  --bar: #1e1b26;
+  --bar-text: #f2ede1;
+  --bar-shadow: rgb(255 95 162 / 0.8);
+  --offset: #5b73ff;
+}
+
+/* Halftone dots and a yellow wash across the paper. */
+:root[data-look="riso"] .shell {
+  background-image:
+    radial-gradient(var(--dots) 1.3px, transparent 1.7px),
+    radial-gradient(ellipse 70% 60% at 100% 0%, rgb(255 210 63 / 0.18), transparent 70%);
+  background-size: 7px 7px, 100% 100%;
+}
+
+/* Square-ish cards with a misregistered second ink behind them: pink by day, blue by night. */
+:root[data-look="riso"] .card,
+:root[data-look="riso"] .tile {
+  border-radius: 8px;
+  box-shadow: 6px 6px 0 rgb(255 111 168 / 0.55);
+}
+:root[data-look="riso"] .tabs,
+:root[data-look="riso"] .tab,
+:root[data-look="riso"] .segmented,
+:root[data-look="riso"] .segmented button,
+:root[data-look="riso"] .squishy {
+  border-radius: 6px;
+}
+:root[data-look="riso"] .squishy {
+  border-radius: 8px;
+  font-weight: 700;
+}
+:root[data-look="riso"] .squishy.apricot,
+:root[data-look="riso"] .squishy.matcha,
+:root[data-look="riso"] .squishy.ink {
+  box-shadow: 6px 6px 0 var(--lip);
+}
+:root[data-look="riso"] .squishy:active:not(:disabled) {
+  transform: translate(5px, 5px);
+  box-shadow: 1px 1px 0 var(--lip) !important;
+}
+:root[data-look="riso"] .brand > span,
+:root[data-look="riso"] h1,
+:root[data-look="riso"] h2,
+:root[data-look="riso"] .dial-time,
+:root[data-look="riso"] .tile-value {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-shadow: 3px 2px 0 rgb(255 111 168 / 0.75);
+}
+/* Small print inside headings, like "1h 24m focused", stays a single ink. */
+:root[data-look="riso"] h2 * {
+  text-shadow: none !important;
+}
+/* Syne's numbers run wide, so the clocks use Space Grotesk. */
+:root[data-look="riso"] .dial-time {
+  font-family: "Space Grotesk Variable", sans-serif;
+  letter-spacing: -0.04em;
+}
+:root[data-look="riso"] .float-clock {
+  font-family: "Space Grotesk Variable", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+:root[data-look="riso"][data-theme="dark"] .card,
+:root[data-look="riso"][data-theme="dark"] .tile,
+:root[data-look="riso"] .shell[data-mode="focus"] .card {
+  box-shadow: 6px 6px 0 rgb(91 115 255 / 0.6);
+}
+:root[data-look="riso"][data-theme="dark"] .brand > span,
+:root[data-look="riso"][data-theme="dark"] h1,
+:root[data-look="riso"][data-theme="dark"] h2,
+:root[data-look="riso"][data-theme="dark"] .tile-value,
+:root[data-look="riso"][data-theme="dark"] .dial-time,
+:root[data-look="riso"] .shell[data-mode="focus"] .dial-time {
+  text-shadow: 3px 2px 0 rgb(91 115 255 / 0.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-look="riso"]:not([data-theme="light"]) .card,
+  :root[data-look="riso"]:not([data-theme="light"]) .tile {
+    box-shadow: 6px 6px 0 rgb(91 115 255 / 0.6);
+  }
+  :root[data-look="riso"]:not([data-theme="light"]) .brand > span,
+  :root[data-look="riso"]:not([data-theme="light"]) h1,
+  :root[data-look="riso"]:not([data-theme="light"]) h2,
+  :root[data-look="riso"]:not([data-theme="light"]) .tile-value,
+  :root[data-look="riso"]:not([data-theme="light"]) .dial-time {
+    text-shadow: 3px 2px 0 rgb(91 115 255 / 0.85);
+  }
+}
+
+/* The mascot: the mushroom by day, the ghost by night and while focusing.
+   Not tied to the Riso look, so its button in Settings matches day or night in every look. */
+.pip .by-night { display: none; }
+:root[data-theme="dark"] .pip .by-day,
+.shell[data-mode="focus"] .pip .by-day { display: none; }
+:root[data-theme="dark"] .pip .by-night,
+.shell[data-mode="focus"] .pip .by-night { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pip .by-day { display: none; }
+  :root:not([data-theme="light"]) .pip .by-night { display: inline; }
+}
+
+/* Settings swatches. */
+:root[data-look="riso"] .theme-swatch span { background: #ff6fa8; }
+:root[data-look="riso"] .theme-option.light .theme-swatch { background: #f2ede1; }
+:root[data-look="riso"] .theme-option.dark .theme-swatch { background: #141219; }
+:root[data-look="riso"] .theme-option.system .theme-swatch { background: linear-gradient(135deg, #f2ede1 50%, #141219 50%); }

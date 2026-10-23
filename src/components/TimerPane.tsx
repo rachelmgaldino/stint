@@ -60,12 +60,6 @@ export function dialClock(ms: number): string {
 const lengths = { focus: [25, 50, 60, 90], break: [5, 10, 15, 20] };
 
 // Peach for the first hour, then pink, then periwinkle.
-const PROTO_HINT: Record<string, string> = {
-  notebook: "Drag the tick around the doodle to pick any length.",
-  riso: "Drag the dot around the print to pick any length.",
-  luna: "Drag the crescent around the moon's phases to pick any length.",
-};
-
 const focusLaps: Lap[] = [
   { color: "var(--apricot)", lip: "var(--apricot-lip)" },
   { color: "var(--bubblegum)", lip: "var(--bubblegum-lip)" },
@@ -349,7 +343,7 @@ export function TimerPane(p: Props) {
             </button>
           ))}
         </div>
-        <p className="hint">{PROTO_HINT[look()] ?? (look() === "mochi" ? text.dialHintMochi : text.dialHint)}</p>
+        <p className="hint">{text.dialHints[look()]}</p>
       </section>
     </div>
   );

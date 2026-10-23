@@ -8,10 +8,6 @@ import "@fontsource-variable/shantell-sans/full.css";
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/syne";
 import "@fontsource-variable/space-grotesk";
-import "@fontsource/instrument-serif";
-import "@fontsource/instrument-serif/400-italic.css";
-import "@fontsource-variable/dm-sans";
-import { MascotSheet } from "./components/MascotSheet";
 import App from "./App";
 import { FloatTimer } from "./components/FloatTimer";
 import { FloatPreview } from "./components/FloatPreview";
@@ -20,19 +16,16 @@ import { startFitting } from "./fit";
 import "./styles.css";
 import "./mochi.css";
 import "./phone.css";
-import "./looks-proto.css";
+import "./notebook.css";
+import "./riso.css";
 
 const float = isFloatWindow();
-// Mockups only: tries a night colour for Notebook (?night=graphite|blueprint|espresso|burgundy).
-const night = new URLSearchParams(location.search).get("night");
-if (night) document.documentElement.dataset.night = night;
 // A browser-only look at the bubble in every state, for screenshots.
 const preview = import.meta.env.DEV && new URLSearchParams(location.search).has("float");
-const sheet = import.meta.env.DEV && new URLSearchParams(location.search).has("mascots");
-if (!float && !preview && !sheet) startFitting();
+if (!float && !preview) startFitting();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {float ? <FloatTimer /> : preview ? <FloatPreview /> : sheet ? <MascotSheet /> : <App />}
+    {float ? <FloatTimer /> : preview ? <FloatPreview /> : <App />}
   </StrictMode>,
 );
