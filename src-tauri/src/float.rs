@@ -149,10 +149,18 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) {
         .focused(false)
         .visible(false)
         .build();
+    // The check itself runs on the main thread, like everything else that
+    // takes the lock. Run from this thread, it held the lock while asking the
+    // main thread for the pointer and window position, and the main thread
+    // waited for that same lock when Stint came back (Open Stint, a click on
+    // the window): each waited for the other and Stint froze.
     let app = app.clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(TICK);
-        watch(&app);
+        let handle = app.clone();
+        if app.run_on_main_thread(move || watch(&handle)).is_err() {
+            return;
+        }
     });
 }
 
