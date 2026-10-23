@@ -120,7 +120,8 @@ export function TimerPane(p: Props) {
   const atMax = !flow && left > 0 && Math.round(minutes) >= maxMinutes;
 
   // Pip grows a leaf for every full hour on the dial, and gets hot after a long focus.
-  const hot = active ? T.heat(timer, now) : kind === "focus" ? T.heatFor(p.plannedMin) : 0;
+  // Flow has no length to pick, so the mascot starts calm and heats up as time goes by.
+  const hot = active ? T.heat(timer, now) : kind === "focus" && !flow ? T.heatFor(p.plannedMin) : 0;
   const extraLeaves = kind === "focus" ? lapAt(minutes).lap - 1 : 0;
 
   const dial = (pipSize: number) => (
