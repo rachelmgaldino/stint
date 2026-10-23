@@ -185,6 +185,16 @@
     padding: 0 6px;
   }
 
+  .dial-card > .flow-note {
+    order: 6;
+    min-height: 38px;
+    font-size: 14px;
+  }
+
+  .plan-card .flow-switch {
+    order: 3;
+  }
+
   .dial-card > .hint,
   .plan-card > .grow {
     display: none;

@@ -1,7 +1,7 @@
 import type { Category } from "../store";
 import * as T from "../timer";
 import { soft } from "../colors";
-import { dialClock } from "./TimerPane";
+import { dialClock, upClock } from "./TimerPane";
 import { CoffeeIcon, PauseIcon, PlayIcon } from "./icons";
 import { t } from "../i18n";
 
@@ -22,6 +22,8 @@ type Props = {
 /** The running timer as a floating bar, shown while on other screens. */
 export function MiniTimer(p: Props) {
   const left = T.remaining(p.timer, p.now);
+  // Flow counts up and has no end to move, so − and + go.
+  const flow = T.isFlow(p.timer);
   const text = t();
   return (
     <footer className={p.kind === "break" ? "mini-timer break" : "mini-timer"} aria-label={text.mini.label}>
@@ -29,10 +31,12 @@ export function MiniTimer(p: Props) {
         {p.kind === "focus" && p.category && <span className="dot" style={{ background: soft(p.category.color) }} />}
         <span className="mini-intention">{p.kind === "break" ? text.break : p.intention.trim() || p.category?.name || text.focus}</span>
       </button>
-      <span className={left < 0 ? "mini-clock overtime" : "mini-clock"}>{dialClock(left)}</span>
-      <button className="mini-step" aria-label={text.mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
-        −
-      </button>
+      <span className={left < 0 ? "mini-clock overtime" : "mini-clock"}>{flow ? upClock(T.elapsed(p.timer, p.now)) : dialClock(left)}</span>
+      {!flow && (
+        <button className="mini-step" aria-label={text.mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
+          −
+        </button>
+      )}
       {p.timer.status === "running" && p.kind === "focus" ? (
         <button className="mini-play" aria-label={text.timer.takeBreak} title={text.timer.takeBreakHint} onClick={p.onTakeBreak}>
           <CoffeeIcon />
@@ -46,9 +50,11 @@ export function MiniTimer(p: Props) {
           <PlayIcon />
         </button>
       )}
-      <button className="mini-step" aria-label={text.mini.more} onClick={() => p.onAdjust(5)}>
-        +
-      </button>
+      {!flow && (
+        <button className="mini-step" aria-label={text.mini.more} onClick={() => p.onAdjust(5)}>
+          +
+        </button>
+      )}
       <button className="mini-finish" onClick={p.onFinish}>
         {p.kind === "focus" ? text.timer.endSession : text.timer.endBreak}
       </button>

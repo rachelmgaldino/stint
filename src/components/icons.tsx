@@ -181,3 +181,9 @@ export const UpdateIcon = () => (
     <path d="M12 8v6M9.5 11.5 12 14l2.5-2.5" />
   </svg>
 );
+
+export const InfinityIcon = () => (
+  <svg {...base} width={18} height={18}>
+    <path d="M12 12c-2-2.7-3.5-4-5.5-4a4 4 0 0 0 0 8c2 0 3.5-1.3 5.5-4Zm0 0c2 2.7 3.5 4 5.5 4a4 4 0 0 0 0-8c-2 0-3.5 1.3-5.5 4Z" />
+  </svg>
+);

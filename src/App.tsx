@@ -13,7 +13,7 @@ import {
 import * as T from "./timer";
 import { addDays, clockTime, startOfDay, startOfWeek } from "./dates";
 import { previousRange, rangeFor, type Range } from "./analytics";
-import { TimerPane } from "./components/TimerPane";
+import { TimerPane, upClock } from "./components/TimerPane";
 import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
 import { SettingsView } from "./components/SettingsView";
 import { Reflection, type PendingReflection } from "./components/Reflection";
@@ -271,16 +271,20 @@ export default function App() {
     }
     const label = timer.kind === "focus" ? live.intention || text.focus : text.break;
     const paused = timer.status === "paused" ? text.tray.paused : "";
-    setTrayTooltip(`${label}: ${T.formatClock(left)}${paused}`);
-  }, [timer, left, live.intention, text]);
+    const clock = T.isFlow(timer) ? upClock(T.elapsed(timer, now)) : T.formatClock(left);
+    setTrayTooltip(`${label}: ${clock}${paused}`);
+  }, [timer, left, now, live.intention, text]);
 
   useEffect(() => {
     setTrayMenu(text.tray.open, text.tray.quit);
   }, [text]);
 
-  const startTimer = (kind: T.Kind, minutes: number, long = false) => {
-    setLive((l) => ({ ...l, timer: T.start(kind, minutes * 60_000, Date.now()), long }));
+  const startTimer = (kind: T.Kind, minutes: number, long = false, flow = false) => {
+    const n = Date.now();
+    setLive((l) => ({ ...l, timer: flow && kind === "focus" ? T.startFlow(n) : T.start(kind, minutes * 60_000, n), long }));
   };
+  // Focus is set to flow on the plan card.
+  const idleFlow = idleKind === "focus" && settings.flow;
 
   const chooseKind = useCallback(
     (k: T.Kind) => {
@@ -337,7 +341,7 @@ export default function App() {
     await finish(false, true);
     setIdleKind("focus");
     setPlannedMin(settings.focusMinutes);
-    startTimer("focus", settings.focusMinutes);
+    startTimer("focus", settings.focusMinutes, false, settings.flow);
   };
 
   // Every alarm the timer needs (end, heads-up, overflow, presence) is kept
@@ -534,7 +538,7 @@ export default function App() {
       if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(el.tagName)) return;
       e.preventDefault();
       const n = Date.now();
-      if (timer.status === "idle") startTimer(idleKind, plannedMin, idleLong);
+      if (timer.status === "idle") startTimer(idleKind, plannedMin, idleLong, idleFlow);
       else if (timer.status === "running" && timer.kind === "focus") takeBreak();
       else if (timer.status === "running") setLive((l) => ({ ...l, timer: T.pause(l.timer, n) }));
       else setLive((l) => ({ ...l, timer: T.resume(l.timer, n) }));
@@ -662,8 +666,16 @@ export default function App() {
             onPickIntention={(intention, categoryId) => setLive((l) => ({ ...l, intention, categoryId }))}
             onCategory={(categoryId) => setLive((l) => ({ ...l, categoryId }))}
             onIdleKind={chooseKind}
-            onPlannedMin={setPlannedMin}
-            onStart={() => startTimer(idleKind, plannedMin, idleLong)}
+            onPlannedMin={(m) => {
+              // Picking a length turns flow off.
+              if (idleFlow) void updateSettings({ ...settings, flow: false });
+              setPlannedMin(m);
+            }}
+            flow={settings.flow}
+            onFlow={(flow) => {
+              if (flow !== settings.flow) void updateSettings({ ...settings, flow });
+            }}
+            onStart={() => startTimer(idleKind, plannedMin, idleLong, idleFlow)}
             longBreak={timer.status === "idle" ? idleLong : !!live.long}
             focusAction={settings.focusAction}
             breakAction={settings.breakAction}

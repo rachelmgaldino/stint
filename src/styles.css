@@ -4144,3 +4144,50 @@ select.select-pill {
 .stage-title.is-empty .stage-title-pen {
   display: none;
 }
+
+/* Flow: focus that counts up with no time limit. */
+
+.segmented.round .flow-chip {
+  gap: 6px;
+}
+
+.segmented.round .flow-chip svg {
+  width: 16px;
+  height: 16px;
+}
+
+.flow-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 18px;
+  background: var(--sunken);
+  cursor: pointer;
+}
+
+.flow-switch > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.flow-switch-text {
+  flex: 1;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.flow-switch-text strong {
+  color: var(--text);
+}
+
+.flow-note {
+  margin: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+  color: var(--muted);
+}

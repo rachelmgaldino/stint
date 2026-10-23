@@ -12,6 +12,8 @@ export type Timer =
       endsAt: number;
       plannedMs: number;
       pausedMs: number;
+      /** Flow: counts up with no planned end. endsAt and plannedMs mean nothing then. */
+      flow?: boolean;
     }
   | {
       status: "paused";
@@ -21,6 +23,7 @@ export type Timer =
       plannedMs: number;
       pausedMs: number;
       pausedAt: number;
+      flow?: boolean;
     };
 
 export const idle: Timer = { status: "idle" };
@@ -36,6 +39,16 @@ export function start(kind: Kind, durationMs: number, now: number): Timer {
   };
 }
 
+/** A focus session in flow: it counts up from now until it's ended, with no planned length. */
+export function startFlow(now: number): Timer {
+  return { status: "running", kind: "focus", startedAt: now, endsAt: now, plannedMs: 0, pausedMs: 0, flow: true };
+}
+
+/** True for a running or paused flow session. */
+export function isFlow(t: Timer): boolean {
+  return t.status !== "idle" && !!t.flow;
+}
+
 export function pause(t: Timer, now: number): Timer {
   if (t.status !== "running") return t;
   return {
@@ -46,6 +59,7 @@ export function pause(t: Timer, now: number): Timer {
     plannedMs: t.plannedMs,
     pausedMs: t.pausedMs,
     pausedAt: now,
+    ...(t.flow ? { flow: true } : {}),
   };
 }
 
@@ -58,11 +72,16 @@ export function resume(t: Timer, now: number): Timer {
     endsAt: now + t.remainingMs,
     plannedMs: t.plannedMs,
     pausedMs: t.pausedMs + (now - t.pausedAt),
+    ...(t.flow ? { flow: true } : {}),
   };
 }
 
-/** Milliseconds left. Negative once the timer has run past its end (overtime). */
+/**
+ * Milliseconds left. Negative once the timer has run past its end (overtime).
+ * Infinity in flow, which never ends on its own.
+ */
 export function remaining(t: Timer, now: number): number {
+  if (t.status !== "idle" && t.flow) return Infinity;
   if (t.status === "running") return t.endsAt - now;
   if (t.status === "paused") return t.remainingMs;
   return 0;
@@ -92,7 +111,7 @@ export function heat(t: Timer, now: number): Heat {
  * drops below one minute, so scrubbing can't end a session by accident.
  */
 export function scrub(t: Timer, deltaMs: number, now: number): Timer {
-  if (t.status === "idle") return t;
+  if (t.status === "idle" || t.flow) return t;
   const left = remaining(t, now);
   const target = Math.max(60_000, left + deltaMs);
   const applied = target - left;
@@ -117,7 +136,7 @@ export function moveStart(t: Timer, startedAt: number, now: number): Timer {
 
 /** Fraction of the planned time that has passed, clamped to 0..1. */
 export function progress(t: Timer, now: number): number {
-  if (t.status === "idle" || t.plannedMs <= 0) return 0;
+  if (t.status === "idle" || t.flow || t.plannedMs <= 0) return 0;
   const done = 1 - remaining(t, now) / t.plannedMs;
   return Math.min(1, Math.max(0, done));
 }
