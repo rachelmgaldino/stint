@@ -1552,15 +1552,21 @@ button.ribbon-seg:hover {
   background: var(--matcha);
 }
 
+/* In the session dialog the three sit side by side, face above the name, so
+   they keep to one line however narrow the dialog is. */
 .sheet .rating-picker {
   flex-direction: row;
-  flex-wrap: wrap;
 }
 
 .sheet .rating-option {
-  flex: 1;
-  padding: 6px 10px;
-  font-size: 14px;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  font-size: 13px;
+  text-align: center;
 }
 
 /* Session dialog */
@@ -4006,6 +4012,23 @@ select.select-pill {
   white-space: nowrap;
   box-shadow: 0 3px 0 var(--peri-lip);
   cursor: pointer;
+}
+
+.test-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  height: 26px;
+  padding: 0 10px;
+  border: 2px dashed var(--peri);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: normal;
+  white-space: nowrap;
+  cursor: default;
 }
 
 .update-pill.busy {

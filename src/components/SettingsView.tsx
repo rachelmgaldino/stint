@@ -744,7 +744,7 @@ function UpdatesCard({
             <button
               className="soft-button small"
               disabled={state.phase === "checking"}
-              onClick={updater.checkAndInstall}
+              onClick={updater.checkNow}
             >
               {state.phase === "checking"
                 ? text.checking

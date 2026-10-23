@@ -25,6 +25,9 @@ const en = {
     updating: (pct: number | null) => (pct === null ? "Updating…" : `Updating… ${pct}%`),
     readyTest: (pr: number) => `Try PR #${pr}`,
     back: (v: string) => `Back to ${v}`,
+    test: (pr: number) => `PR #${pr} test`,
+    testHint: (pr: number) =>
+      `You're on the test build of pull request #${pr}. Turn off Test builds in Settings to go back to the released version.`,
   },
   tray: {
     idle: "Stint: not running",
@@ -407,7 +410,7 @@ const en = {
     updates: "Updates",
     updatesDesktopOnly: "Updates come to the Stint desktop app.",
     version: (v: string) => (v ? `Stint ${v}` : "Stint"),
-    updateIdle: "Look for a newer version and install it.",
+    updateIdle: "Look for a newer version.",
     updateChecking: "Looking for a newer version…",
     updateLatest: "You have the latest version.",
     updateAvailable: (v: string) => `Stint ${v} is out.`,
@@ -489,6 +492,9 @@ const ptBR: Strings = {
     updating: (pct) => (pct === null ? "Atualizando…" : `Atualizando… ${pct}%`),
     readyTest: (pr) => `Testar PR #${pr}`,
     back: (v) => `Voltar para ${v}`,
+    test: (pr) => `Teste PR #${pr}`,
+    testHint: (pr) =>
+      `Você está na versão de teste do PR #${pr}. Desligue Versões de teste nos Ajustes para voltar à versão lançada.`,
   },
   tray: {
     idle: "Stint: parado",
@@ -869,7 +875,7 @@ const ptBR: Strings = {
     updates: "Atualizações",
     updatesDesktopOnly: "As atualizações chegam no app do Stint para desktop.",
     version: (v) => (v ? `Stint ${v}` : "Stint"),
-    updateIdle: "Procure uma versão mais nova e instale.",
+    updateIdle: "Procure uma versão mais nova.",
     updateChecking: "Procurando uma versão mais nova…",
     updateLatest: "Você está na versão mais recente.",
     updateAvailable: (v) => `Saiu o Stint ${v}.`,

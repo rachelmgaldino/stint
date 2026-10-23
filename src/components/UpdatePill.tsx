@@ -1,6 +1,18 @@
 import { t } from "../i18n";
 import { testOf, type Updater } from "../updates";
 
+/** Beside the name while Stint runs a pull request's test build, so it's never mistaken for a release. */
+export function TestTag({ current }: { current: string }) {
+  const pr = testOf(current);
+  if (pr === null) return null;
+  const text = t().updatePill;
+  return (
+    <span className="test-tag" title={text.testHint(pr)}>
+      {text.test(pr)}
+    </span>
+  );
+}
+
 /** Beside the name once the quiet check finds a new version; a click installs it. */
 export function UpdatePill({ updater }: { updater: Updater }) {
   const { state } = updater;

@@ -38,8 +38,8 @@ export type Updater = {
   current: string;
   /** The open test builds, newest first, while Test builds is on (null until fetched). */
   tests: TestBuild[] | null;
-  /** Looks for an update and, when there is one, installs it straight away. */
-  checkAndInstall(): void;
+  /** Looks for an update and says what it found; installing waits for a click. */
+  checkNow(): void;
   install(): void;
   /** Installs one particular test build. */
   installTest(pr: number): void;
@@ -143,7 +143,7 @@ export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
     state,
     current,
     tests,
-    checkAndInstall: () => void check(false, true),
+    checkNow: () => void check(false, false),
     install: () => {
       if (state.phase === "available" || (state.phase === "failed" && state.version))
         install(state.version!, state.test ?? null);
