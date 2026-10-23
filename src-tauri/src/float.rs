@@ -1,25 +1,34 @@
 // The floating timer: a small frameless, see-through window that shows the
-// running session while the main window is minimized or in the tray. It
-// rests as a round bubble and grows while the pointer is on it, to show the
-// category above and a shelf of buttons below.
+// running session while the main window is minimized or in the tray. The
+// window is always its full open size and never moves on its own, so the
+// bubble stays put; at rest it lets clicks through to the apps underneath,
+// and while the pointer is on the bubble it shows the category and a shelf of
+// buttons around it.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{
-    AppHandle, LogicalSize, Manager, Monitor, PhysicalPosition, Runtime, State, WebviewUrl, WebviewWindow,
+    AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition, Runtime, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
 
 pub const LABEL: &str = "float";
 
-// Logical sizes of the window while resting and while open, and how far the
-// window moves (up and left) when it opens so the bubble stays put. They match
-// the layout in src/float.css.
+// Logical size of the window, of the resting bubble's old window (the saved
+// spot is that window's top-left corner, the bubble 10px in), and where that
+// resting spot sits inside the window. They match the layout in src/float.css.
+const OPEN: (f64, f64) = (300.0, 272.0);
 const REST: (f64, f64) = (112.0, 112.0);
-const OPEN: (f64, f64) = (220.0, 204.0);
-const SHIFT: (f64, f64) = (54.0, 38.0);
-// Space kept between the open window and the screen edges in the default corner.
-const MARGIN: f64 = 16.0;
+const SHIFT: (f64, f64) = (94.0, 80.0);
+// The bubble inside the resting spot.
+const BUBBLE: (f64, f64, f64) = (10.0, 10.0, 92.0);
+// Room kept beside and under the resting spot in the default corner, so the
+// category and buttons fit centred on the bubble.
+const ROOM: (f64, f64) = (46.0, 66.0);
+// How often the pointer is checked, and how many checks off the timer close it.
+const TICK: Duration = Duration::from_millis(50);
+const LEAVE_TICKS: u32 = 7;
 
 #[derive(Default)]
 pub struct Float(Mutex<Inner>);
@@ -31,13 +40,24 @@ struct Inner {
     /// The main window is minimized or hidden in the tray.
     away: bool,
     on_top: bool,
-    /// Open (pointer on it) rather than resting.
+    /// Showing the category and buttons (pointer on it) rather than resting.
     open: bool,
-    /// Where the resting window's top-left corner is, in physical pixels.
+    /// Checks in a row with the pointer off the open timer.
+    off_ticks: u32,
+    /// Where the resting spot's top-left corner is, in physical pixels.
     rest: Option<(i32, i32)>,
-    /// Where the window was put when it opened, to tell a drag from our own move.
-    open_at: (i32, i32),
     loaded: bool,
+}
+
+/// How much of the open window runs off the screen on each side, in logical
+/// pixels, so the category and buttons can move to stay in sight.
+#[derive(Clone, serde::Serialize)]
+struct Opened {
+    open: bool,
+    left: f64,
+    right: f64,
+    top: f64,
+    bottom: f64,
 }
 
 fn saved_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
@@ -88,7 +108,7 @@ fn monitor_at<R: Runtime>(app: &AppHandle<R>, x: i32, y: i32) -> Option<Monitor>
     })
 }
 
-/// Where the resting bubble goes: where it was left, if that spot is still on
+/// Where the resting spot goes: where it was left, if that spot is still on
 /// a screen, otherwise the bottom-right corner of the main screen.
 fn rest_spot<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> {
     if let Some((x, y)) = s.rest {
@@ -101,21 +121,23 @@ fn rest_spot<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> {
     let m = app.primary_monitor().ok().flatten()?;
     let scale = m.scale_factor();
     let (mx, my, w, h) = area(&m);
-    // Room for the open window's edges beside and under the bubble, so opening
-    // it never runs off the screen.
-    let side = (OPEN.0 - SHIFT.0 - REST.0) * scale;
-    let below = (OPEN.1 - SHIFT.1 - REST.1) * scale;
-    let x = mx + w - ((REST.0 + MARGIN) * scale + side) as i32;
-    let y = my + h - ((REST.1 + MARGIN) * scale + below) as i32;
+    let x = mx + w - ((REST.0 + ROOM.0) * scale) as i32;
+    let y = my + h - ((REST.1 + ROOM.1) * scale) as i32;
     Some((x, y))
 }
 
-/// Makes the (hidden) window when Stint starts. Making it later, from a window
-/// event or a command, can lock up on Windows.
+/// The window's top-left corner for a resting spot.
+fn window_at(rest: (i32, i32), scale: f64) -> (i32, i32) {
+    (rest.0 - (SHIFT.0 * scale) as i32, rest.1 - (SHIFT.1 * scale) as i32)
+}
+
+/// Makes the (hidden) window when Stint starts, and the loop that watches the
+/// pointer. Making the window later, from a window event or a command, can
+/// lock up on Windows.
 pub fn create<R: Runtime>(app: &AppHandle<R>) {
     let _ = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
         .title("Stint")
-        .inner_size(REST.0, REST.1)
+        .inner_size(OPEN.0, OPEN.1)
         .decorations(false)
         .transparent(true)
         .shadow(false)
@@ -127,6 +149,71 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) {
         .focused(false)
         .visible(false)
         .build();
+    let app = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(TICK);
+        watch(&app);
+    });
+}
+
+/// Opens the timer when the pointer comes onto the bubble, and closes it a
+/// moment after the pointer leaves the window. The window lets clicks through
+/// while resting, so the page itself can't see the pointer arrive.
+fn watch<R: Runtime>(app: &AppHandle<R>) {
+    let float = app.state::<Float>();
+    let Ok(mut s) = float.0.try_lock() else { return };
+    if !(s.active && s.away) {
+        return;
+    }
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    let (Ok(p), Ok(at)) = (app.cursor_position(), w.outer_position()) else { return };
+    let scale = w.scale_factor().unwrap_or(1.0);
+    let (px, py) = ((p.x - at.x as f64) / scale, (p.y - at.y as f64) / scale);
+    if s.open {
+        let inside = px >= 0.0 && py >= 0.0 && px < OPEN.0 && py < OPEN.1;
+        s.off_ticks = if inside { 0 } else { s.off_ticks + 1 };
+        if s.off_ticks >= LEAVE_TICKS {
+            close_shelf(&w, &mut s);
+        }
+        return;
+    }
+    let r = BUBBLE.2 / 2.0;
+    let (cx, cy) = (SHIFT.0 + BUBBLE.0 + r, SHIFT.1 + BUBBLE.1 + r);
+    if (px - cx).hypot(py - cy) <= r {
+        open_shelf(app, &w, &mut s);
+    }
+}
+
+fn open_shelf<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inner) {
+    s.open = true;
+    s.off_ticks = 0;
+    let _ = w.set_ignore_cursor_events(false);
+    let mut opened = Opened { open: true, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 };
+    if let Ok(at) = w.outer_position() {
+        let scale = w.scale_factor().unwrap_or(1.0);
+        let r = ((SHIFT.0 + BUBBLE.0 + BUBBLE.2 / 2.0) * scale) as i32;
+        let b = ((SHIFT.1 + BUBBLE.1 + BUBBLE.2 / 2.0) * scale) as i32;
+        if let Some(m) = monitor_at(app, at.x + r, at.y + b) {
+            let (mx, my, mw, mh) = area(&m);
+            let (ow, oh) = (OPEN.0 * scale, OPEN.1 * scale);
+            let (x, y) = (at.x as f64, at.y as f64);
+            opened.left = (mx as f64 - x).max(0.0) / scale;
+            opened.top = (my as f64 - y).max(0.0) / scale;
+            opened.right = (x + ow - (mx + mw) as f64).max(0.0) / scale;
+            opened.bottom = (y + oh - (my + mh) as f64).max(0.0) / scale;
+        }
+    }
+    let _ = app.emit_to(LABEL, "float-open", opened);
+}
+
+fn close_shelf<R: Runtime>(w: &WebviewWindow<R>, s: &mut Inner) {
+    if !s.open {
+        return;
+    }
+    s.open = false;
+    let _ = w.set_ignore_cursor_events(true);
+    let _ = w.app_handle().emit_to(LABEL, "float-open", Opened { open: false, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 });
+    save(w.app_handle(), s.rest);
 }
 
 /// Shows or hides the floating timer to match the current state.
@@ -145,24 +232,19 @@ fn apply<R: Runtime>(app: &AppHandle<R>, s: &mut Inner) {
         return;
     }
     s.open = false;
-    let _ = w.set_size(LogicalSize::new(REST.0, REST.1));
-    if let Some((x, y)) = rest_spot(app, s) {
-        let _ = w.set_position(PhysicalPosition::new(x, y));
-        s.rest = Some((x, y));
-    }
+    place(app, &w, s);
+    let _ = w.set_ignore_cursor_events(true);
     let _ = w.show();
 }
 
-fn close_shelf<R: Runtime>(w: &WebviewWindow<R>, s: &mut Inner) {
-    if !s.open {
-        return;
-    }
-    s.open = false;
-    if let Some((x, y)) = s.rest {
+/// Puts the window around the resting spot.
+fn place<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inner) {
+    let _ = w.set_size(LogicalSize::new(OPEN.0, OPEN.1));
+    if let Some(rest) = rest_spot(app, s) {
+        let (x, y) = window_at(rest, w.scale_factor().unwrap_or(1.0));
         let _ = w.set_position(PhysicalPosition::new(x, y));
+        s.rest = Some(rest);
     }
-    let _ = w.set_size(LogicalSize::new(REST.0, REST.1));
-    save(w.app_handle(), s.rest);
 }
 
 /// Called when the main window is minimized, hidden or brought back.
@@ -179,19 +261,11 @@ pub fn set_away<R: Runtime>(app: &AppHandle<R>, away: bool) {
 /// Called when the floating window moves: a drag moves the bubble's home.
 pub fn moved<R: Runtime>(app: &AppHandle<R>, x: i32, y: i32) {
     let float = app.state::<Float>();
-    // Busy means this is our own move (opening, closing, placing), not a drag.
+    // Busy means this is our own move (placing it), not a drag.
     let Ok(mut s) = float.0.try_lock() else { return };
-    if s.open {
-        let (ox, oy) = s.open_at;
-        if (x, y) != (ox, oy) {
-            if let Some((rx, ry)) = s.rest {
-                s.rest = Some((rx + x - ox, ry + y - oy));
-            }
-            s.open_at = (x, y);
-        }
-    } else if s.rest.is_some() && s.rest != Some((x, y)) {
-        s.rest = Some((x, y));
-    }
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    let scale = w.scale_factor().unwrap_or(1.0);
+    s.rest = Some((x + (SHIFT.0 * scale) as i32, y + (SHIFT.1 * scale) as i32));
 }
 
 /// The main window says whether a session runs (and the feature is on) and
@@ -204,39 +278,6 @@ pub fn float_config(app: AppHandle, float: State<Float>, active: bool, on_top: b
     apply(&app, &mut s);
 }
 
-/// Grows the window while the pointer is on the bubble, and shrinks it back.
-#[tauri::command]
-pub fn float_expand(app: AppHandle, float: State<Float>, open: bool) {
-    let mut s = float.0.lock().unwrap();
-    let Some(w) = app.get_webview_window(LABEL) else { return };
-    if !open {
-        close_shelf(&w, &mut s);
-        return;
-    }
-    if s.open {
-        return;
-    }
-    let Some((rx, ry)) = s.rest.or_else(|| w.outer_position().ok().map(|p| (p.x, p.y))) else {
-        return;
-    };
-    let scale = w.scale_factor().unwrap_or(1.0);
-    let (ow, oh) = ((OPEN.0 * scale) as i32, (OPEN.1 * scale) as i32);
-    let mut x = rx - (SHIFT.0 * scale) as i32;
-    let mut y = ry - (SHIFT.1 * scale) as i32;
-    // Keep the open window on the bubble's screen.
-    let half = (REST.0 * scale / 2.0) as i32;
-    if let Some(m) = monitor_at(&app, rx + half, ry + half) {
-        let (mx, my, mw, mh) = area(&m);
-        x = x.clamp(mx, (mx + mw - ow).max(mx));
-        y = y.clamp(my, (my + mh - oh).max(my));
-    }
-    s.rest = Some((rx, ry));
-    s.open = true;
-    s.open_at = (x, y);
-    let _ = w.set_size(LogicalSize::new(OPEN.0, OPEN.1));
-    let _ = w.set_position(PhysicalPosition::new(x, y));
-}
-
 /// Forgets where the bubble was dragged and puts it back in the corner.
 #[tauri::command]
 pub fn float_reset(app: AppHandle, float: State<Float>) {
@@ -245,11 +286,6 @@ pub fn float_reset(app: AppHandle, float: State<Float>) {
     s.rest = None;
     save(&app, None);
     if let Some(w) = app.get_webview_window(LABEL) {
-        s.open = false;
-        let _ = w.set_size(LogicalSize::new(REST.0, REST.1));
-        if let Some((x, y)) = rest_spot(&app, &s) {
-            let _ = w.set_position(PhysicalPosition::new(x, y));
-            s.rest = Some((x, y));
-        }
+        place(&app, &w, &mut s);
     }
 }
