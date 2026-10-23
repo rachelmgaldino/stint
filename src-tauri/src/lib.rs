@@ -231,6 +231,7 @@ pub fn run() {
             google::google_request,
             updates::update_check,
             updates::update_install,
+            updates::update_test_builds,
             float::float_config,
             float::float_reset,
             float_open,
