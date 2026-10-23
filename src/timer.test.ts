@@ -5,6 +5,7 @@ import {
   formatDuration,
   parseDuration,
   heat,
+  heatFor,
   idle,
   moveStart,
   pause,
@@ -126,13 +127,20 @@ describe("formatting", () => {
     for (const text of ["", "abc", "1:75", "1h75", "-5", "1h-"]) expect(parseDuration(text), text).toBeNull();
   });
 
-  it("warms the mascot after an hour of focus and overheats it after two", () => {
-    const t = start("focus", 180 * MIN, 0);
-    expect(heat(t, 60 * MIN)).toBe(0);
-    expect(heat(t, 61 * MIN)).toBe(1);
-    expect(heat(t, 120 * MIN)).toBe(1);
-    expect(heat(t, 121 * MIN)).toBe(2);
-    expect(heat(pause(t, 90 * MIN), 200 * MIN)).toBe(1);
+  it("warms the mascot past one hour of focus and overheats it past two", () => {
+    expect(heatFor(60)).toBe(0);
+    expect(heatFor(61)).toBe(1);
+    expect(heatFor(120)).toBe(1);
+    expect(heatFor(121)).toBe(2);
+  });
+
+  it("heats a running session by the time focused so far, overtime included", () => {
+    expect(heat(start("focus", 150 * MIN, 0), 1 * MIN)).toBe(0);
+    expect(heat(start("focus", 150 * MIN, 0), 61 * MIN)).toBe(1);
+    expect(heat(start("focus", 150 * MIN, 0), 121 * MIN)).toBe(2);
+    // A 50 minute session left running into overtime.
+    expect(heat(start("focus", 50 * MIN, 0), 70 * MIN)).toBe(1);
+    expect(heat(pause(start("focus", 90 * MIN, 0), 30 * MIN), 200 * MIN)).toBe(0);
     expect(heat(start("break", 180 * MIN, 0), 150 * MIN)).toBe(0);
     expect(heat(idle, 150 * MIN)).toBe(0);
   });
