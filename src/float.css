@@ -1,6 +1,6 @@
-/* The floating timer window. Sizes match REST, OPEN and SHIFT in
-   src-tauri/src/float.rs: resting the window is 112 x 112 with the bubble
-   10px in; open it is 220 x 204 with the bubble at 64, 48. */
+/* The floating timer window. Sizes match OPEN, SHIFT and BUBBLE in
+   src-tauri/src/float.rs: the window is always 300 x 272 with the bubble at
+   104, 90; FloatTimer.tsx places the category and the buttons around it. */
 
 html.float-window,
 html.float-window body,
@@ -9,33 +9,73 @@ html.float-window #root {
   overflow: hidden;
 }
 
+/* By day the bubble is light like the rest of the desktop; by night it takes
+   the dark colours of the mini timer bar. */
 .float {
   position: fixed;
   inset: 0;
   font-family: var(--body);
-  color: var(--bar-text);
-  --float-shadow: 0 0 0 var(--bar-ring) var(--bar-edge), 0 4px 10px var(--bar-shadow);
+  color: var(--float-text);
+  --float-bg: var(--surface);
+  --float-text: var(--text);
+  --float-track: var(--track);
+  --float-btn: var(--sunken);
+  --float-ring: 0px;
+  --float-edge: transparent;
+  --float-glow: rgb(var(--shade) / 0.3);
+  --float-shadow: 0 0 0 var(--float-ring) var(--float-edge), 0 4px 10px var(--float-glow);
+}
+
+:root[data-look="mochi"] .float {
+  --float-ring: 3px;
+  --float-edge: var(--line);
+}
+
+:root[data-look="notebook"] .float {
+  --float-ring: 2px;
+  --float-edge: var(--ink);
+}
+
+:root[data-look="riso"] .float {
+  --float-glow: var(--bar-shadow);
+}
+
+:root[data-theme="dark"] .float {
+  --float-bg: var(--bar);
+  --float-text: var(--bar-text);
+  --float-track: rgb(255 255 255 / 0.12);
+  --float-btn: rgb(255 255 255 / 0.12);
+  --float-ring: var(--bar-ring);
+  --float-edge: var(--bar-edge);
+  --float-glow: var(--bar-shadow);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .float {
+    --float-bg: var(--bar);
+    --float-text: var(--bar-text);
+    --float-track: rgb(255 255 255 / 0.12);
+    --float-btn: rgb(255 255 255 / 0.12);
+    --float-ring: var(--bar-ring);
+    --float-edge: var(--bar-edge);
+    --float-glow: var(--bar-shadow);
+  }
 }
 
 .float-bubble {
   position: absolute;
-  left: 10px;
-  top: 10px;
+  left: 104px;
+  top: 90px;
   width: 92px;
   height: 92px;
   border-radius: 50%;
-  background: var(--bar);
+  background: var(--float-bg);
   box-shadow: var(--float-shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: grab;
-}
-
-.float.open .float-bubble {
-  left: 64px;
-  top: 48px;
 }
 
 .float.break .float-bubble,
@@ -59,7 +99,7 @@ html.float-window #root {
 }
 
 .float-ring .track {
-  stroke: rgb(255 255 255 / 0.12);
+  stroke: var(--float-track);
 }
 
 .float.break .float-ring .track {
@@ -127,14 +167,11 @@ html.float-window #root {
 
 .float-tag {
   position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
   max-width: 196px;
   height: 30px;
   padding: 0 13px;
   border-radius: 999px;
-  background: var(--bar);
+  background: var(--float-bg);
   box-shadow: var(--float-shadow);
   display: inline-flex;
   align-items: center;
@@ -158,14 +195,11 @@ html.float-window #root {
 
 .float-shelf {
   position: absolute;
-  top: 148px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   gap: 5px;
   padding: 6px;
   border-radius: 20px;
-  background: var(--bar);
+  background: var(--float-bg);
   box-shadow: var(--float-shadow);
 }
 
@@ -177,7 +211,7 @@ html.float-window #root {
   align-items: center;
   justify-content: center;
   color: inherit;
-  background: rgb(255 255 255 / 0.12);
+  background: var(--float-btn);
   cursor: pointer;
 }
 
@@ -206,6 +240,6 @@ html.float-window #root {
 }
 
 .float-btn:focus-visible {
-  outline: 2px solid var(--bar-text);
+  outline: 2px solid var(--float-text);
   outline-offset: 1px;
 }

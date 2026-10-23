@@ -1,13 +1,14 @@
 // Dev-only page that draws the floating timer in each state, for screenshots:
 // /?float&look=lavender|mochi|notebook|riso&theme=light|dark&lang=en|pt-BR, add &desk=1
-// (with &open=1&kind=break) for one bubble over a pretend desktop.
+// (with &open=1&kind=break, and &edge=right|bottom|top for a bubble pushed
+// against that screen edge) for one bubble over a pretend desktop.
 
 import type { Language } from "../i18n";
 import type { Look } from "../look";
 import type { Theme } from "../store";
 import type { FloatState } from "../float";
 import * as T from "../timer";
-import { FloatTimer } from "./FloatTimer";
+import { FloatTimer, type FloatEdges } from "./FloatTimer";
 import "./FloatPreview.css";
 
 const q = new URLSearchParams(location.search);
@@ -32,11 +33,19 @@ const brk: FloatState = {
 };
 const paused: FloatState = { ...focus(12), timer: T.pause(focus(12).timer, NOW) };
 
-function Frame({ state, open, label }: { state: FloatState; open: boolean; label?: string }) {
+// How far the window runs off the pretend screen in each spot (see .fpv-spot).
+const EDGES: Record<string, FloatEdges> = {
+  corner: { left: 0, right: 48, top: 0, bottom: 14 },
+  right: { left: 0, right: 100, top: 0, bottom: 14 },
+  bottom: { left: 0, right: 48, top: 0, bottom: 84 },
+  top: { left: 0, right: 48, top: 80, bottom: 0 },
+};
+
+function Frame({ state, open, label, edges }: { state: FloatState; open: boolean; label?: string; edges?: FloatEdges }) {
   return (
     <figure className="fpv-fig">
-      <div className={open ? "fpv-frame open" : "fpv-frame"}>
-        <FloatTimer preview={{ state, open, now: NOW }} />
+      <div className="fpv-frame">
+        <FloatTimer preview={{ state, open, now: NOW, edges }} />
       </div>
       {label && <figcaption>{label}</figcaption>}
     </figure>
@@ -63,8 +72,8 @@ export function FloatPreview() {
             ))}
           </div>
         </div>
-        <div className={open ? "fpv-spot open" : "fpv-spot"}>
-          <Frame state={q.get("kind") === "break" ? brk : focus(18)} open={open} />
+        <div className={`fpv-spot ${q.get("edge") ?? "corner"}`}>
+          <Frame state={q.get("kind") === "break" ? brk : focus(18)} open={open} edges={EDGES[q.get("edge") ?? "corner"]} />
         </div>
         <div className="fpv-taskbar">
           <span />

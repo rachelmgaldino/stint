@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as T from "../timer";
@@ -47,28 +46,75 @@ const StopIcon = () => (
 
 const send = (a: FloatAction) => void emitTo("main", "float-action", a).catch(() => {});
 
+/** How much of the window runs off the screen on each side, from src-tauri/src/float.rs. */
+export type FloatEdges = { left: number; right: number; top: number; bottom: number };
+type Opened = FloatEdges & { open: boolean };
+
+const NO_EDGES: FloatEdges = { left: 0, right: 0, top: 0, bottom: 0 };
+// The window and the bubble inside it, matching OPEN, SHIFT and BUBBLE in float.rs.
+const WIN = { w: 300, h: 272 };
+const BUB = { x: 104, y: 90, size: 92 };
+const GAP = 8;
+const PAD = 4;
+
+/**
+ * Where the category and the shelf of buttons go: centred on the bubble,
+ * the category above and the buttons below, nudged sideways or moved to the
+ * other side of the bubble when that part of the window is off the screen.
+ * The bubble itself never moves.
+ */
+function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges): { tag: CSSProperties; shelf: CSSProperties } {
+  const cx = BUB.x + BUB.size / 2;
+  const x = (w: number) => Math.max(e.left + PAD, Math.min(cx - w / 2, WIN.w - e.right - PAD - w));
+  const below = BUB.y + BUB.size + GAP;
+  let shelfTop = below;
+  let tagTop = BUB.y - GAP - tag.height;
+  if (shelfTop + shelf.height > WIN.h - e.bottom - PAD) {
+    shelfTop = BUB.y - GAP - shelf.height;
+    tagTop = shelfTop - 6 - tag.height;
+  } else if (tagTop < e.top + PAD) {
+    tagTop = shelfTop + shelf.height + 6;
+  }
+  return {
+    tag: { left: x(tag.width), top: tagTop },
+    shelf: { left: x(shelf.width), top: shelfTop },
+  };
+}
+
 /**
  * The floating timer's own window: a round bubble with the mascot, the time
- * and a ring that fills like the dial. With the pointer on it, the window
- * grows to show the category above and the buttons below.
+ * and a ring that fills like the dial. With the pointer on it, the category
+ * and a shelf of buttons show around it. The Rust side watches the pointer,
+ * since the window lets clicks through to other apps while resting.
  */
-export function FloatTimer({ preview }: { preview?: { state: FloatState; open: boolean; now: number } }) {
+export function FloatTimer({ preview }: { preview?: { state: FloatState; open: boolean; now: number; edges?: FloatEdges } }) {
   const [state, setState] = useState<FloatState | null>(preview?.state ?? null);
   const [now, setNow] = useState(preview?.now ?? Date.now());
-  const [open, setOpen] = useState(preview?.open ?? false);
-  const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [opened, setOpened] = useState<Opened>({ open: preview?.open ?? false, ...(preview?.edges ?? NO_EDGES) });
+  const [place, setPlace] = useState<{ tag: CSSProperties; shelf: CSSProperties } | null>(null);
+  const tagRef = useRef<HTMLSpanElement>(null);
+  const shelfRef = useRef<HTMLDivElement>(null);
+  const open = opened.open;
 
   useEffect(() => {
     document.documentElement.classList.add("float-window");
     if (preview) return;
     const off = listen<FloatState>("float-state", (e) => setState(e.payload));
+    const offOpen = listen<Opened>("float-open", (e) => setOpened(e.payload));
     void emitTo("main", "float-ready").catch(() => {});
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => {
       void off.then((f) => f());
+      void offOpen.then((f) => f());
       clearInterval(id);
     };
   }, []);
+
+  // Measured before painting, so the parts appear straight in their place.
+  useLayoutEffect(() => {
+    if (!open || !tagRef.current || !shelfRef.current) return setPlace(null);
+    setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened));
+  }, [opened, state]);
 
   useEffect(() => {
     if (!state) return;
@@ -77,22 +123,6 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
     if (state.theme === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", state.theme);
   }, [state]);
-
-  const show = (v: boolean) => {
-    if (closing.current) clearTimeout(closing.current);
-    closing.current = null;
-    if (v === open) return;
-    if (v) {
-      setOpen(true);
-      void invoke("float_expand", { open: true }).catch(() => {});
-      return;
-    }
-    // A short wait, so brushing past the edge doesn't make it jump.
-    closing.current = setTimeout(() => {
-      setOpen(false);
-      void invoke("float_expand", { open: false }).catch(() => {});
-    }, 350);
-  };
 
   if (!state || state.timer.status === "idle") return null;
   setLanguage(state.language);
@@ -115,11 +145,9 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   return (
     <div
       className={["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : ""].join(" ")}
-      onMouseLeave={() => show(false)}
-      onMouseEnter={() => open && show(true)}
     >
       {open && (
-        <span className="float-tag">
+        <span className="float-tag" ref={tagRef} style={place?.tag ?? { visibility: "hidden" }}>
           {color && <span className="dot" style={{ background: color }} />}
           <span className="float-tag-name">{tag}</span>
         </span>
@@ -129,7 +157,6 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
         role="timer"
         aria-label={`${tag} ${dialClock(left)}`}
         title={text.float.open}
-        onMouseEnter={() => show(true)}
         onMouseDown={drag}
         onDoubleClick={() => send("open")}
       >
@@ -156,7 +183,7 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
         )}
       </div>
       {open && (
-        <div className="float-shelf">
+        <div className="float-shelf" ref={shelfRef} style={place?.shelf ?? { visibility: "hidden" }}>
           {focus ? (
             <button className="float-btn" title={text.timer.takeBreak} aria-label={text.timer.takeBreak} onClick={() => send("break")}>
               <CoffeeIcon />

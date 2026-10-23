@@ -17,8 +17,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  gap: 28px;
-  padding: 30px 20px;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  padding: 10px;
 }
 
 .fpv-fig {
@@ -27,10 +28,6 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-}
-
-.fpv-board .fpv-fig:not(:has(.open)) {
-  margin-top: 38px;
 }
 
 .fpv-fig figcaption {
@@ -46,14 +43,9 @@
 /* The window's own size; the transform makes the bubble's fixed layout sit inside it. */
 .fpv-frame {
   position: relative;
-  width: 112px;
-  height: 112px;
+  width: 300px;
+  height: 272px;
   transform: translateZ(0);
-}
-
-.fpv-frame.open {
-  width: 220px;
-  height: 204px;
 }
 
 .fpv-app {
@@ -112,16 +104,25 @@
   background: #3a3a3a;
 }
 
-/* Where the Rust side puts it by default: room for the open window's edges. */
+/* Where the Rust side puts it by default (ROOM in float.rs), and spots pushed
+   against a screen edge. The window may run off the screen; the taskbar is 48px. */
 .fpv-spot {
   position: absolute;
-  right: 70px;
-  bottom: 120px;
+  right: -48px;
+  bottom: 34px;
 }
 
-.fpv-spot.open {
-  right: 16px;
-  bottom: 66px;
+.fpv-spot.right {
+  right: -100px;
+}
+
+.fpv-spot.bottom {
+  bottom: -36px;
+}
+
+.fpv-spot.top {
+  bottom: auto;
+  top: -80px;
 }
 
 .fpv-taskbar {
