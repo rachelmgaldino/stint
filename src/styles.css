@@ -4191,3 +4191,126 @@ select.select-pill {
   font-weight: 700;
   color: var(--muted);
 }
+
+.mode-switch {
+  width: min(320px, 100%);
+}
+
+.mode-switch button {
+  gap: 6px;
+}
+
+.mode-switch svg {
+  width: 16px;
+  height: 16px;
+}
+
+.length-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.length-stepper .step {
+  width: 48px;
+  height: 44px;
+  padding: 0;
+  font-size: 22px;
+}
+
+.stepper-value {
+  min-width: 92px;
+  text-align: center;
+  font-family: var(--display, inherit);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.stepper-value.is-off {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.length-stepper .flow-chip {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sunken);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.length-stepper .flow-chip[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--surface);
+}
+
+.length-menu {
+  position: relative;
+}
+
+.length-pill {
+  height: 44px;
+  padding: 0 14px 0 20px;
+  border-radius: 999px;
+  background: var(--sunken);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.length-pill svg {
+  width: 16px;
+  height: 16px;
+}
+
+.length-pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgb(40 30 70 / 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.length-pop button {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.length-pop button[aria-checked="true"] {
+  background: var(--sunken);
+}
+
+.length-pop .pop-flow {
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 14px 14px;
+}
+
+.length-pop small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.length-pop svg {
+  width: 16px;
+  height: 16px;
+}
