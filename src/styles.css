@@ -3940,3 +3940,207 @@ select.select-pill {
   box-shadow: none;
   cursor: default;
 }
+
+/* Intention suggestions: recent ones as chips under the empty field, and a
+   list of past intentions that match while typing. */
+.intention-box {
+  position: relative;
+}
+
+.intention-box > input {
+  width: 100%;
+}
+
+.intention-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1.5px var(--line), 0 16px 36px rgb(var(--shade) / 0.22);
+}
+
+.intention-list.recent-list {
+  display: none;
+}
+
+.intention-list-head {
+  padding: 6px 10px 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.intention-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 14px;
+  text-align: left;
+  background: transparent;
+  font-size: 15px;
+}
+
+.intention-row.active {
+  background: var(--sunken);
+}
+
+.intention-row .dot {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+}
+
+.intention-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.intention-row-text mark {
+  background: none;
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: var(--apricot);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 3px;
+}
+
+.intention-row-meta {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.recent-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.recent-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.recent-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.recent-chip {
+  max-width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--soft);
+  box-shadow: inset 0 0 0 1.5px var(--sunken);
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-chip:hover {
+  background: var(--sunken);
+}
+
+/* The intention while a session runs: tap it to change it, or add one. */
+.stage-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  border-radius: 12px;
+}
+
+.stage-title-pen {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.stage-title:hover .stage-title-pen {
+  background: var(--sunken);
+  color: var(--text);
+}
+
+.add-intention {
+  align-self: flex-start;
+  height: 34px;
+  padding: 0 14px 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  border: 1.5px dashed transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.add-intention:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.stage-intention {
+  max-width: 460px;
+}
+
+.stage-intention input {
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* The reflection drawer's own field takes the plan card's input shape. */
+.drawer .intention-field input {
+  height: 50px;
+  padding: 0 16px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.stage-intention .field > span {
+  display: none;
+}
+
+.intention-list.recent-list.no-chips {
+  display: flex;
+}
+
+.stage-title.is-empty .stage-title-pen {
+  display: none;
+}
