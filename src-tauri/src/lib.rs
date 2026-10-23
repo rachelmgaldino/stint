@@ -232,7 +232,6 @@ pub fn run() {
             updates::update_check,
             updates::update_install,
             float::float_config,
-            float::float_expand,
             float::float_reset,
             float_open,
         ])
