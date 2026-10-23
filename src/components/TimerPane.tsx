@@ -7,7 +7,7 @@ import * as T from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, ChevronDownIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
 import { IntentionField } from "./IntentionField";
 import type { PastIntention } from "../intentions";
@@ -66,8 +66,6 @@ export function dialClock(ms: number): string {
   return h ? `${h}:${rest}` : rest;
 }
 
-const lengths = { focus: [25, 50, 60, 90], break: [5, 10, 15, 20] };
-
 /** "0:42" style count-up for flow: whole seconds gone, never rounded up. */
 export function upClock(ms: number): string {
   const total = Math.floor(Math.max(0, ms) / 1000);
@@ -76,9 +74,6 @@ export function upClock(ms: number): string {
   const rest = `${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
   return h ? `${h}:${rest}` : rest;
 }
-
-// Prototype only: which way of picking flow to draw (?flowpick=a|b|c).
-const flowPick = (new URLSearchParams(location.search).get("flowpick") ?? "b1") as "b1" | "b2" | "b3" | "b4";
 
 // Peach for the first hour, then pink, then periwinkle.
 const focusLaps: Lap[] = [
@@ -259,7 +254,7 @@ export function TimerPane(p: Props) {
           </div>
           {/* − and + move the end by 5 minutes; the times between them open the start editor.
               Flow has no end to move, so only the start is left. */}
-          <div className={flow ? "button-row adjust-row flow" : "button-row adjust-row"}>
+          <div className="button-row adjust-row">
             {!flow && (
               <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
                 −
@@ -412,123 +407,19 @@ export function TimerPane(p: Props) {
 
       <section className="card dial-card" aria-label={text.sessionLength}>
         {dial(80)}
-        <LengthPicker
-          kind={kind}
-          flow={flow}
-          plannedMin={p.plannedMin}
-          onPlannedMin={p.onPlannedMin}
-          onFlow={p.onFlow}
-        />
+        {/* How the session ends: at the length set on the dial, or when you stop. Breaks only have the dial. */}
+        {kind === "focus" && (
+          <div className="segmented round mode-switch" role="group" aria-label={text.endsHow}>
+            <button aria-pressed={!flow} onClick={() => p.onFlow(false)}>
+              <ClockIcon /> {text.timerMode}
+            </button>
+            <button aria-pressed={flow} title={text.flowNote} onClick={() => p.onFlow(true)}>
+              <InfinityIcon /> {text.flow}
+            </button>
+          </div>
+        )}
         <p className="hint">{flow ? text.flowHint : text.dialHints[look()]}</p>
       </section>
-    </div>
-  );
-}
-
-type PickerProps = {
-  kind: T.Kind;
-  flow: boolean;
-  plannedMin: number;
-  onPlannedMin(m: number): void;
-  onFlow(on: boolean): void;
-};
-
-// Prototype: four ways to fit Flow in with the lengths.
-function LengthPicker(p: PickerProps) {
-  const text = t().timer;
-  const [open, setOpen] = useState(false);
-  const focus = p.kind === "focus";
-  const flowChip = (label = true) => (
-    <button className="flow-chip" aria-pressed={p.flow} title={text.flowNote} aria-label={text.flow} onClick={() => p.onFlow(true)}>
-      <InfinityIcon /> {label && text.flow}
-    </button>
-  );
-  const chips = (list: number[]) =>
-    list.map((m) => (
-      <button key={m} aria-pressed={!p.flow && p.plannedMin === m} onClick={() => p.onPlannedMin(m)}>
-        {text.minutes(m)}
-      </button>
-    ));
-
-  if (flowPick === "b1") {
-    return (
-      <div className="segmented round" role="group" aria-label={text.quickLengths}>
-        {chips(focus ? [25, 50] : [5, 10, 15])}
-        {focus && flowChip()}
-      </div>
-    );
-  }
-  if (flowPick === "b2") {
-    if (!focus) return null;
-    return (
-      <div className="segmented round mode-switch" role="group" aria-label={text.sessionType}>
-        <button aria-pressed={!p.flow} onClick={() => p.onFlow(false)}>
-          <ClockIcon /> {text.timerMode}
-        </button>
-        <button aria-pressed={p.flow} onClick={() => p.onFlow(true)}>
-          <InfinityIcon /> {text.flow}
-        </button>
-      </div>
-    );
-  }
-  if (flowPick === "b3") {
-    const max = focus ? 180 : 60;
-    const step = (d: number) => p.onPlannedMin(Math.min(max, Math.max(5, Math.round(p.plannedMin / 5) * 5 + d)));
-    return (
-      <div className="length-stepper">
-        <button className="soft-button step" aria-label={t().mini.less} onClick={() => step(-5)}>
-          −
-        </button>
-        <span className={p.flow ? "stepper-value is-off" : "stepper-value"}>{p.flow ? text.flowShort : text.minutes(p.plannedMin)}</span>
-        <button className="soft-button step" aria-label={t().mini.more} onClick={() => step(5)}>
-          +
-        </button>
-        {focus && flowChip()}
-      </div>
-    );
-  }
-  return (
-    <div className="length-menu">
-      <button className="length-pill" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {p.flow ? (
-          <>
-            <InfinityIcon /> {text.flow}
-          </>
-        ) : (
-          text.minutes(p.plannedMin)
-        )}
-        <ChevronDownIcon />
-      </button>
-      {open && (
-        <div className="length-pop" role="menu">
-          {lengths[p.kind].map((m) => (
-            <button
-              key={m}
-              role="menuitemradio"
-              aria-checked={!p.flow && p.plannedMin === m}
-              onClick={() => {
-                p.onPlannedMin(m);
-                setOpen(false);
-              }}
-            >
-              {text.minutes(m)}
-            </button>
-          ))}
-          {focus && (
-            <button
-              role="menuitemradio"
-              aria-checked={p.flow}
-              className="pop-flow"
-              onClick={() => {
-                p.onFlow(true);
-                setOpen(false);
-              }}
-            >
-              <InfinityIcon /> {text.flow} <small>{text.flowShort}</small>
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }

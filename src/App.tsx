@@ -425,6 +425,8 @@ export default function App() {
     // An event under way gets the time it has left, any other its full length.
     const n = Date.now();
     const from = e.start < n && e.end > n ? n : e.start;
+    // An event has an end, so it gets a timer, not flow.
+    if (settings.flow) void updateSettings({ ...settings, flow: false });
     setPlannedMin(Math.min(180, Math.max(1, Math.round((e.end - from) / 60_000))));
     setLive((l) => ({ ...l, intention: e.title }));
   };

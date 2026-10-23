@@ -185,26 +185,10 @@
     padding: 0 6px;
   }
 
-  .dial-card > .length-stepper,
-  .dial-card > .length-menu {
-    order: 6;
-    align-self: center;
-  }
-
   .dial-card > .mode-switch {
     order: 6;
     align-self: stretch;
     width: auto;
-  }
-
-  .dial-card > .flow-note {
-    order: 6;
-    min-height: 38px;
-    font-size: 14px;
-  }
-
-  .plan-card .flow-switch {
-    order: 3;
   }
 
   .dial-card > .hint,
