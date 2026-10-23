@@ -24,8 +24,9 @@ import {
 import { languages, t } from "../i18n";
 import type { Look } from "../look";
 import { Pip } from "./Pip";
-import { updatesAvailable, type Updater } from "../updates";
+import { testOf, updatesAvailable, type Updater } from "../updates";
 import { resetFloat } from "../float";
+import { clockTime, dayLabel } from "../dates";
 import { isTauri } from "@tauri-apps/api/core";
 
 type Props = {
@@ -299,7 +300,7 @@ export function SettingsView(p: Props) {
     {
       id: "app",
       name: text.app,
-      summary: current ? `${language} · ${text.version(current)}` : language,
+      summary: current ? `${language} · ${versionName(current)}` : language,
       intro: text.appIntro,
       tone: "lemon",
       icon: <GlobeIcon />,
@@ -613,6 +614,8 @@ export function SettingsView(p: Props) {
               updater={p.updater}
               auto={settings.checkUpdates}
               onAuto={(v) => set("checkUpdates", v)}
+              testBuilds={settings.testBuilds}
+              onTestBuilds={(v) => set("testBuilds", v)}
             />
           </div>
         );
@@ -664,9 +667,28 @@ export function SettingsView(p: Props) {
   );
 }
 
-function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolean; onAuto(v: boolean): void }) {
+/** "Stint 1.4.3", or "Stint · PR #49 test" on a test build. */
+function versionName(v: string): string {
+  const pr = testOf(v);
+  return pr === null ? t().settings.version(v) : t().settings.versionTest(pr);
+}
+
+function UpdatesCard({
+  updater,
+  auto,
+  onAuto,
+  testBuilds,
+  onTestBuilds,
+}: {
+  updater: Updater;
+  auto: boolean;
+  onAuto(v: boolean): void;
+  testBuilds: boolean;
+  onTestBuilds(v: boolean): void;
+}) {
   const text = t().settings;
-  const { state, current } = updater;
+  const { state, current, tests } = updater;
+  const onTest = testOf(current);
   if (!updatesAvailable()) {
     return (
       <Panel title={text.updates}>
@@ -676,15 +698,23 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
   }
 
   const pct = state.phase === "downloading" && state.fraction !== null ? Math.round(state.fraction * 100) : null;
+  // Leaving a test build for the release is a step back, not an update.
+  const back = state.phase === "available" && state.test === null && onTest !== null;
   const status =
     state.phase === "checking"
       ? text.updateChecking
       : state.phase === "latest"
-        ? text.updateLatest
+        ? onTest !== null && testBuilds
+          ? text.updateLatestTest
+          : text.updateLatest
         : state.phase === "available"
-          ? text.updateAvailable(state.version)
+          ? state.test !== null
+            ? text.updateAvailableTest(state.test)
+            : back
+              ? text.updateBack(state.version)
+              : text.updateAvailable(state.version)
           : state.phase === "downloading"
-            ? text.updateDownloading(state.version, pct)
+            ? text.updateDownloading(state.test !== null ? `PR #${state.test}` : state.version, pct)
             : state.phase === "installing"
               ? text.updateInstalling
               : state.phase === "failed"
@@ -699,7 +729,7 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
     <Panel title={text.updates}>
       <div className="row update-row" data-phase={state.phase}>
         <span>
-          {text.version(current)}
+          {versionName(current)}
           <span className="hint" role="status">
             {state.phase === "latest" && <span className="update-tick" aria-hidden />}
             {status}
@@ -707,7 +737,7 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
         </span>
         {ready ? (
           <button className="squishy small peri" onClick={updater.install}>
-            {state.phase === "failed" ? text.tryAgain : text.updateNow}
+            {state.phase === "failed" ? text.tryAgain : back ? text.goBack : text.updateNow}
           </button>
         ) : (
           !working && (
@@ -739,6 +769,45 @@ function UpdatesCard({ updater, auto, onAuto }: { updater: Updater; auto: boolea
         </div>
       )}
       <Switch label={text.autoUpdates} hint={text.autoUpdatesHint} checked={auto} onChange={onAuto} />
+      <Switch label={text.testBuilds} hint={text.testBuildsHint} checked={testBuilds} onChange={onTestBuilds} />
+      {testBuilds && (
+        <div className="test-builds">
+          {tests === null ? (
+            <p className="muted small">{text.testBuildsLoading}</p>
+          ) : tests.length === 0 ? (
+            <p className="muted small">{text.testBuildsNone}</p>
+          ) : (
+            tests.map((b, i) => {
+              const when = Date.parse(b.built);
+              return (
+                <div key={b.pr} className="test-build">
+                  <span>
+                    <span className="test-build-title">
+                      <span className="test-build-pr">#{b.pr}</span>
+                      {b.title}
+                    </span>
+                    <span className="hint">
+                      {i === 0 && <span className="test-build-newest">{text.newest}</span>}
+                      {text.testBuilt(`${dayLabel(when)}, ${clockTime(when)}`)}
+                    </span>
+                  </span>
+                  {b.version === current ? (
+                    <span className="test-build-installed">{text.installed}</span>
+                  ) : (
+                    <button
+                      className="soft-button small"
+                      disabled={working || state.phase === "checking"}
+                      onClick={() => updater.installTest(b.pr)}
+                    >
+                      {text.installTest}
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
       <p className="card-note">{text.updateKeeps}</p>
     </Panel>
   );

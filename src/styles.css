@@ -3892,6 +3892,78 @@ select.select-pill {
   transform: rotate(45deg);
 }
 
+/* The open PRs' test builds, under the Test builds switch. */
+.test-builds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--sunken);
+}
+
+.test-builds .soft-button {
+  background: var(--surface);
+}
+
+.test-builds > p {
+  margin: 4px 0;
+}
+
+.test-build {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  font-weight: 700;
+}
+
+.test-build + .test-build {
+  border-top: 1px dashed var(--line);
+  padding-top: 6px;
+}
+
+.test-build > span {
+  min-width: 0;
+}
+
+.test-build-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.test-build-pr {
+  margin-right: 8px;
+  color: var(--muted);
+}
+
+.test-build .hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.test-build-newest {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--peri);
+  color: var(--on-pastel);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.test-build-installed {
+  flex: 0 0 auto;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--matcha-lip);
+}
+
 .update-bar {
   height: 10px;
   margin: 2px 0 10px;

@@ -73,6 +73,8 @@ export type Settings = {
   calendar: CalendarSettings;
   /** Look for a new version when Stint opens and every few hours. */
   checkUpdates: boolean;
+  /** Also offer the "PR #N test" builds of open pull requests. */
+  testBuilds: boolean;
   /** Show a small floating timer while Stint is minimized or in the tray. */
   floatTimer: boolean;
   /** Keep the floating timer above other apps (the pin on the pill). */
@@ -125,6 +127,7 @@ export const defaultSettings: Settings = {
   overflowBreak: true,
   overflowBreakMinutes: 10,
   checkUpdates: true,
+  testBuilds: false,
   floatTimer: true,
   floatOnTop: true,
   calendar: { syncSessions: false, syncBreaks: false, targetId: null, syncSince: 0, showEvents: false, hidden: [] },

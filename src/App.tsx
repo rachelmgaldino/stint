@@ -129,7 +129,7 @@ export default function App() {
   const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
   const syncing = useRef(false);
   // Waits for the saved settings, so a switched-off automatic check never runs.
-  const updater = useUpdater(store !== null && settings.checkUpdates);
+  const updater = useUpdater(store !== null && settings.checkUpdates, settings.testBuilds);
 
   const { timer } = live;
   // Set before the children render, so they all read the chosen language and look.

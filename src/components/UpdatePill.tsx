@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import type { Updater } from "../updates";
+import { testOf, type Updater } from "../updates";
 
 /** Beside the name once the quiet check finds a new version; a click installs it. */
 export function UpdatePill({ updater }: { updater: Updater }) {
@@ -8,7 +8,11 @@ export function UpdatePill({ updater }: { updater: Updater }) {
   if (state.phase === "available") {
     return (
       <button type="button" className="update-pill" title={text.hint} onClick={updater.install}>
-        {text.ready(state.version)}
+        {state.test !== null
+          ? text.readyTest(state.test)
+          : testOf(updater.current) !== null
+            ? text.back(state.version)
+            : text.ready(state.version)}
       </button>
     );
   }
