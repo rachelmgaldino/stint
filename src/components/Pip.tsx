@@ -179,7 +179,7 @@ type PipProps = {
 export function Pip({ mood = "awake", size = 80, label, as, extraLeaves = 0, heat = 0 }: PipProps) {
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
   const which = as ?? look();
-  if (isPrintLook(which)) return <PrintMascot look={which} mood={mood} size={size} a11y={a11y} />;
+  if (isPrintLook(which)) return <PrintMascot look={which} mood={mood} size={size} a11y={a11y} heat={heat} />;
   if (which === "mochi") return <Mochi mood={mood} size={size} a11y={a11y} leaves={extraLeaves} heat={heat} />;
   const hot = heat > 0;
   return (
