@@ -24,7 +24,7 @@ import {
 import { languages, t } from "../i18n";
 import type { Look } from "../look";
 import { Pip } from "./Pip";
-import { testOf, updatesAvailable, type Updater } from "../updates";
+import { openPullRequest, testOf, updatesAvailable, type Updater } from "../updates";
 import { resetFloat } from "../float";
 import { clockTime, dayLabel } from "../dates";
 import { isTauri } from "@tauri-apps/api/core";
@@ -783,7 +783,14 @@ function UpdatesCard({
                 <div key={b.pr} className="test-build">
                   <span>
                     <span className="test-build-title">
-                      <span className="test-build-pr">#{b.pr}</span>
+                      <button
+                        type="button"
+                        className="test-build-pr"
+                        title={text.openPullRequest}
+                        onClick={() => openPullRequest(b.pr)}
+                      >
+                        #{b.pr}
+                      </button>
                       {b.title}
                     </span>
                     <span className="hint">

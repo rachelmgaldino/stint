@@ -27,7 +27,7 @@ const en = {
     back: (v: string) => `Back to ${v}`,
     test: (pr: number) => `PR #${pr} test`,
     testHint: (pr: number) =>
-      `You're on the test build of pull request #${pr}. Turn off Test builds in Settings to go back to the released version.`,
+      `You're on the test build of pull request #${pr}. Click to open it on GitHub. Turn off Test builds in Settings to go back to the released version.`,
   },
   tray: {
     idle: "Stint: not running",
@@ -440,6 +440,7 @@ const en = {
     newest: "Newest",
     installTest: "Install",
     installed: "Installed",
+    openPullRequest: "Open the pull request on GitHub",
     rhythm: "Focus & breaks",
     rhythmSummary: (focus: number, short: number, long: number) => `${focus} min focus · ${short}/${long} min breaks`,
     rhythmIntro: "How long things last and what the big button does.",
@@ -494,7 +495,7 @@ const ptBR: Strings = {
     back: (v) => `Voltar para ${v}`,
     test: (pr) => `Teste PR #${pr}`,
     testHint: (pr) =>
-      `Você está na versão de teste do PR #${pr}. Desligue Versões de teste nos Ajustes para voltar à versão lançada.`,
+      `Você está na versão de teste do PR #${pr}. Clique para abrir no GitHub. Desligue Versões de teste nos Ajustes para voltar à versão lançada.`,
   },
   tray: {
     idle: "Stint: parado",
@@ -904,6 +905,7 @@ const ptBR: Strings = {
     newest: "Mais nova",
     installTest: "Instalar",
     installed: "Instalada",
+    openPullRequest: "Abrir o PR no GitHub",
     rhythm: "Foco e pausas",
     rhythmSummary: (focus, short, long) => `${focus} min de foco · pausas de ${short}/${long} min`,
     rhythmIntro: "Quanto tudo dura e o que o botão grande faz.",

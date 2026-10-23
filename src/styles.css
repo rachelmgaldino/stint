@@ -3945,6 +3945,13 @@ select.select-pill {
 .test-build-pr {
   margin-right: 8px;
   color: var(--muted);
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.test-build-pr:hover {
+  color: var(--text);
 }
 
 .test-build .hint {
@@ -4028,7 +4035,12 @@ select.select-pill {
   font-weight: 800;
   letter-spacing: normal;
   white-space: nowrap;
-  cursor: default;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.test-tag:hover {
+  background: var(--soft);
 }
 
 .update-pill.busy {
