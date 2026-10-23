@@ -40,7 +40,7 @@ type Props = {
 };
 
 const themes: Theme[] = ["system", "light", "dark"];
-const looks: Look[] = ["lavender", "mochi"];
+const looks: Look[] = ["lavender", "mochi", "notebook", "riso"];
 
 function Stepper({
   label,
@@ -548,7 +548,7 @@ export function SettingsView(p: Props) {
                     <span className="theme-swatch">
                       <span />
                     </span>
-                    {(settings.look === "mochi" ? text.themesMochi : text.themes)[id]}
+                    {text.themeNames[settings.look][id]}
                   </button>
                 ))}
               </div>

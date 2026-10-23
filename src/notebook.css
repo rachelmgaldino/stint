@@ -1,0 +1,207 @@
+/* The Notebook look: a ruled page in blue pen by day, graphite paper by night, Memo the sticky note. */
+
+:root[data-look="notebook"] {
+  --ground: #efe8d8;
+  --surface: #fffdf6;
+  --sunken: #f3eee0;
+  --soft: #f8f4ea;
+  --raised: #f3eee0;
+  --line: #ddd5c2;
+  --text: #263a6e;
+  --muted: #5a6890;
+  --placeholder: #8590b0;
+  --seed: #d5cdb9;
+  --petal: #fff6c4;
+  --track: #ebe4d2;
+  --ink: #263a6e;
+  --ink-lip: #15214a;
+  --on-ink: #fffdf6;
+  --on-pastel: #263a6e;
+  --apricot: #ffdf5e;
+  --apricot-lip: #263a6e;
+  --peri: #a9c4f5;
+  --peri-lip: #263a6e;
+  --matcha: #b7e3a1;
+  --matcha-lip: #263a6e;
+  --lemon: #ffc99a;
+  --lemon-lip: #263a6e;
+  --bubblegum: #ffb3c7;
+  --bubblegum-lip: #263a6e;
+  --sky: #a9d8f5;
+  --danger: #d1453b;
+  --scrim: rgb(38 58 110 / 0.32);
+  --break-stage: #eaf5df;
+  --break-text: #263a6e;
+  --break-eyebrow: #3f7a3a;
+  --break-petal: #d6edc6;
+  --break-track: #b7e3a1;
+  --heading: "Shantell Sans Variable", "Comic Sans MS", cursive;
+  --body: "Lexend Variable", "Segoe UI", system-ui, sans-serif;
+  --sticker: #fffdf6;
+  --dots: #d9e3f3;
+  --bar: #263a6e;
+  --bar-text: #fffdf6;
+  --bar-ring: 2px;
+  --bar-edge: #263a6e;
+  --bar-shadow: rgb(38 58 110 / 0.25);
+  --bar-deep: #263a6e;
+  --bar-deep-text: #fffdf6;
+  --shade: 38 58 110;
+  --rose: #f28da6;
+  --margin: #f2a3a3;
+  --pen: #263a6e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look="notebook"]:not([data-theme="light"]) {
+    --ground: #232429;
+    --surface: #2c2d33;
+    --sunken: #27282d;
+    --soft: #35363d;
+    --raised: #35363d;
+    --line: #45464e;
+    --text: #ecebe6;
+    --muted: #b4b3ae;
+    --placeholder: #8d8c88;
+    --seed: #47484f;
+    --petal: #303137;
+    --track: #3b3c43;
+    --ink: #ecebe6;
+    --ink-lip: #b4b3ae;
+    --on-ink: #232429;
+    --on-pastel: #1f2b27;
+    --apricot-lip: #f2efe6;
+    --peri-lip: #f2efe6;
+    --matcha-lip: #f2efe6;
+    --lemon-lip: #f2efe6;
+    --bubblegum-lip: #f2efe6;
+    --danger: #ff9b8f;
+    --scrim: rgb(6 12 10 / 0.6);
+    --break-stage: #2a3330;
+    --break-text: #e3f2d8;
+    --break-eyebrow: #b7e3a1;
+    --break-petal: #323d39;
+    --break-track: #4f6a5a;
+    --sticker: #2c2d33;
+    --dots: rgb(236 235 230 / 0.05);
+    --bar: #35363d;
+    --bar-text: #ecebe6;
+    --bar-edge: #ecebe6;
+    --bar-shadow: rgb(0 0 0 / 0.4);
+    --margin: #7d5656;
+    --pen: #ecebe6;
+  }
+}
+
+:root[data-look="notebook"][data-theme="dark"],
+:root[data-look="notebook"] .shell[data-mode="focus"] {
+  --ground: #232429;
+  --surface: #2c2d33;
+  --sunken: #27282d;
+  --soft: #35363d;
+  --raised: #35363d;
+  --line: #45464e;
+  --text: #ecebe6;
+  --muted: #b4b3ae;
+  --placeholder: #8d8c88;
+  --seed: #47484f;
+  --petal: #303137;
+  --track: #3b3c43;
+  --ink: #ecebe6;
+  --ink-lip: #b4b3ae;
+  --on-ink: #232429;
+  --on-pastel: #1f2b27;
+  --apricot-lip: #f2efe6;
+  --peri-lip: #f2efe6;
+  --matcha-lip: #f2efe6;
+  --lemon-lip: #f2efe6;
+  --bubblegum-lip: #f2efe6;
+  --danger: #ff9b8f;
+  --scrim: rgb(6 12 10 / 0.6);
+  --break-stage: #2a3330;
+  --break-text: #e3f2d8;
+  --break-eyebrow: #b7e3a1;
+  --break-petal: #323d39;
+  --break-track: #4f6a5a;
+  --sticker: #2c2d33;
+  --dots: rgb(236 235 230 / 0.05);
+  --bar: #35363d;
+  --bar-text: #ecebe6;
+  --bar-edge: #ecebe6;
+  --bar-shadow: rgb(0 0 0 / 0.4);
+  --margin: #7d5656;
+  --pen: #ecebe6;
+}
+
+/* By day the page is ruled with a red margin; by night it is a graphite dot grid. */
+:root[data-look="notebook"] .shell {
+  background-image:
+    linear-gradient(90deg, transparent 54px, var(--margin) 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 31px, var(--dots) 31px 32px);
+}
+:root[data-look="notebook"][data-theme="dark"] .shell,
+:root[data-look="notebook"] .shell[data-mode="focus"] {
+  background-image: radial-gradient(var(--dots) 1.4px, transparent 1.8px);
+  background-size: 22px 22px;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-look="notebook"]:not([data-theme="light"]) .shell {
+    background-image: radial-gradient(var(--dots) 1.4px, transparent 1.8px);
+    background-size: 22px 22px;
+  }
+}
+
+/* Hand-drawn pen outlines and a strip of washi tape on each card. */
+:root[data-look="notebook"] .card,
+:root[data-look="notebook"] .tile {
+  border: 2px solid var(--pen);
+  border-radius: 22px 34px 26px 38px / 36px 22px 34px 24px;
+  position: relative;
+}
+:root[data-look="notebook"] .card::before {
+  content: "";
+  position: absolute;
+  top: -11px;
+  left: calc(50% - 50px);
+  width: 100px;
+  height: 22px;
+  background: repeating-linear-gradient(45deg, rgb(255 179 199 / 0.75) 0 8px, rgb(255 205 220 / 0.75) 8px 16px);
+  transform: rotate(-2.5deg);
+  z-index: 2;
+  pointer-events: none;
+}
+:root[data-look="notebook"] .card:nth-of-type(2n)::before {
+  background: repeating-linear-gradient(-45deg, rgb(169 196 245 / 0.75) 0 8px, rgb(200 216 250 / 0.75) 8px 16px);
+  transform: rotate(2deg);
+  left: 30px;
+}
+:root[data-look="notebook"] .squishy.apricot,
+:root[data-look="notebook"] .squishy.matcha,
+:root[data-look="notebook"] .squishy.ink {
+  border: 2px solid var(--pen);
+  border-radius: 14px 22px 16px 24px / 22px 14px 24px 16px;
+  box-shadow: 4px 4px 0 var(--pen);
+}
+:root[data-look="notebook"] .tabs {
+  border: 2px solid var(--pen);
+  border-radius: 18px 26px 20px 28px / 26px 18px 28px 20px;
+}
+:root[data-look="notebook"] .tab[aria-current="page"] {
+  border-radius: 6px 14px 8px 16px;
+  transform: rotate(-1deg);
+}
+:root[data-look="notebook"] .brand,
+:root[data-look="notebook"] h1,
+:root[data-look="notebook"] h2,
+:root[data-look="notebook"] .dial-time,
+:root[data-look="notebook"] .tile-value {
+  font-variation-settings: "INFM" 70, "BNCE" 30;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Settings swatches. */
+:root[data-look="notebook"] .theme-swatch span { background: #ffdf5e; }
+:root[data-look="notebook"] .theme-option.light .theme-swatch { background: #efe8d8; }
+:root[data-look="notebook"] .theme-option.dark .theme-swatch { background: #232429; }
+:root[data-look="notebook"] .theme-option.system .theme-swatch { background: linear-gradient(135deg, #efe8d8 50%, #232429 50%); }

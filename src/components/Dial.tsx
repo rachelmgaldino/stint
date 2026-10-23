@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { clampMinutes, dragStep, lapAt, minuteAt, type DragState } from "../dial";
 import { look } from "../look";
+import { isPrintLook, PrintDialBack, PrintKnob } from "./PrintLooks";
 
 export type Lap = {
   /** Ring colour and the darker "lip" used for the knob's centre. */
@@ -40,6 +41,9 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
   const knob = { x: C + RING * Math.sin(angle), y: C - RING * Math.cos(angle) };
   // Mochi's dial is a round sticker with a stitched edge and a little sun for a knob.
   const mochi = look() === "mochi";
+  // Notebook's dial is a doodled circle, Riso's a halftone print.
+  const lk = look();
+  const print = isPrintLook(lk) ? lk : null;
 
   const pointMinute = (e: React.PointerEvent) => {
     const r = box.current!.getBoundingClientRect();
@@ -95,7 +99,9 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
       onKeyDown={onKey}
     >
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
-        {mochi ? (
+        {print ? (
+          <PrintDialBack look={print} />
+        ) : mochi ? (
           <>
             <circle cx={C} cy={C} r="176" className="dial-petals" />
             <circle cx={C} cy={C} r="166" className="dial-stitch" />
@@ -116,7 +122,8 @@ export function Dial({ minutes, laps, maxMinutes, onChange, label, children }: P
             transform={`rotate(-90 ${C} ${C})`}
           />
         )}
-        {onChange && (
+        {onChange && print && <PrintKnob look={print} x={knob.x} y={knob.y} />}
+        {onChange && !print && (
           <>
             <circle cx={knob.x} cy={knob.y} r="17" className="dial-knob" />
             {mochi ? (
