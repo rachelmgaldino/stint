@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Category } from "../store";
 import { soft } from "../colors";
 import { addDays, startOfDay } from "../dates";
@@ -53,6 +53,7 @@ export function IntentionField(p: Props) {
   const text = t().timer;
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
   const empty = !p.value.trim();
   const category = p.categories.find((c) => c.id === p.categoryId);
   const recent = useMemo(() => recentFor(p.past, p.categoryId), [p.past, p.categoryId]);
@@ -69,7 +70,7 @@ export function IntentionField(p: Props) {
   };
 
   return (
-    <div className={`field intention-field${empty ? " is-empty" : ""}`}>
+    <div ref={root} className={`field intention-field${empty ? " is-empty" : ""}`}>
       <span>{p.label ?? text.intention}</span>
       <div className="intention-box">
         <input
@@ -82,7 +83,10 @@ export function IntentionField(p: Props) {
           aria-autocomplete="list"
           autoFocus={p.autoFocus}
           onFocus={() => setOpen(true)}
-          onBlur={() => {
+          onBlur={(e) => {
+            // Tabbing onto a recent chip isn't leaving: the field would close
+            // (mid-session) and take the chip with it before it could be picked.
+            if (root.current?.contains(e.relatedTarget as Node | null)) return;
             setOpen(false);
             p.onDone?.();
           }}
@@ -139,7 +143,13 @@ export function IntentionField(p: Props) {
           <span className="recent-label">{text.recentIn(category?.name ?? "")}</span>
           <div className="recent-chip-row">
             {recent.map((i) => (
-              <button key={i.text} className="recent-chip" onClick={() => pick(i)}>
+              <button
+                key={i.text}
+                className="recent-chip"
+                // Keep focus in the input so its blur doesn't close the field first.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(i)}
+              >
                 {i.text}
               </button>
             ))}
