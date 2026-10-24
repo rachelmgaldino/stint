@@ -1062,3 +1062,35 @@
     font-size: 13.5px;
   }
 }
+
+/* Recent tasks on a phone: the name gets the full width and up to two lines,
+   with when it was last used on a small line under it. */
+@media (max-width: 640px) {
+  .intention-row {
+    display: grid;
+    grid-template-columns: 12px 1fr;
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: start;
+    padding: 9px 10px;
+  }
+
+  .intention-row .dot {
+    grid-row: span 2;
+    margin-top: 6px;
+  }
+
+  .intention-row-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    line-height: 1.3;
+  }
+
+  .intention-row-meta {
+    grid-column: 2;
+    font-weight: 600;
+  }
+}
