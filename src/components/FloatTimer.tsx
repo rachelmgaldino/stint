@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { emitTo, listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import * as T from "../timer";
 import { soft } from "../colors";
 import { lapAt } from "../dial";
@@ -142,10 +142,14 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   const color = focus && state.category ? soft(state.category.color) : undefined;
   const tag = focus ? (state.category?.name ?? text.focus) : state.long ? text.float.longBreak : text.float.shortBreak;
 
-  const drag = (e: MouseEvent) => {
+  // Stint moves the window itself while the bubble is held (see float_drag
+  // in float.rs), so the bubble can reach the very top of the screen.
+  const drag = (e: PointerEvent) => {
     if (e.button !== 0 || e.detail > 1) return;
-    void getCurrentWindow().startDragging().catch(() => {});
+    e.currentTarget.setPointerCapture(e.pointerId);
+    void invoke("float_drag", { start: true }).catch(() => {});
   };
+  const drop = () => void invoke("float_drag", { start: false }).catch(() => {});
 
   return (
     <div
@@ -162,7 +166,9 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
         role="timer"
         aria-label={`${tag} ${clock}`}
         title={text.float.open}
-        onMouseDown={drag}
+        onPointerDown={drag}
+        onPointerUp={drop}
+        onLostPointerCapture={drop}
         onDoubleClick={() => send("open")}
       >
         <svg className="float-ring" width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">

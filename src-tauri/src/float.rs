@@ -6,6 +6,7 @@
 // buttons around it.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{
@@ -29,9 +30,13 @@ const ROOM: (f64, f64) = (46.0, 66.0);
 // How often the pointer is checked, and how many checks off the timer close it.
 const TICK: Duration = Duration::from_millis(50);
 const LEAVE_TICKS: u32 = 7;
+// How often the bubble follows the pointer while it is being dragged.
+const DRAG_TICK: Duration = Duration::from_millis(8);
 
+/// The state, and whether the bubble is being dragged (read by the drag
+/// loop's own thread, which never takes the lock).
 #[derive(Default)]
-pub struct Float(Mutex<Inner>);
+pub struct Float(Mutex<Inner>, AtomicBool);
 
 #[derive(Default)]
 struct Inner {
@@ -47,11 +52,16 @@ struct Inner {
     /// Where the resting spot's top-left corner is, in physical pixels.
     rest: Option<(i32, i32)>,
     loaded: bool,
+    /// While dragging: where the pointer holds the window, in logical pixels
+    /// from its top-left corner.
+    grab: Option<(f64, f64)>,
+    /// The edges last sent to the page.
+    edges: Option<Opened>,
 }
 
 /// How much of the open window runs off the screen on each side, in logical
 /// pixels, so the category and buttons can move to stay in sight.
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, PartialEq, serde::Serialize)]
 struct Opened {
     open: bool,
     left: f64,
@@ -196,6 +206,12 @@ fn open_shelf<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inne
     s.open = true;
     s.off_ticks = 0;
     let _ = w.set_ignore_cursor_events(false);
+    send_edges(app, w, s);
+}
+
+/// Tells the page how much of the open window is off the screen, if that
+/// changed.
+fn send_edges<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inner) {
     let mut opened = Opened { open: true, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 };
     if let Ok(at) = w.outer_position() {
         let scale = w.scale_factor().unwrap_or(1.0);
@@ -211,6 +227,10 @@ fn open_shelf<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inne
             opened.bottom = (y + oh - (my + mh) as f64).max(0.0) / scale;
         }
     }
+    if s.edges.as_ref() == Some(&opened) {
+        return;
+    }
+    s.edges = Some(opened.clone());
     let _ = app.emit_to(LABEL, "float-open", opened);
 }
 
@@ -219,6 +239,7 @@ fn close_shelf<R: Runtime>(w: &WebviewWindow<R>, s: &mut Inner) {
         return;
     }
     s.open = false;
+    s.edges = None;
     let _ = w.set_ignore_cursor_events(true);
     let _ = w.app_handle().emit_to(LABEL, "float-open", Opened { open: false, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 });
     save(w.app_handle(), s.rest);
@@ -264,6 +285,66 @@ pub fn set_away<R: Runtime>(app: &AppHandle<R>, away: bool) {
     }
     s.away = away;
     apply(app, &mut s);
+}
+
+/// The page says the bubble was pressed: the window follows the pointer until
+/// it is let go. Stint moves the window itself rather than leaving the drag to
+/// Windows, which won't let a window's top edge past the top of the screen and
+/// so kept the bubble (sitting lower in the window) from reaching the top.
+#[tauri::command]
+pub fn float_drag(app: AppHandle, float: State<Float>, start: bool) {
+    let mut s = float.0.lock().unwrap();
+    if !start {
+        s.grab = None;
+        float.1.store(false, Ordering::SeqCst);
+        save(&app, s.rest);
+        return;
+    }
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    let (Ok(p), Ok(at)) = (app.cursor_position(), w.outer_position()) else { return };
+    let scale = w.scale_factor().unwrap_or(1.0);
+    s.grab = Some(((p.x - at.x as f64) / scale, (p.y - at.y as f64) / scale));
+    if float.1.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        while app.state::<Float>().1.load(Ordering::SeqCst) {
+            std::thread::sleep(DRAG_TICK);
+            let handle = app.clone();
+            if app.run_on_main_thread(move || follow(&handle)).is_err() {
+                return;
+            }
+        }
+    });
+}
+
+/// Moves the window with the pointer, keeping the whole bubble on the screen
+/// the pointer is on. The category and buttons move around it as it nears an
+/// edge.
+fn follow<R: Runtime>(app: &AppHandle<R>) {
+    let float = app.state::<Float>();
+    let Ok(mut s) = float.0.try_lock() else { return };
+    let Some(grab) = s.grab else { return };
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    let Ok(p) = app.cursor_position() else { return };
+    let scale = w.scale_factor().unwrap_or(1.0);
+    let mut x = (p.x - grab.0 * scale).round() as i32;
+    let mut y = (p.y - grab.1 * scale).round() as i32;
+    if let Some(m) = monitor_at(app, p.x as i32, p.y as i32) {
+        let (mx, my, mw, mh) = area(&m);
+        let size = (BUBBLE.2 * scale) as i32;
+        let (bx, by) = (((SHIFT.0 + BUBBLE.0) * scale) as i32, ((SHIFT.1 + BUBBLE.1) * scale) as i32);
+        x = x.clamp(mx - bx, mx + mw - bx - size);
+        y = y.clamp(my - by, my + mh - by - size);
+    }
+    if w.outer_position().ok().map(|at| (at.x, at.y)) != Some((x, y)) {
+        let _ = w.set_position(PhysicalPosition::new(x, y));
+    }
+    s.rest = Some((x + (SHIFT.0 * scale) as i32, y + (SHIFT.1 * scale) as i32));
+    if s.open {
+        send_edges(app, &w, &mut s);
+    }
 }
 
 /// Called when the floating window moves: a drag moves the bubble's home.
