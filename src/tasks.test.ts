@@ -11,6 +11,7 @@ import {
   joinParts,
   moveSwitch,
   partsOf,
+  splitRecord,
   taskRecords,
 } from "./tasks";
 
@@ -119,5 +120,26 @@ describe("moveSwitch", () => {
     const [a, b] = moveSwitch(parts, 1, at(60));
     expect(a.endedAt).toBe(at(52));
     expect(b.focusedMs).toBe(MIN);
+  });
+});
+
+describe("splitRecord", () => {
+  const whole = rec({ intention: "A", startedAt: START, endedAt: at(60), focusedMs: 50 * MIN });
+
+  it("cuts a session in two linked tasks that share its focus time", () => {
+    const [a, b] = splitRecord(whole, at(24), "B", 2);
+    expect(a).toMatchObject({ id: whole.id, intention: "A", endedAt: at(24), focusedMs: 20 * MIN, partOf: START });
+    expect(b).toMatchObject({ id: 0, intention: "B", categoryId: 2, startedAt: at(24), endedAt: at(60), focusedMs: 30 * MIN, partOf: START });
+  });
+
+  it("keeps the link of a session that already had several tasks", () => {
+    const later = rec({ startedAt: at(30), endedAt: at(60), focusedMs: 30 * MIN, partOf: START });
+    expect(splitRecord(later, at(40), "C", 1)[1].partOf).toBe(START);
+  });
+
+  it("keeps a minute on each side", () => {
+    const [a, b] = splitRecord(whole, at(90), "B", 1);
+    expect(a.endedAt).toBe(at(59));
+    expect(b.startedAt).toBe(at(59));
   });
 });

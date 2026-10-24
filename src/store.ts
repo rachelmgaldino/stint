@@ -254,9 +254,9 @@ async function sqliteStore(): Promise<Store> {
     async updateSession(s) {
       await db.execute(
         `UPDATE sessions SET intention = $1, category_id = $2, started_at = $3, ended_at = $4,
-           focused_ms = $5, reflection = $6, rating = $7
-         WHERE id = $8`,
-        [s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.id],
+           focused_ms = $5, reflection = $6, rating = $7, part_of = $8
+         WHERE id = $9`,
+        [s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.partOf ?? null, s.id],
       );
     },
     async deleteSession(id) {

@@ -89,6 +89,35 @@ export function partsOf(s: SessionRecord, list: SessionRecord[]): SessionRecord[
 }
 
 /**
+ * Splits a saved focus record in two at the minute `at`, for a task switch
+ * that wasn't marked with Next task. The second part is new (id 0). Both are
+ * linked to the session the record belongs to, and share its focus time by
+ * how long each ran, so pauses come off both. Each keeps at least a minute.
+ */
+export function splitRecord(s: SessionRecord, at: number, intention: string, categoryId: number | null): [SessionRecord, SessionRecord] {
+  const when = Math.min(Math.max(at, s.startedAt + MIN), s.endedAt - MIN);
+  const span = Math.max(1, s.endedAt - s.startedAt);
+  const firstMs = Math.round((s.focusedMs * (when - s.startedAt)) / span);
+  const partOf = s.partOf ?? s.startedAt;
+  return [
+    { ...s, endedAt: when, focusedMs: firstMs, partOf },
+    {
+      ...s,
+      id: 0,
+      intention: intention.trim(),
+      categoryId,
+      startedAt: when,
+      focusedMs: s.focusedMs - firstMs,
+      plannedMs: s.endedAt - when,
+      reflection: "",
+      partOf,
+      googleEventId: s.googleEventId,
+      googleCalendarId: s.googleCalendarId,
+    },
+  ];
+}
+
+/**
  * Moves the switch from task `i - 1` to task `i` to the minute `at`, for a
  * Next task pressed late (or early). The two trade focus time so the
  * session's total stays the same; each keeps at least a minute.

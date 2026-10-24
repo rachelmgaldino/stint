@@ -193,3 +193,11 @@ export const CheckIcon = () => (
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </svg>
 );
+
+export const ScissorsIcon = () => (
+  <svg {...base} width={16} height={16} strokeWidth={2.2}>
+    <circle cx="6" cy="7" r="2.6" />
+    <circle cx="6" cy="17" r="2.6" />
+    <path d="M8.2 8.4 20 17M8.2 15.6 20 7" />
+  </svg>
+);

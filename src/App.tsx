@@ -455,6 +455,19 @@ export default function App() {
     syncPending();
   };
 
+  /** A focus session cut in two tasks from the edit dialog: one event on the calendar still covers both. */
+  const splitSession = async (first: SessionRecord, second: SessionRecord) => {
+    if (!store) return;
+    await store.updateSession(first);
+    const { id: _new, ...rest } = second;
+    const id = await store.addSession(rest);
+    if (first.googleEventId && first.googleCalendarId) await store.setGoogleEvent(id, first.googleCalendarId, first.googleEventId);
+    setEditing(null);
+    refresh();
+    syncEdit(first);
+    syncPending();
+  };
+
   const deleteSession = async (id: number) => {
     if (!store) return;
     const gone = editing?.id === id ? editing : null;
@@ -838,6 +851,7 @@ export default function App() {
           justAdded={justAdded?.text}
           onSave={saveSession}
           onDelete={deleteSession}
+          onSplit={splitSession}
           onClose={() => {
             setEditing(null);
             setJustAdded(null);

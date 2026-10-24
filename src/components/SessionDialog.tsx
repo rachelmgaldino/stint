@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Category, SessionRecord } from "../store";
 import type { Kind as SessionKind } from "../timer";
-import { addDays, atTime, clockTime, dayLabel, inputTime, fromIsoDate, isoDate, startOfDay } from "../dates";
+import { addDays, atTime, clockTime, dayLabel, inputTime, fromIsoDate, isoDate, startOfDay, timeSpan } from "../dates";
+import { soft } from "../colors";
+import { splitRecord } from "../tasks";
+import { ScissorsIcon } from "./icons";
 import { formatDuration, parseDuration } from "../timer";
 import { RatingPicker } from "./Reflection";
 import { t } from "../i18n";
@@ -19,6 +22,8 @@ type Props = {
   justAdded?: string;
   onSave(s: SessionRecord): void;
   onDelete(id: number): void;
+  /** Saves a focus session cut in two tasks: the first as edited, the second new. */
+  onSplit(first: SessionRecord, second: SessionRecord): void;
   onClose(): void;
 };
 
@@ -47,6 +52,10 @@ export function SessionDialog(p: Props) {
   const [reflection, setReflection] = useState(session.reflection);
   const [rating, setRating] = useState(session.rating);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [splitting, setSplitting] = useState(false);
+  const [splitAt, setSplitAt] = useState("");
+  const [secondName, setSecondName] = useState("");
+  const [secondCategory, setSecondCategory] = useState(session.categoryId);
   const text = t().dialog;
   // On a phone the switch sits in the title row, where it doesn't crowd the buttons.
   const phone = typeof matchMedia === "function" && matchMedia("(max-width: 640px)").matches;
@@ -139,12 +148,12 @@ export function SessionDialog(p: Props) {
     setDuration(formatDuration(p.lengths[k] * 60_000));
   };
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (error || startMs === null || endMs === null) return;
+  /** The session as the fields have it now, or null while they don't make sense. */
+  const edited = (): SessionRecord | null => {
+    if (error || startMs === null || endMs === null) return null;
     // Keep the measured focus time (which excludes pauses) unless the times were edited.
     const timesChanged = startMs !== startOfMinute(session.startedAt) || endMs !== startOfMinute(session.endedAt);
-    onSave({
+    return {
       ...session,
       kind,
       categoryId: isFocus ? categoryId : null,
@@ -155,7 +164,33 @@ export function SessionDialog(p: Props) {
       focusedMs: timesChanged || isNew ? endMs - startMs : session.focusedMs,
       reflection: isFocus ? reflection.trim() : session.reflection,
       rating: isFocus ? rating : session.rating,
-    });
+    };
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const s = edited();
+    if (s) onSave(s);
+  };
+
+  // Split: the minute the second task began, on the session's own day or, past midnight, the next.
+  const whole = splitting ? edited() : null;
+  const splitMs = (() => {
+    if (!whole) return null;
+    const same = atTime(day, splitAt);
+    if (same === null) return null;
+    const ms = same < whole.startedAt ? atTime(addDays(day, 1), splitAt) : same;
+    return ms !== null && ms >= whole.startedAt + 60_000 && ms <= whole.endedAt - 60_000 ? ms : null;
+  })();
+  const parts = whole && splitMs !== null ? splitRecord(whole, splitMs, secondName, secondCategory) : null;
+  const openSplit = () => {
+    const s = edited();
+    if (!s) return;
+    // Starts halfway, on the minute.
+    setSplitAt(inputTime(startOfMinute((s.startedAt + s.endedAt) / 2)));
+    setSecondName("");
+    setSecondCategory(s.categoryId);
+    setSplitting(true);
   };
 
   const keepAddingSwitch = (
@@ -292,6 +327,12 @@ export function SessionDialog(p: Props) {
               {isFocus ? text.deleteSession : text.deleteBreak}
             </button>
           )}
+          {!isNew && isFocus && (
+            <button type="button" className="split-link" disabled={!!error} onClick={openSplit}>
+              <ScissorsIcon />
+              {text.split}
+            </button>
+          )}
           {isNew && !phone && !fromEvent && keepAddingSwitch}
           <span className="spacer" />
           <button type="button" className="secondary" onClick={onClose}>
@@ -302,6 +343,80 @@ export function SessionDialog(p: Props) {
           </button>
         </div>
       </form>
+      {splitting && whole && (
+        <div
+          className="confirm-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSplitting(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation();
+            setSplitting(false);
+          }}
+        >
+          <form
+            className="confirm-card split-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="split-title"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (parts) p.onSplit(parts[0], parts[1]);
+            }}
+          >
+            <h3 id="split-title">{text.splitTitle}</h3>
+            <p>{text.splitBody}</p>
+            <label className="split-field">
+              {text.splitAt}
+              <input type="time" value={splitAt} onChange={(e) => setSplitAt(e.target.value)} required />
+            </label>
+            <label className="split-field">
+              {text.secondTask}
+              <input
+                value={secondName}
+                maxLength={120}
+                placeholder={text.secondPlaceholder}
+                autoFocus
+                onChange={(e) => setSecondName(e.target.value)}
+              />
+            </label>
+            <div className="chips split-categories" role="group" aria-label={text.category}>
+              {categories.map((c) => (
+                <button key={c.id} type="button" className="chip" aria-pressed={c.id === secondCategory} onClick={() => setSecondCategory(c.id)}>
+                  <span className="dot" style={{ background: soft(c.color) }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+            {parts ? (
+              <ol className="split-preview">
+                {parts.map((part, i) => (
+                  <li key={i}>
+                    <span className="dot" style={{ background: soft(categories.find((c) => c.id === part.categoryId)?.color ?? "#999") }} />
+                    <span className="split-name">{part.intention || (i === 0 ? t().focus : text.secondPlaceholder)}</span>
+                    <span className="split-time">
+                      {timeSpan(part.startedAt, part.endedAt)} · {formatDuration(part.focusedMs)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="error">{text.badSplit}</p>
+            )}
+            <div className="confirm-actions">
+              <button type="button" className="secondary" onClick={() => setSplitting(false)}>
+                {text.cancel}
+              </button>
+              <button type="submit" className="primary" disabled={!parts}>
+                {text.splitButton}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {confirmDelete && (
         <div
           className="confirm-overlay"

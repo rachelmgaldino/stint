@@ -4491,3 +4491,87 @@ select.select-pill {
   width: 16px;
   height: 16px;
 }
+
+/* Split: cuts a saved focus session into two tasks from the edit dialog. */
+.split-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.split-link:disabled {
+  opacity: 0.4;
+}
+
+.split-card {
+  max-width: 400px;
+  min-width: 0;
+  gap: 10px;
+}
+
+.split-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.split-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+}
+
+.split-categories {
+  flex-wrap: wrap;
+}
+
+.split-preview {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.split-preview li {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.split-preview .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.split-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 13px;
+}
