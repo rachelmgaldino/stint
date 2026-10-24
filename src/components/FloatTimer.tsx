@@ -64,17 +64,20 @@ const PAD = 4;
  * other side of the bubble when that part of the window is off the screen.
  * The bubble itself never moves.
  */
-function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges): { tag: CSSProperties; shelf: CSSProperties } {
+function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { tag: CSSProperties; shelf: CSSProperties } {
   const cx = BUB.x + BUB.size / 2;
   const x = (w: number) => Math.max(e.left + PAD, Math.min(cx - w / 2, WIN.w - e.right - PAD - w));
-  const below = BUB.y + BUB.size + GAP;
-  let shelfTop = below;
-  let tagTop = BUB.y - GAP - tag.height;
+  // The looks' outline ring is drawn outside each part, so the gaps grow by
+  // it on both sides and stay as wide as in the plain look.
+  const gap = GAP + 2 * ring;
+  const near = 6 + 2 * ring;
+  let shelfTop = BUB.y + BUB.size + gap;
+  let tagTop = BUB.y - gap - tag.height;
   if (shelfTop + shelf.height > WIN.h - e.bottom - PAD) {
-    shelfTop = BUB.y - GAP - shelf.height;
-    tagTop = shelfTop - 6 - tag.height;
+    shelfTop = BUB.y - gap - shelf.height;
+    tagTop = shelfTop - near - tag.height;
   } else if (tagTop < e.top + PAD) {
-    tagTop = shelfTop + shelf.height + 6;
+    tagTop = shelfTop + shelf.height + near;
   }
   return {
     tag: { left: x(tag.width), top: tagTop },
@@ -114,7 +117,8 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   // Measured before painting, so the parts appear straight in their place.
   useLayoutEffect(() => {
     if (!open || !tagRef.current || !shelfRef.current) return setPlace(null);
-    setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened));
+    const ring = parseFloat(getComputedStyle(tagRef.current).getPropertyValue("--float-ring")) || 0;
+    setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened, ring));
   }, [opened, state]);
 
   useEffect(() => {
