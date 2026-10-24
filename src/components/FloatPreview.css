@@ -122,7 +122,12 @@
 
 .fpv-spot.top {
   bottom: auto;
-  top: -80px;
+  top: -90px;
+}
+
+.fpv-spot.stuck {
+  bottom: auto;
+  top: 0;
 }
 
 .fpv-taskbar {

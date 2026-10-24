@@ -1,7 +1,7 @@
 // Dev-only page that draws the floating timer in each state, for screenshots:
 // /?float&look=lavender|mochi|notebook|riso&theme=light|dark&lang=en|pt-BR, add &desk=1
 // (with &open=1&kind=break, and &edge=right|bottom|top for a bubble pushed
-// against that screen edge) for one bubble over a pretend desktop.
+// against that screen edge, or &edge=stuck for where Windows used to stop it) for one bubble over a pretend desktop.
 
 import type { Language } from "../i18n";
 import type { Look } from "../look";
@@ -38,7 +38,10 @@ const EDGES: Record<string, FloatEdges> = {
   corner: { left: 0, right: 48, top: 0, bottom: 14 },
   right: { left: 0, right: 100, top: 0, bottom: 14 },
   bottom: { left: 0, right: 48, top: 0, bottom: 84 },
-  top: { left: 0, right: 48, top: 80, bottom: 0 },
+  top: { left: 0, right: 48, top: 90, bottom: 0 },
+  // Where Windows used to stop a dragged bubble: the window's top at the
+  // screen's top, the bubble 90px below it.
+  stuck: { left: 0, right: 48, top: 0, bottom: 0 },
 };
 
 function Frame({ state, open, label, edges }: { state: FloatState; open: boolean; label?: string; edges?: FloatEdges }) {
