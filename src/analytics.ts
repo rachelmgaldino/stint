@@ -1,6 +1,7 @@
 import { addDays, startOfDay, startOfWeek } from "./dates";
 import type { Category, SessionRecord } from "./store";
 import { t } from "./i18n";
+import { firstParts } from "./tasks";
 
 export type RangeKind = "day" | "week" | "month";
 /** anchor is the day the person is looking at inside the range, so switching between
@@ -187,10 +188,11 @@ export function computeStats(
     breakChange: percentChange(totalBreak, sum(prevBreaks)),
     avgChange: percentChange(totalFocus / days, prevAvg),
     focusPerBreak: totalBreak > 0 ? totalFocus / totalBreak : null,
+    // A session with several tasks is rated once.
     ratings: {
-      focused: focus.filter((s) => s.rating === 3).length,
-      neutral: focus.filter((s) => s.rating === 2).length,
-      distracted: focus.filter((s) => s.rating === 1).length,
+      focused: firstParts(focus).filter((s) => s.rating === 3).length,
+      neutral: firstParts(focus).filter((s) => s.rating === 2).length,
+      distracted: firstParts(focus).filter((s) => s.rating === 1).length,
     },
     mostFocused: categoryWithMost(focus, 3, names),
     mostDistracted: categoryWithMost(focus, 1, names),

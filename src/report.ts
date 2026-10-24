@@ -2,6 +2,7 @@ import { compactDuration } from "./analytics";
 import { inputTime, timeRange, timeSpan } from "./dates";
 import { capitalize, formatDate, language, t } from "./i18n";
 import type { Category, SessionRecord } from "./store";
+import { countSessions } from "./tasks";
 
 // A single day's sessions as a CSV to keep, or as a short text to paste
 // somewhere, for tracking work hours.
@@ -95,7 +96,7 @@ export function daySummary(day: number, sessions: SessionRecord[], categories: C
 
   const out = [`Stint · ${title}`];
   if (ordered.length === 0) return [...out, t().analytics.noSessions].join("\n");
-  out.push(text.focusedLine(compactDuration(focusMs), focus.length, compactDuration(breakMs)));
+  out.push(text.focusedLine(compactDuration(focusMs), countSessions(focus), compactDuration(breakMs)));
   out.push(timeRange(ordered[0].startedAt, ordered[ordered.length - 1].endedAt));
   const cats = totalsByCategory(ordered, categories);
   if (cats.length) {
@@ -114,4 +115,11 @@ export function daySummary(day: number, sessions: SessionRecord[], categories: C
     out.push(`${span}  ${what} (${compactDuration(s.focusedMs)})`);
   }
   return out.join("\n");
+}
+
+/** The time on each task of the day, for pasting into a work diary. */
+export function tasksSummary(day: number, rows: { name: string; ms: number }[]): string {
+  const title = capitalize(formatDate(day, { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+  const total = rows.reduce((a, r) => a + r.ms, 0);
+  return [`Stint · ${title}`, ...rows.map((r) => `${r.name}: ${compactDuration(r.ms)}`), "", `${t().report.allFocus}: ${compactDuration(total)}`].join("\n");
 }

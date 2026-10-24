@@ -187,3 +187,17 @@ export const InfinityIcon = () => (
     <path d="M12 12c-2-2.7-3.5-4-5.5-4a4 4 0 0 0 0 8c2 0 3.5-1.3 5.5-4Zm0 0c2 2.7 3.5 4 5.5 4a4 4 0 0 0 0-8c-2 0-3.5 1.3-5.5 4Z" />
   </svg>
 );
+
+export const CheckIcon = () => (
+  <svg {...base} width={16} height={16}>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </svg>
+);
+
+export const ScissorsIcon = () => (
+  <svg {...base} width={16} height={16} strokeWidth={2.2}>
+    <circle cx="6" cy="7" r="2.6" />
+    <circle cx="6" cy="17" r="2.6" />
+    <path d="M8.2 8.4 20 17M8.2 15.6 20 7" />
+  </svg>
+);

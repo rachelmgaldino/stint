@@ -1035,14 +1035,6 @@
     text-align: center;
   }
 
-  .stage-title-pen {
-    margin-top: 0;
-  }
-
-  .add-intention {
-    align-self: center;
-  }
-
   .stage-intention {
     align-self: stretch;
     text-align: left;
@@ -1050,11 +1042,55 @@
 }
 
 @media (max-width: 640px) {
-  .stage-title.is-empty .stage-title-pen {
-    display: grid;
+  /* The task card reads left to right like on a desktop, a little smaller. */
+  .stage-what.task-card {
+    align-self: stretch;
+    text-align: left;
+    padding: 14px 16px 12px;
   }
 
-  .add-intention {
-    display: none;
+  .task-card .stage-title {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .task-card .stage-title h1 {
+    font-size: 26px;
+  }
+
+  .task-time {
+    font-size: 13.5px;
+  }
+}
+
+/* Recent tasks on a phone: the name gets the full width and up to two lines,
+   with when it was last used on a small line under it. */
+@media (max-width: 640px) {
+  .intention-row {
+    display: grid;
+    grid-template-columns: 12px 1fr;
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: start;
+    padding: 9px 10px;
+  }
+
+  .intention-row .dot {
+    grid-row: span 2;
+    margin-top: 6px;
+  }
+
+  .intention-row-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    line-height: 1.3;
+  }
+
+  .intention-row-meta {
+    grid-column: 2;
+    font-weight: 600;
   }
 }

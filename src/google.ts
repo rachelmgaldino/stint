@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Category, SessionRecord } from "./store";
 import { formatDuration } from "./timer";
+import { timeSpan } from "./dates";
 import { t } from "./i18n";
 
 // Google Calendar, through the desktop shell (src-tauri/src/google.rs), which
@@ -123,35 +124,46 @@ export function nearestColorId(hex: string): string {
   return best[0];
 }
 
-/** The calendar event that stands for a session. */
-export function sessionEvent(s: SessionRecord, category: Category | undefined) {
+/**
+ * The calendar event that stands for a session. A session with several tasks
+ * (`parts`, in order) is one event named after the first task, with the
+ * others counted, and every task listed with its times.
+ */
+export function sessionEvent(s: SessionRecord, category: Category | undefined, parts: SessionRecord[] = [s]) {
   const isBreak = s.kind === "break";
   const text = t();
   const name = isBreak ? text.break : category?.name ?? text.focus;
+  const first = parts[0] ?? s;
+  const last = parts[parts.length - 1] ?? s;
+  const tasks = parts.length > 1;
+  const focusedMs = tasks ? parts.reduce((a, p) => a + p.focusedMs, 0) : s.focusedMs;
+  const note = parts.map((p) => p.reflection).filter(Boolean).join("\n");
   const lines = [
-    isBreak ? text.event.break(formatDuration(s.focusedMs)) : text.event.focused(formatDuration(s.focusedMs)),
+    isBreak ? text.event.break(formatDuration(focusedMs)) : text.event.focused(formatDuration(focusedMs)),
     s.rating > 0 ? text.event.mood(text.ratings[s.rating]) : "",
-    s.reflection ? `\n${s.reflection}` : "",
+    tasks ? `\n${parts.map((p) => `${timeSpan(p.startedAt, p.endedAt)}  ${p.intention || text.focus} (${formatDuration(p.focusedMs)})`).join("\n")}` : "",
+    note ? `\n${note}` : "",
   ].filter(Boolean);
+  const title = tasks ? text.event.moreTasks(first.intention || name, parts.length - 1) : s.intention;
   return {
-    summary: !isBreak && s.intention ? `${s.intention} · ${name}` : name,
+    summary: !isBreak && title ? `${title} · ${name}` : name,
     description: `${lines.join("\n")}\n\n${text.event.addedBy}`,
-    start: { dateTime: new Date(s.startedAt).toISOString() },
-    end: { dateTime: new Date(Math.max(s.endedAt, s.startedAt + 60_000)).toISOString() },
+    start: { dateTime: new Date(first.startedAt).toISOString() },
+    end: { dateTime: new Date(Math.max(last.endedAt, first.startedAt + 60_000)).toISOString() },
     colorId: isBreak ? "8" : nearestColorId(category?.color ?? ""),
     transparency: "transparent",
     reminders: { useDefault: false },
-    extendedProperties: { private: { stint: "1", stintId: String(s.id) } },
+    extendedProperties: { private: { stint: "1", stintId: String(first.id) } },
   };
 }
 
-export async function createEvent(calendarId: string, s: SessionRecord, c: Category | undefined): Promise<string> {
-  const r = await request<{ id: string }>("POST", `/calendars/${enc(calendarId)}/events`, sessionEvent(s, c));
+export async function createEvent(calendarId: string, s: SessionRecord, c: Category | undefined, parts?: SessionRecord[]): Promise<string> {
+  const r = await request<{ id: string }>("POST", `/calendars/${enc(calendarId)}/events`, sessionEvent(s, c, parts));
   return r.id;
 }
 
-export async function updateEvent(calendarId: string, eventId: string, s: SessionRecord, c: Category | undefined) {
-  await request("PUT", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`, sessionEvent(s, c));
+export async function updateEvent(calendarId: string, eventId: string, s: SessionRecord, c: Category | undefined, parts?: SessionRecord[]) {
+  await request("PUT", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`, sessionEvent(s, c, parts));
 }
 
 export async function deleteEvent(calendarId: string, eventId: string) {
