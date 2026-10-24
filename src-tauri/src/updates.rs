@@ -134,6 +134,15 @@ pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
     Ok(builds)
 }
 
+/// Opens a pull request's page on GitHub, from the test tag beside the name.
+#[tauri::command]
+pub fn open_pull_request(app: AppHandle, pr: u32) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(format!("https://github.com/{REPO}/pull/{pr}"), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "camelCase")]
 pub enum Progress {

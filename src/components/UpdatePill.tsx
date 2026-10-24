@@ -1,15 +1,19 @@
 import { t } from "../i18n";
-import { testOf, type Updater } from "../updates";
+import { openPullRequest, testOf, type Updater } from "../updates";
 
-/** Beside the name while Stint runs a pull request's test build, so it's never mistaken for a release. */
+/**
+ * Beside the name while Stint runs a pull request's test build, so it's never
+ * mistaken for a release. A click opens the pull request, to merge it once it's good.
+ */
 export function TestTag({ current }: { current: string }) {
   const pr = testOf(current);
   if (pr === null) return null;
   const text = t().updatePill;
   return (
-    <span className="test-tag" title={text.testHint(pr)}>
+    <button type="button" className="test-tag" title={text.testHint(pr)} onClick={() => openPullRequest(pr)}>
       {text.test(pr)}
-    </span>
+      <span aria-hidden="true">↗</span>
+    </button>
   );
 }
 
