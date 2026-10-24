@@ -1,6 +1,7 @@
 /* The floating timer window. Sizes match OPEN, SHIFT and BUBBLE in
-   src-tauri/src/float.rs: the window is always 300 x 272 with the bubble at
-   104, 90; FloatTimer.tsx places the category and the buttons around it. */
+   src-tauri/src/float.rs: the window is always 300 x 340 with the bubble at
+   104, 124, leaving room on either side for the category and the buttons
+   stacked together near a screen edge; FloatTimer.tsx places the category and the buttons around it. */
 
 html.float-window,
 html.float-window body,
@@ -65,7 +66,7 @@ html.float-window #root {
 .float-bubble {
   position: absolute;
   left: 104px;
-  top: 90px;
+  top: 124px;
   width: 92px;
   height: 92px;
   border-radius: 50%;

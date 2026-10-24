@@ -40,12 +40,14 @@
   color: rgb(255 255 255 / 0.75);
 }
 
-/* The window's own size; the transform makes the bubble's fixed layout sit inside it. */
+/* The window's own size, cutting off what spills past it like the real
+   window; the transform makes the bubble's fixed layout sit inside it. */
 .fpv-frame {
   position: relative;
   width: 300px;
-  height: 272px;
+  height: 340px;
   transform: translateZ(0);
+  overflow: hidden;
 }
 
 .fpv-app {
@@ -109,7 +111,7 @@
 .fpv-spot {
   position: absolute;
   right: -48px;
-  bottom: 34px;
+  bottom: 0;
 }
 
 .fpv-spot.right {
@@ -117,12 +119,12 @@
 }
 
 .fpv-spot.bottom {
-  bottom: -36px;
+  bottom: -70px;
 }
 
 .fpv-spot.top {
   bottom: auto;
-  top: -90px;
+  top: -124px;
 }
 
 .fpv-spot.stuck {

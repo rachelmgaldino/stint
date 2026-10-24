@@ -53,8 +53,8 @@ type Opened = FloatEdges & { open: boolean };
 
 const NO_EDGES: FloatEdges = { left: 0, right: 0, top: 0, bottom: 0 };
 // The window and the bubble inside it, matching OPEN, SHIFT and BUBBLE in float.rs.
-const WIN = { w: 300, h: 272 };
-const BUB = { x: 104, y: 90, size: 92 };
+const WIN = { w: 300, h: 340 };
+const BUB = { x: 104, y: 124, size: 92 };
 const GAP = 8;
 const PAD = 4;
 
@@ -73,10 +73,10 @@ function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { ta
   const near = 6 + 2 * ring;
   let shelfTop = BUB.y + BUB.size + gap;
   let tagTop = BUB.y - gap - tag.height;
-  if (shelfTop + shelf.height > WIN.h - e.bottom - PAD) {
+  if (shelfTop + shelf.height + ring > WIN.h - e.bottom - PAD) {
     shelfTop = BUB.y - gap - shelf.height;
     tagTop = shelfTop - near - tag.height;
-  } else if (tagTop < e.top + PAD) {
+  } else if (tagTop - ring < e.top + PAD) {
     tagTop = shelfTop + shelf.height + near;
   }
   return {
