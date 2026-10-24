@@ -29,6 +29,11 @@ export function testOf(version: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** Opens a pull request's page on GitHub, to review or merge it. */
+export function openPullRequest(pr: number) {
+  if (isTauri()) invoke("open_pull_request", { pr }).catch(() => {});
+}
+
 type Found = { version: string; notes: string; test: number | null };
 type Progress = { event: "downloading"; data: { done: number; total: number | null } } | { event: "installing" };
 
