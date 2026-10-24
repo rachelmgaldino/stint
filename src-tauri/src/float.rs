@@ -19,9 +19,9 @@ pub const LABEL: &str = "float";
 // Logical size of the window, of the resting bubble's old window (the saved
 // spot is that window's top-left corner, the bubble 10px in), and where that
 // resting spot sits inside the window. They match the layout in src/float.css.
-const OPEN: (f64, f64) = (300.0, 272.0);
+const OPEN: (f64, f64) = (300.0, 340.0);
 const REST: (f64, f64) = (112.0, 112.0);
-const SHIFT: (f64, f64) = (94.0, 80.0);
+const SHIFT: (f64, f64) = (94.0, 114.0);
 // The bubble inside the resting spot.
 const BUBBLE: (f64, f64, f64) = (10.0, 10.0, 92.0);
 // Room kept beside and under the resting spot in the default corner, so the

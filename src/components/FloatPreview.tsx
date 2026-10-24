@@ -35,12 +35,12 @@ const paused: FloatState = { ...focus(12), timer: T.pause(focus(12).timer, NOW) 
 
 // How far the window runs off the pretend screen in each spot (see .fpv-spot).
 const EDGES: Record<string, FloatEdges> = {
-  corner: { left: 0, right: 48, top: 0, bottom: 14 },
-  right: { left: 0, right: 100, top: 0, bottom: 14 },
-  bottom: { left: 0, right: 48, top: 0, bottom: 84 },
-  top: { left: 0, right: 48, top: 90, bottom: 0 },
+  corner: { left: 0, right: 48, top: 0, bottom: 48 },
+  right: { left: 0, right: 100, top: 0, bottom: 48 },
+  bottom: { left: 0, right: 48, top: 0, bottom: 118 },
+  top: { left: 0, right: 48, top: 124, bottom: 0 },
   // Where Windows used to stop a dragged bubble: the window's top at the
-  // screen's top, the bubble 90px below it.
+  // screen's top, the bubble below it.
   stuck: { left: 0, right: 48, top: 0, bottom: 0 },
 };
 
