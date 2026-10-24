@@ -9,7 +9,8 @@ import type { CSSProperties } from "react";
 import { GoalSprouts, Pip, RatingFace } from "./Pip";
 import { capitalize, formatDate, t } from "../i18n";
 import { copyText, saveReport } from "../platform";
-import { dayCsv, daySummary, isoDay } from "../report";
+import { dayCsv, daySummary, isoDay, tasksSummary } from "../report";
+import { countSessions, firstParts, isNextTask, joinParts } from "../tasks";
 
 type Props = {
   day: number;
@@ -178,6 +179,11 @@ function DayStory({ sessions, events, now, colorOf, byId, onOpen, onEvent, onCou
                         {c.name}
                       </span>
                     )}
+                    {isNextTask(s, sessions) && (
+                      <span className="next-tag" title={t().analytics.nextTaskTitle}>
+                        ↳ {t().analytics.nextTaskTag}
+                      </span>
+                    )}
                     {s.fromEvent && (
                       <span className="story-from" title={text.madeFrom} aria-label={text.madeFrom}>
                         <CalendarIcon />
@@ -240,6 +246,31 @@ function DayExport({ day, sessions, categories }: { day: number; sessions: Sessi
   );
 }
 
+/** A small Copy button that says Copied for a moment. */
+function CopyButton({ title, text }: { title: string; text(): string }) {
+  const words = t().report;
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 1800);
+    return () => clearTimeout(id);
+  }, [copied]);
+  return (
+    <button
+      className="export-button small"
+      title={title}
+      aria-label={title}
+      onClick={async () => {
+        await copyText(text());
+        setCopied(true);
+      }}
+    >
+      <CopyIcon />
+      {copied ? words.copied : words.copy}
+    </button>
+  );
+}
+
 export function DayAnalytics({ day, sessions, week, stats, categories, now, dailyGoal, events, onDay, onOpen, onEvent, onCountEvent, onAdd }: Props) {
   const text = t().analytics;
   const byId = new Map(categories.map((c) => [c.id, c]));
@@ -254,7 +285,8 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
   const weekFocus = focusOf(week.filter((s) => startOfDay(s.startedAt) <= day));
   const weekAvg = weekFocus / Math.max(1, weekDaysSoFar.length);
   const ordered = [...sessions].sort((a, b) => a.startedAt - b.startedAt);
-  const longest = Math.max(0, ...focus.map((s) => s.focusedMs));
+  // A session with several tasks is one stretch.
+  const longest = Math.max(0, ...joinParts(focus).map((s) => s.focusedMs));
   const all = stats.totalFocus + stats.totalBreak;
 
   return (
@@ -271,13 +303,13 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
             <div className="tile-sub">{text.weekAverage(compactDuration(weekAvg))}</div>
           </div>
           <div className="tile-goal">
-            <GoalSprouts done={focus.length} goal={dailyGoal} />
+            <GoalSprouts done={countSessions(focus)} goal={dailyGoal} />
           </div>
         </div>
         <div className="tile">
           <div className="eyebrow muted">{text.howItFelt}</div>
           <div className="felt-faces" aria-label={text.feltCounts(stats.ratings.focused, stats.ratings.neutral, stats.ratings.distracted)}>
-            {focus
+            {firstParts(focus)
               .filter((s) => s.rating > 0)
               .sort((a, b) => a.startedAt - b.startedAt)
               .map((s) => (
@@ -357,7 +389,10 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
             </ul>
             {stats.intentions.length > 0 && (
               <>
-                <h3 className="went-sub">{text.byIntention}</h3>
+                <div className="went-sub-row">
+                  <h3 className="went-sub">{text.byIntention}</h3>
+                  <CopyButton title={text.copyTasks} text={() => tasksSummary(day, stats.intentions)} />
+                </div>
                 <ul className="went-list">
                   {stats.intentions.map((i) => (
                     <li key={i.name}>

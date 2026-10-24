@@ -401,6 +401,13 @@ input[type="time"] {
   cursor: default;
 }
 
+.export-button.small {
+  height: 32px;
+  padding: 0 11px 0 9px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
 .dashed-button {
   height: 44px;
   padding: 0 16px;
@@ -3410,6 +3417,24 @@ select.select-pill {
   display: inline-flex;
 }
 
+/* A task that carried on from the one before it, in the same session. */
+.next-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--lemon);
+  color: var(--on-pastel);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.entry-when .next-tag {
+  margin-right: 6px;
+}
+
 .story-cal svg {
   vertical-align: -2px;
   margin-right: 5px;
@@ -3473,6 +3498,19 @@ select.select-pill {
   margin: 8px 0 0;
   font-size: 15px;
   color: var(--muted);
+}
+
+/* "By task" with its Copy button for a work diary. */
+.went-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.went-sub-row .went-sub {
+  margin: 0;
 }
 
 .went-pip {
@@ -4181,44 +4219,6 @@ select.select-pill {
   border-radius: 12px;
 }
 
-.stage-title-pen {
-  flex: 0 0 auto;
-  margin-top: 8px;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: var(--soft);
-  color: var(--muted);
-}
-
-.stage-title:hover .stage-title-pen {
-  background: var(--sunken);
-  color: var(--text);
-}
-
-.add-intention {
-  align-self: flex-start;
-  height: 34px;
-  padding: 0 14px 0 10px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--line);
-  border: 1.5px dashed transparent;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.add-intention:hover {
-  background: var(--soft);
-  color: var(--text);
-}
-
 .stage-intention {
   max-width: 460px;
 }
@@ -4248,8 +4248,235 @@ select.select-pill {
   display: flex;
 }
 
-.stage-title.is-empty .stage-title-pen {
-  display: none;
+/* The task being worked on, in a card: category and pencil on top, its name,
+   then the time on it and Next task. A long name shrinks and breaks evenly. */
+.task-card {
+  gap: 10px;
+  padding: 16px 18px 14px;
+  border-radius: 24px;
+  background: var(--soft);
+}
+
+.task-card-top {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.task-card .cat-pill {
+  background: var(--sunken);
+}
+
+.task-pen {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--sunken);
+  color: var(--muted);
+}
+
+.task-pen:hover {
+  color: var(--text);
+}
+
+.task-card .stage-title {
+  width: 100%;
+}
+
+.task-card .stage-title h1 {
+  font-size: 32px;
+  line-height: 1.08;
+  text-wrap: pretty;
+}
+
+.task-card .stage-title.is-empty h1 {
+  color: var(--muted);
+}
+
+.task-card-foot {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1.5px dashed var(--line);
+}
+
+.task-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.next-task-button {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--lemon);
+  color: var(--on-pastel);
+  box-shadow: 0 3px 0 var(--lemon-lip);
+  font-size: 14.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.next-task-button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--lemon-lip);
+}
+
+.next-task-button:disabled {
+  opacity: 0.5;
+}
+
+.naming-next .stage-intention {
+  max-width: none;
+}
+
+.next-categories {
+  flex-wrap: wrap;
+}
+
+.next-note {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.next-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.next-actions .soft-button {
+  height: 38px;
+  padding: 0 16px;
+}
+
+/* Tasks finished earlier in the session, under the buttons on a desktop. */
+.earlier {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.earlier-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.earlier ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.earlier li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 14px;
+  background: var(--soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.earlier-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.earlier-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The tasks of a session with several, in the reflection drawer. */
+.task-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-row {
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.task-row-head {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font-weight: 600;
+}
+
+.task-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.task-row-head svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.task-row-edit {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-switch input {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+}
+
+.task-hint {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 /* Flow: focus that counts up with no time limit. Timer | Flow sits under the dial. */
@@ -4265,4 +4492,88 @@ select.select-pill {
 .mode-switch svg {
   width: 16px;
   height: 16px;
+}
+
+/* Split: cuts a saved focus session into two tasks from the edit dialog. */
+.split-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.split-link:disabled {
+  opacity: 0.4;
+}
+
+.split-card {
+  max-width: 400px;
+  min-width: 0;
+  gap: 10px;
+}
+
+.split-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.split-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+}
+
+.split-categories {
+  flex-wrap: wrap;
+}
+
+.split-preview {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.split-preview li {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.split-preview .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.split-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 13px;
 }

@@ -23,6 +23,12 @@ export type SessionRecord = {
   googleCalendarId?: string | null;
   /** The Google Calendar event this session was made from ("calendarId/eventId"). */
   fromEvent?: string | null;
+  /**
+   * When a session had more than one task, each task is saved as its own
+   * record and they all carry the session's start time here, so analytics
+   * and the calendar can put the session back together. Null otherwise.
+   */
+  partOf?: number | null;
 };
 
 export type Theme = "system" | "light" | "dark";
@@ -169,6 +175,7 @@ type SessionRow = {
   google_event_id: string | null;
   google_calendar_id: string | null;
   from_event: string | null;
+  part_of: number | null;
 };
 
 function fromRow(r: SessionRow): SessionRecord {
@@ -186,6 +193,7 @@ function fromRow(r: SessionRow): SessionRecord {
     googleEventId: r.google_event_id,
     googleCalendarId: r.google_calendar_id,
     fromEvent: r.from_event,
+    partOf: r.part_of,
   };
 }
 
@@ -225,8 +233,8 @@ async function sqliteStore(): Promise<Store> {
     async addSession(s) {
       const r = await db.execute(
         `INSERT INTO sessions
-           (kind, intention, category_id, started_at, ended_at, planned_ms, focused_ms, reflection, rating, from_event)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+           (kind, intention, category_id, started_at, ended_at, planned_ms, focused_ms, reflection, rating, from_event, part_of)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           s.kind,
           s.intention,
@@ -238,6 +246,7 @@ async function sqliteStore(): Promise<Store> {
           s.reflection,
           s.rating,
           s.fromEvent ?? null,
+          s.partOf ?? null,
         ],
       );
       return r.lastInsertId ?? 0;
@@ -245,9 +254,9 @@ async function sqliteStore(): Promise<Store> {
     async updateSession(s) {
       await db.execute(
         `UPDATE sessions SET intention = $1, category_id = $2, started_at = $3, ended_at = $4,
-           focused_ms = $5, reflection = $6, rating = $7
-         WHERE id = $8`,
-        [s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.id],
+           focused_ms = $5, reflection = $6, rating = $7, part_of = $8
+         WHERE id = $9`,
+        [s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.partOf ?? null, s.id],
       );
     },
     async deleteSession(id) {

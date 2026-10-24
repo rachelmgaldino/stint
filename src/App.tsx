@@ -16,7 +16,7 @@ import { previousRange, rangeFor, type Range } from "./analytics";
 import { TimerPane, upClock } from "./components/TimerPane";
 import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
 import { SettingsView } from "./components/SettingsView";
-import { Reflection, type PendingReflection } from "./components/Reflection";
+import { Reflection, type PendingReflection, type ReflectionUpdate } from "./components/Reflection";
 import { SessionDialog } from "./components/SessionDialog";
 import { CountEventsDialog, EventCard } from "./components/EventDialogs";
 import { AnalyticsView } from "./components/AnalyticsView";
@@ -29,6 +29,7 @@ import { setLook } from "./look";
 import { DEMO, demoEvents } from "./demo";
 import { nextBreak } from "./breaks";
 import { pastIntentions } from "./intentions";
+import { closeTask, countSessions, partsOf, sessionKey, taskRecords, type DoneTask } from "./tasks";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 import { TestTag, UpdatePill } from "./components/UpdatePill";
@@ -45,8 +46,9 @@ function unconverted(events: G.CalendarEvent[], sessions: SessionRecord[]): G.Ca
 
 // The running timer and what it's for, kept in localStorage so a restart of
 // the app doesn't lose a session in progress.
-// `long` marks a break that is a long one.
-type Live = { timer: T.Timer; intention: string; categoryId: number | null; long?: boolean };
+// `long` marks a break that is a long one. `done` holds the tasks finished
+// earlier in the running focus session with Next task; `intention` is the one now.
+type Live = { timer: T.Timer; intention: string; categoryId: number | null; long?: boolean; done?: DoneTask[] };
 const liveKey = "stint-live";
 
 function loadLive(): Live {
@@ -165,11 +167,16 @@ export default function App() {
     syncing.current = true;
     try {
       const since = Math.max(cal.syncSince, Date.now() - 30 * 86_400_000);
-      for (const s of await store.unsynced(since)) {
-        if (s.kind === "break" && !cal.syncBreaks) continue;
-        const c = categories.find((x) => x.id === s.categoryId);
-        const eventId = await G.createEvent(cal.targetId, s, c);
-        await store.setGoogleEvent(s.id, cal.targetId, eventId);
+      const list = await store.unsynced(since);
+      const handled = new Set<number>();
+      for (const s of list) {
+        if (handled.has(s.id) || (s.kind === "break" && !cal.syncBreaks)) continue;
+        // A session with several tasks is one event that lists them.
+        const parts = partsOf(s, list);
+        for (const p of parts) handled.add(p.id);
+        const c = categories.find((x) => x.id === parts[0].categoryId);
+        const eventId = await G.createEvent(cal.targetId, parts[0], c, parts);
+        for (const p of parts) await store.setGoogleEvent(p.id, cal.targetId, eventId);
       }
     } catch (e) {
       console.warn("calendar sync failed", e);
@@ -182,11 +189,25 @@ export default function App() {
     syncPending();
   }, [syncPending]);
 
-  /** Keeps a session's existing calendar event in step with an edit. */
-  const syncEdit = async (s: SessionRecord) => {
+  /** The other tasks of the session `s` belongs to, with `s` as it is now (or left out when `gone`). */
+  const sessionParts = async (s: SessionRecord, gone = false): Promise<SessionRecord[]> => {
+    if (!store || s.partOf == null) return gone ? [] : [s];
+    const around = await store.sessionsBetween(s.partOf, addDays(s.partOf, 1));
+    const others = around.filter((o) => o.id !== s.id);
+    return partsOf(s, gone ? others : [...others, s]).filter((o) => !gone || o.id !== s.id);
+  };
+
+  /** Keeps a session's existing calendar event in step with an edit, or with what's left after a task is deleted. */
+  const syncEdit = async (s: SessionRecord, gone = false) => {
     if (!google.connected || !s.googleEventId || !s.googleCalendarId) return;
-    const c = categories.find((x) => x.id === s.categoryId);
-    await G.updateEvent(s.googleCalendarId, s.googleEventId, s, c).catch((e) => console.warn("calendar update failed", e));
+    const parts = await sessionParts(s, gone);
+    if (gone && parts.length === 0) {
+      await G.deleteEvent(s.googleCalendarId, s.googleEventId).catch((e) => console.warn("calendar delete failed", e));
+      return;
+    }
+    const first = parts[0] ?? s;
+    const c = categories.find((x) => x.id === first.categoryId);
+    await G.updateEvent(s.googleCalendarId, s.googleEventId, first, c, parts).catch((e) => console.warn("calendar update failed", e));
   };
 
   // Events from the visible Google calendars, or the demo's pretend calendar.
@@ -281,7 +302,16 @@ export default function App() {
 
   const startTimer = (kind: T.Kind, minutes: number, long = false, flow = false) => {
     const n = Date.now();
-    setLive((l) => ({ ...l, timer: flow && kind === "focus" ? T.startFlow(n) : T.start(kind, minutes * 60_000, n), long }));
+    setLive((l) => ({ ...l, timer: flow && kind === "focus" ? T.startFlow(n) : T.start(kind, minutes * 60_000, n), long, done: [] }));
+  };
+
+  /** Next task: the one being worked on ends at `at` and the session carries on with the next. */
+  const nextTask = (intention: string, categoryId: number | null, at: number) => {
+    setLive((l) =>
+      l.timer.status === "idle" || l.timer.kind !== "focus"
+        ? l
+        : { ...l, done: closeTask(l.timer, l.done ?? [], l.intention, l.categoryId, at), intention: intention.trim(), categoryId },
+    );
   };
   // Focus is set to flow on the plan card.
   const idleFlow = idleKind === "focus" && settings.flow;
@@ -317,17 +347,20 @@ export default function App() {
     const next = nextBreak(today, settings, record.kind === "focus" ? record.focusedMs : 0);
     setLive((l) =>
       breakNow
-        ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long }
-        : { ...l, timer: T.idle, intention: goingOn ? l.intention : "" },
+        ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long, done: [] }
+        : { ...l, timer: T.idle, intention: goingOn ? l.intention : "", done: [] },
     );
-    const id = await store.addSession(record);
+    // One record per task when Next task was used.
+    const parts: SessionRecord[] = [];
+    for (const r of taskRecords(record, live.done ?? [])) parts.push({ ...r, id: await store.addSession(r) });
+    const id = parts[0].id;
     chooseKind(record.kind === "focus" ? "break" : "focus");
     if (record.kind === "focus") setPlannedMin(next.minutes);
     setDay(startOfDay(end));
     refresh();
     if (asking) {
       // Synced once the reflection is saved, so the event carries it.
-      setPending({ ...record, id });
+      setPending(parts.length > 1 ? { ...record, id, partOf: record.startedAt, parts } : { ...record, id });
       return;
     }
     syncPending();
@@ -366,14 +399,29 @@ export default function App() {
     setLive((l) => ({ ...l, timer: T.scrub(l.timer, delta, n) }));
   };
 
-  const closeReflection = async (
-    update?: Partial<Pick<SessionRecord, "reflection" | "rating" | "intention" | "categoryId">>,
-  ) => {
+  const closeReflection = async (update?: ReflectionUpdate) => {
     if (!store || !pending) return;
-    if (update) await store.updateSession({ ...pending, ...update });
+    let last = update;
+    if (update && pending.parts) {
+      // Each task keeps its own name and times; the session's rating goes on all, the note on the last.
+      const parts = update.parts ?? pending.parts;
+      for (const [i, p] of parts.entries()) {
+        const isLast = i === parts.length - 1;
+        await store.updateSession({
+          ...p,
+          rating: update.rating ?? p.rating,
+          reflection: isLast ? (update.reflection ?? p.reflection) : p.reflection,
+        });
+      }
+      const end = parts[parts.length - 1];
+      last = { ...update, intention: end.intention, categoryId: end.categoryId };
+    } else if (update) {
+      const { parts: _none, ...rest } = update;
+      await store.updateSession({ ...pending, ...rest });
+    }
     // On a break taken with Break, Back to focus carries on with what was just named.
-    if (update?.intention !== undefined && timer.status !== "idle" && timer.kind === "break") {
-      setLive((l) => ({ ...l, intention: update.intention ?? l.intention, categoryId: update.categoryId ?? l.categoryId }));
+    if (last?.intention !== undefined && timer.status !== "idle" && timer.kind === "break") {
+      setLive((l) => ({ ...l, intention: last?.intention ?? l.intention, categoryId: last?.categoryId ?? l.categoryId }));
     }
     setPending(null);
     refresh();
@@ -407,15 +455,27 @@ export default function App() {
     syncPending();
   };
 
+  /** A focus session cut in two tasks from the edit dialog: one event on the calendar still covers both. */
+  const splitSession = async (first: SessionRecord, second: SessionRecord) => {
+    if (!store) return;
+    await store.updateSession(first);
+    const { id: _new, ...rest } = second;
+    const id = await store.addSession(rest);
+    if (first.googleEventId && first.googleCalendarId) await store.setGoogleEvent(id, first.googleCalendarId, first.googleEventId);
+    setEditing(null);
+    refresh();
+    syncEdit(first);
+    syncPending();
+  };
+
   const deleteSession = async (id: number) => {
     if (!store) return;
     const gone = editing?.id === id ? editing : null;
     await store.deleteSession(id);
     setEditing(null);
     refresh();
-    if (google.connected && gone?.googleEventId && gone.googleCalendarId) {
-      G.deleteEvent(gone.googleCalendarId, gone.googleEventId).catch((e) => console.warn("calendar delete failed", e));
-    }
+    // A task of a session with several keeps the event going for the rest.
+    if (gone) syncEdit(gone, true);
   };
 
   // Clicking a calendar event sets up a session for it.
@@ -599,7 +659,7 @@ export default function App() {
           title: timer.kind === "break" ? text.break : category?.name ?? text.focus,
           color: timer.kind === "break" ? "var(--matcha)" : soft(category?.color ?? "#f4a988"),
         };
-  const focusCount = today.filter((s) => s.kind === "focus").length;
+  const focusCount = countSessions(today);
   const previousEnd =
     timer.status === "idle"
       ? null
@@ -691,7 +751,9 @@ export default function App() {
             onTakeBreak={takeBreak}
             onFinish={() => finish()}
             onBackToFocus={backToFocus}
-            onDiscard={() => setLive((l) => ({ ...l, timer: T.idle }))}
+            onDiscard={() => setLive((l) => ({ ...l, timer: T.idle, done: [] }))}
+            done={live.done ?? []}
+            onNextTask={nextTask}
           />
           <TodayRibbon
             day={day}
@@ -760,7 +822,7 @@ export default function App() {
           pending={pending}
           categories={categories}
           past={past}
-          sessionNumber={today.filter((s) => s.kind === "focus" && s.id !== pending.id && s.startedAt < pending.startedAt).length + 1}
+          sessionNumber={countSessions(today.filter((s) => s.startedAt < pending.startedAt && sessionKey(s) !== sessionKey(pending))) + 1}
           dailyGoal={settings.dailyGoal}
           onSave={closeReflection}
           onSkip={closeReflection}
@@ -789,6 +851,7 @@ export default function App() {
           justAdded={justAdded?.text}
           onSave={saveSession}
           onDelete={deleteSession}
+          onSplit={splitSession}
           onClose={() => {
             setEditing(null);
             setJustAdded(null);
