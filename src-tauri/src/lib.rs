@@ -235,6 +235,7 @@ pub fn run() {
             updates::open_pull_request,
             float::float_config,
             float::float_reset,
+            float::float_drag,
             float_open,
         ])
         .setup(|app| {

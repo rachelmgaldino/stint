@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { emitTo, listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import * as T from "../timer";
 import { soft } from "../colors";
 import { lapAt } from "../dial";
@@ -64,17 +64,20 @@ const PAD = 4;
  * other side of the bubble when that part of the window is off the screen.
  * The bubble itself never moves.
  */
-function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges): { tag: CSSProperties; shelf: CSSProperties } {
+function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { tag: CSSProperties; shelf: CSSProperties } {
   const cx = BUB.x + BUB.size / 2;
   const x = (w: number) => Math.max(e.left + PAD, Math.min(cx - w / 2, WIN.w - e.right - PAD - w));
-  const below = BUB.y + BUB.size + GAP;
-  let shelfTop = below;
-  let tagTop = BUB.y - GAP - tag.height;
+  // The looks' outline ring is drawn outside each part, so the gaps grow by
+  // it on both sides and stay as wide as in the plain look.
+  const gap = GAP + 2 * ring;
+  const near = 6 + 2 * ring;
+  let shelfTop = BUB.y + BUB.size + gap;
+  let tagTop = BUB.y - gap - tag.height;
   if (shelfTop + shelf.height > WIN.h - e.bottom - PAD) {
-    shelfTop = BUB.y - GAP - shelf.height;
-    tagTop = shelfTop - 6 - tag.height;
+    shelfTop = BUB.y - gap - shelf.height;
+    tagTop = shelfTop - near - tag.height;
   } else if (tagTop < e.top + PAD) {
-    tagTop = shelfTop + shelf.height + 6;
+    tagTop = shelfTop + shelf.height + near;
   }
   return {
     tag: { left: x(tag.width), top: tagTop },
@@ -114,7 +117,8 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   // Measured before painting, so the parts appear straight in their place.
   useLayoutEffect(() => {
     if (!open || !tagRef.current || !shelfRef.current) return setPlace(null);
-    setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened));
+    const ring = parseFloat(getComputedStyle(tagRef.current).getPropertyValue("--float-ring")) || 0;
+    setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened, ring));
   }, [opened, state]);
 
   useEffect(() => {
@@ -142,10 +146,14 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   const color = focus && state.category ? soft(state.category.color) : undefined;
   const tag = focus ? (state.category?.name ?? text.focus) : state.long ? text.float.longBreak : text.float.shortBreak;
 
-  const drag = (e: MouseEvent) => {
+  // Stint moves the window itself while the bubble is held (see float_drag
+  // in float.rs), so the bubble can reach the very top of the screen.
+  const drag = (e: PointerEvent) => {
     if (e.button !== 0 || e.detail > 1) return;
-    void getCurrentWindow().startDragging().catch(() => {});
+    e.currentTarget.setPointerCapture(e.pointerId);
+    void invoke("float_drag", { start: true }).catch(() => {});
   };
+  const drop = () => void invoke("float_drag", { start: false }).catch(() => {});
 
   return (
     <div
@@ -162,7 +170,9 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
         role="timer"
         aria-label={`${tag} ${clock}`}
         title={text.float.open}
-        onMouseDown={drag}
+        onPointerDown={drag}
+        onPointerUp={drop}
+        onLostPointerCapture={drop}
         onDoubleClick={() => send("open")}
       >
         <svg className="float-ring" width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">
