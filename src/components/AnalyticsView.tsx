@@ -8,6 +8,7 @@ import { countable, eventKey, eventLanes, type CalendarEvent } from "../google";
 import { Pip, RatingFace } from "./Pip";
 import { capitalize, formatDate, locale, t } from "../i18n";
 import { DayAnalytics } from "./DayAnalytics";
+import { countSessions, isNextTask } from "../tasks";
 
 type Props = {
   range: Range;
@@ -181,8 +182,8 @@ function WhenChart({
                 )}
               </div>
               <div className="when-goal" aria-hidden="true">
-                {Array.from({ length: Math.max(goal, list.length) }, (_, i) => (
-                  <span key={i} className={i < list.length ? "on" : ""} />
+                {Array.from({ length: Math.max(goal, countSessions(list)) }, (_, i) => (
+                  <span key={i} className={i < countSessions(list) ? "on" : ""} />
                 ))}
               </div>
             </div>
@@ -472,6 +473,11 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
                         <span className="entry-len">{compactDuration(s.focusedMs)}</span>
                       </span>
                       <span className="entry-when">
+                        {isNextTask(s, sessions) && (
+                          <span className="next-tag" title={text.nextTaskTitle}>
+                            ↳ {text.nextTaskTag}
+                          </span>
+                        )}
                         {timeRange(s.startedAt, s.endedAt)}
                         {extra.length > 0 && ` · ${extra.join(" · ")}`}
                         {!isBreak && s.rating > 0 && <RatingFace value={s.rating} size={18} />}

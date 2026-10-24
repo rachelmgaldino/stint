@@ -19,8 +19,10 @@ type Props = {
   placeholder?: string;
   /** false: no recent chips; tapping the empty field lists them instead, as on a phone. */
   chips?: boolean;
-  /** Enter with no suggestion open, or leaving the field. */
+  /** Enter with no suggestion open, or leaving the field (unless `doneOnBlur` is false). */
   onDone?(): void;
+  /** false: leaving the field doesn't count as done, only Enter does. */
+  doneOnBlur?: boolean;
   /** Escape with no suggestion open. */
   onCancel?(): void;
 };
@@ -84,7 +86,7 @@ export function IntentionField(p: Props) {
           onFocus={() => setOpen(true)}
           onBlur={() => {
             setOpen(false);
-            p.onDone?.();
+            if (p.doneOnBlur !== false) p.onDone?.();
           }}
           onChange={(e) => {
             p.onChange(e.target.value);

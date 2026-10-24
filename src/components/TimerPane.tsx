@@ -1,16 +1,18 @@
 import { useState, type CSSProperties } from "react";
 import type { Category } from "../store";
 import type { CalendarEvent } from "../google";
-import { clockTime, timeRange } from "../dates";
+import { clockTime, timeRange, timeSpan } from "../dates";
 import { soft } from "../colors";
 import * as T from "../timer";
+import { formatDuration } from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, CheckIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
 import { IntentionField } from "./IntentionField";
-import type { PastIntention } from "../intentions";
+import { fold, type PastIntention } from "../intentions";
+import { currentTaskMs, currentTaskStart, type DoneTask } from "../tasks";
 import { t } from "../i18n";
 import { look } from "../look";
 
@@ -54,6 +56,10 @@ type Props = {
   /** End the break and start a focus session straight away. */
   onBackToFocus(): void;
   onDiscard(): void;
+  /** Tasks finished earlier in this focus session with Next task. */
+  done: DoneTask[];
+  /** Next task: the current one ends at `at` and this one starts. */
+  onNextTask(intention: string, categoryId: number | null, at: number): void;
 };
 
 /** "50:00", "1:30:00", or "+03:12" in overtime. */
@@ -98,7 +104,9 @@ export function TimerPane(p: Props) {
   const plannedEnd = timer.status === "running" ? timer.endsAt : now + Math.max(0, left);
   const text = t().timer;
   const [editingStart, setEditingStart] = useState(false);
-  const [editingIntention, setEditingIntention] = useState(false);
+  // Renaming the task being worked on, or naming the next one.
+  const [editing, setEditing] = useState<false | "rename" | "next">(false);
+  const [next, setNext] = useState<{ at: number; name: string; categoryId: number | null }>({ at: 0, name: "", categoryId: null });
 
   const subline = flow
     ? !active
@@ -193,54 +201,14 @@ export function TimerPane(p: Props) {
       <section className="stage focus-stage" aria-label={text.focusing}>
         <div className="stage-dial">{dial(88)}</div>
         <div className="stage-side">
-          <div className="stage-what">
-            {category && (
-              <span className="cat-pill">
-                <span className="dot" style={{ background: soft(category.color) }} />
-                {category.name}
-              </span>
-            )}
-            {editingIntention ? (
-              <div className="stage-intention">
-                <IntentionField
-                  value={p.intention}
-                  categoryId={p.categoryId}
-                  categories={p.categories}
-                  past={p.past}
-                  now={now}
-                  label={text.intention}
-                  autoFocus
-                  onChange={p.onIntention}
-                  onPick={(v, c) => {
-                    p.onPickIntention(v, c);
-                    setEditingIntention(false);
-                  }}
-                  onDone={() => setEditingIntention(false)}
-                  onCancel={() => setEditingIntention(false)}
-                />
-              </div>
-            ) : p.intention.trim() ? (
-              <button className="stage-title" title={text.editIntention} onClick={() => setEditingIntention(true)}>
-                <h1>{p.intention.trim()}</h1>
-                <span className="stage-title-pen" aria-hidden="true">
-                  <PencilIcon />
-                </span>
-              </button>
-            ) : (
-              <>
-                {/* On a phone the pencil sits beside the title; the pill below needs a row it doesn't have. */}
-                <button className="stage-title is-empty" title={text.addIntention} onClick={() => setEditingIntention(true)}>
-                  <h1>{text.focusing}</h1>
-                  <span className="stage-title-pen" aria-hidden="true">
-                    <PencilIcon />
-                  </span>
-                </button>
-                <button className="add-intention" onClick={() => setEditingIntention(true)}>
-                  <PencilIcon /> {text.addIntention}
-                </button>
-              </>
-            )}
-          </div>
+          <TaskCard
+            {...p}
+            category={category}
+            editing={editing}
+            next={next}
+            onEditing={setEditing}
+            onNext={setNext}
+          />
           <div className="button-row">
             {breakFirst ? breakButton(true) : endButton(true)}
             {!running ? (
@@ -294,6 +262,7 @@ export function TimerPane(p: Props) {
               {text.discard}
             </button>
           </div>
+          {p.done.length > 0 && <Earlier timer={timer} done={p.done} categories={p.categories} />}
         </div>
         {startEditor}
       </section>
@@ -435,6 +404,171 @@ function NextEvent({ event }: { event: CalendarEvent }) {
         </div>
         <div className="next-sub">{t().timer.nextOnCalendar}</div>
       </div>
+    </div>
+  );
+}
+
+type TaskCardProps = Props & {
+  category: Category | undefined;
+  editing: false | "rename" | "next";
+  next: { at: number; name: string; categoryId: number | null };
+  onEditing(e: false | "rename" | "next"): void;
+  onNext(n: { at: number; name: string; categoryId: number | null }): void;
+};
+
+/**
+ * The task being worked on in a focus session: its category, its name (the
+ * pencil renames it), the time spent on it, and Next task, which names the
+ * next one while the timer keeps going.
+ */
+function TaskCard(p: TaskCardProps) {
+  const { timer, now, category, editing, next } = p;
+  const text = t().timer;
+  const taskMs = currentTaskMs(timer, p.done, now);
+  const minutes = formatDuration(taskMs);
+  const named = p.intention.trim();
+
+  const openNext = () => {
+    p.onNext({ at: Date.now(), name: "", categoryId: p.categoryId });
+    p.onEditing("next");
+  };
+  const startNext = (name = next.name, categoryId = next.categoryId) => {
+    if (!name.trim()) return;
+    p.onNextTask(name, categoryId, next.at);
+    p.onEditing(false);
+  };
+
+  if (editing === "next") {
+    // The task just finished isn't offered again.
+    const past = named ? p.past.filter((i) => fold(i.text) !== fold(named)) : p.past;
+    return (
+      <div className="stage-what task-card naming-next">
+        <div className="stage-intention">
+          <IntentionField
+            value={next.name}
+            categoryId={next.categoryId}
+            categories={p.categories}
+            past={past}
+            now={now}
+            label={text.whatsNext}
+            placeholder={text.nextPlaceholder}
+            autoFocus
+            doneOnBlur={false}
+            onChange={(name) => p.onNext({ ...next, name })}
+            onPick={(name, categoryId) => startNext(name, categoryId)}
+            onDone={() => (next.name.trim() ? startNext() : p.onEditing(false))}
+            onCancel={() => p.onEditing(false)}
+          />
+        </div>
+        <div className="chips next-categories" role="group" aria-label={text.category}>
+          {p.categories.map((c) => (
+            <button
+              key={c.id}
+              className="chip"
+              aria-pressed={c.id === next.categoryId}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => p.onNext({ ...next, categoryId: c.id })}
+            >
+              <span className="dot" style={{ background: soft(c.color) }} />
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <p className="next-note">{text.nextNote(named, formatDuration(currentTaskMs(timer, p.done, next.at)))}</p>
+        <div className="next-actions">
+          <button className="soft-button" onMouseDown={(e) => e.preventDefault()} onClick={() => p.onEditing(false)}>
+            {text.cancel}
+          </button>
+          <button className="next-task-button" disabled={!next.name.trim()} onMouseDown={(e) => e.preventDefault()} onClick={() => startNext()}>
+            <CheckIcon /> {text.startNext}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stage-what task-card">
+      <div className="task-card-top">
+        {category ? (
+          <span className="cat-pill">
+            <span className="dot" style={{ background: soft(category.color) }} />
+            {category.name}
+          </span>
+        ) : (
+          <span />
+        )}
+        <button
+          className="task-pen"
+          title={named ? text.renameTask : text.addIntention}
+          aria-label={named ? text.renameTask : text.addIntention}
+          onClick={() => p.onEditing("rename")}
+        >
+          <PencilIcon />
+        </button>
+      </div>
+      {editing === "rename" ? (
+        <div className="stage-intention">
+          <IntentionField
+            value={p.intention}
+            categoryId={p.categoryId}
+            categories={p.categories}
+            past={p.past}
+            now={now}
+            label={text.intention}
+            autoFocus
+            onChange={p.onIntention}
+            onPick={(v, c) => {
+              p.onPickIntention(v, c);
+              p.onEditing(false);
+            }}
+            onDone={() => p.onEditing(false)}
+            onCancel={() => p.onEditing(false)}
+          />
+        </div>
+      ) : (
+        <button
+          className={named ? "stage-title" : "stage-title is-empty"}
+          title={named ? text.renameTask : text.addIntention}
+          onClick={() => p.onEditing("rename")}
+        >
+          <h1>{named || text.focusing}</h1>
+        </button>
+      )}
+      <div className="task-card-foot">
+        <span className="task-time">
+          <span className="desk-only">{text.onThisTask(minutes)}</span>
+          <span className="phone-only">{p.done.length ? text.earlierCount(minutes, p.done.length) : text.onThisTask(minutes)}</span>
+        </span>
+        <button className="next-task-button" onClick={openNext}>
+          <CheckIcon /> {text.nextTask}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** On a desktop, the tasks finished earlier in this session, under the buttons. */
+function Earlier({ timer, done, categories }: { timer: T.Timer; done: DoneTask[]; categories: Category[] }) {
+  const text = t().timer;
+  return (
+    <div className="earlier desk-only">
+      <span className="earlier-label">{text.earlierThisSession}</span>
+      <ul>
+        {done.map((d, i) => {
+          const start = i === 0 ? currentTaskStart(timer, []) : done[i - 1].endedAt;
+          const c = categories.find((x) => x.id === d.categoryId);
+          return (
+            <li key={d.endedAt}>
+              <span className="dot" style={{ background: soft(c?.color ?? "#f4a988") }} />
+              <span className="earlier-name">{d.intention || c?.name || t().focus}</span>
+              <span className="earlier-time">
+                {timeSpan(start, d.endedAt)} · {formatDuration(d.focusedMs)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

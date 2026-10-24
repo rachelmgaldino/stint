@@ -70,6 +70,12 @@ fn migrations() -> Vec<Migration> {
         description: "remember the calendar event a session was made from",
         sql: "ALTER TABLE sessions ADD COLUMN from_event TEXT;",
         kind: MigrationKind::Up,
+    },
+    Migration {
+        version: 5,
+        description: "link the tasks of one session",
+        sql: "ALTER TABLE sessions ADD COLUMN part_of INTEGER;",
+        kind: MigrationKind::Up,
     }]
 }
 

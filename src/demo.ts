@@ -154,6 +154,16 @@ export function demoData(settings: Settings): { categories: Category[]; sessions
       at += brk + (rnd() < 0.3 ? 60 + Math.round(rnd() * 60) : Math.round(rnd() * 20)) * MIN;
     }
   }
+  // One of today's sessions had two tasks, switched with Next task partway through.
+  const midnight = new Date().setHours(0, 0, 0, 0);
+  const split = sessions.find((s) => s.kind === "focus" && s.startedAt >= midnight && s.focusedMs >= 30 * MIN);
+  if (split && split.categoryId !== null) {
+    const other = c.plans[split.categoryId - 1].intentions.find((i) => i !== split.intention) ?? split.intention;
+    const firstMs = Math.round((split.focusedMs * 0.4) / MIN) * MIN;
+    const partOf = split.startedAt;
+    sessions.push({ ...split, id: sessions.length + 1, intention: other, endedAt: split.startedAt + firstMs, focusedMs: firstMs, reflection: "", partOf });
+    Object.assign(split, { startedAt: split.startedAt + firstMs, focusedMs: split.focusedMs - firstMs, partOf });
+  }
   return { categories, sessions, settings: { ...settings, language, dailyGoal: 5 } };
 }
 

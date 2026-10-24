@@ -1035,14 +1035,6 @@
     text-align: center;
   }
 
-  .stage-title-pen {
-    margin-top: 0;
-  }
-
-  .add-intention {
-    align-self: center;
-  }
-
   .stage-intention {
     align-self: stretch;
     text-align: left;
@@ -1050,11 +1042,23 @@
 }
 
 @media (max-width: 640px) {
-  .stage-title.is-empty .stage-title-pen {
-    display: grid;
+  /* The task card reads left to right like on a desktop, a little smaller. */
+  .stage-what.task-card {
+    align-self: stretch;
+    text-align: left;
+    padding: 14px 16px 12px;
   }
 
-  .add-intention {
-    display: none;
+  .task-card .stage-title {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .task-card .stage-title h1 {
+    font-size: 26px;
+  }
+
+  .task-time {
+    font-size: 13.5px;
   }
 }

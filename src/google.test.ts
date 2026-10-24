@@ -51,6 +51,33 @@ describe("google calendar helpers", () => {
     expect(e.extendedProperties.private.stint).toBe("1");
   });
 
+  it("makes one event for a session with several tasks, listing them", () => {
+    const start = Date.parse("2026-10-24T13:00:00Z");
+    const part = (id: number, intention: string, from: number, to: number, reflection = ""): SessionRecord => ({
+      id,
+      kind: "focus",
+      intention,
+      categoryId: 1,
+      startedAt: start + from * MIN,
+      endedAt: start + to * MIN,
+      plannedMs: 60 * MIN,
+      focusedMs: (to - from) * MIN,
+      reflection,
+      rating: 2,
+      partOf: start,
+    });
+    const parts = [part(8, "Task AFD", 0, 22), part(9, "Ponto", 22, 53, "Compared both reports.")];
+    const e = sessionEvent(parts[0], { id: 1, name: "Peoplenity", color: "#8f7fe0" }, parts);
+    expect(e.summary).toBe("Task AFD +1 · Peoplenity");
+    expect(e.description).toContain("Focused: 53m");
+    expect(e.description).toContain("Task AFD (22m)");
+    expect(e.description).toContain("Ponto (31m)");
+    expect(e.description).toContain("Compared both reports.");
+    expect(e.start.dateTime).toBe("2026-10-24T13:00:00.000Z");
+    expect(e.end.dateTime).toBe("2026-10-24T13:53:00.000Z");
+    expect(e.extendedProperties.private.stintId).toBe("8");
+  });
+
   it("puts overlapping events side by side", () => {
     const ev = (id: string, h1: number, h2: number): CalendarEvent => ({
       id,
