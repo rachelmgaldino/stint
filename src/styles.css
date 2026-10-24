@@ -4258,6 +4258,7 @@ select.select-pill {
 }
 
 .task-card-top {
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4290,7 +4291,7 @@ select.select-pill {
 .task-card .stage-title h1 {
   font-size: 32px;
   line-height: 1.08;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 
 .task-card .stage-title.is-empty h1 {
@@ -4298,6 +4299,7 @@ select.select-pill {
 }
 
 .task-card-foot {
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: space-between;
