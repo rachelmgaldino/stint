@@ -2368,6 +2368,16 @@ select.select-pill {
   font-weight: 800;
 }
 
+/* Task names can be long: they wrap instead of pushing the numbers past the card. */
+.breakdown.intentions td:first-child {
+  white-space: normal;
+}
+
+.breakdown.intentions .row-name {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+
 .row-name {
   display: inline-flex;
   align-items: center;
