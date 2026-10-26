@@ -11,7 +11,7 @@ name: Release
 # in the TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 # secrets; its public half is plugins.updater.pubkey in tauri.conf.json.
 #
-# No loops: the "Release vX.Y.Z" commit is pushed straight to main by the bot,
+# No loops: the "chore(release): vX.Y.Z" commit is pushed straight to main by the workflow,
 # not merged through a PR, so it never starts this workflow again.
 on:
   # pull_request_target so the run has the secrets and a write token. It only
@@ -100,9 +100,9 @@ jobs:
             exit 1
           fi
           previous=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Release $tag"
+          git config user.name "Rachel G."
+          git config user.email "rachel.galdino@proton.me"
+          git commit -am "chore(release): $tag"
           git tag "$tag"
           git push origin HEAD:main "$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
