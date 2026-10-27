@@ -1,6 +1,6 @@
 [package]
 name = "stint"
-version = "1.4.12"
+version = "1.4.13"
 description = "A focus timer with session reflections"
 edition = "2021"
 
