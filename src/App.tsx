@@ -658,6 +658,7 @@ export default function App() {
           kind: timer.kind,
           title: timer.kind === "break" ? text.break : category?.name ?? text.focus,
           color: timer.kind === "break" ? "var(--matcha)" : soft(category?.color ?? "#f4a988"),
+          focusedMs: timer.kind === "focus" ? T.elapsed(timer, now) : 0,
         };
   const focusCount = countSessions(today);
   const previousEnd =
