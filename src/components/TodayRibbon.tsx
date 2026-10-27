@@ -10,7 +10,7 @@ import { formatDate, t } from "../i18n";
 const HOUR = 3_600_000;
 
 /** The session in progress, drawn on the ribbon as it grows. */
-export type LiveBlock = { startedAt: number; kind: "focus" | "break"; title: string; color: string };
+export type LiveBlock = { startedAt: number; kind: "focus" | "break"; title: string; color: string; focusedMs: number };
 
 type Props = {
   day: number;
@@ -40,6 +40,9 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
   const text = t();
   const sessions = week.filter((s) => startOfDay(s.startedAt) === day).sort((a, b) => a.startedAt - b.startedAt);
   const showLive = live && isToday;
+  // The session in progress counts toward the totals before it's saved.
+  const liveFocus = showLive && live.kind === "focus" ? live.focusedMs : 0;
+  const dayTotal = focusTotal(sessions) + liveFocus;
   const timed = eventLanes(events.filter((e) => !e.allDay && e.end > day && e.start < addDays(day, 1)));
 
   // Hours shown: 08 to 20, widened to fit everything on the day, in steps of two.
@@ -94,13 +97,13 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
       <section className="ribbon compact" aria-label={text.ribbon.today}>
         <span className="ribbon-title">{text.ribbon.today}</span>
         <div className="ribbon-track">{segments}</div>
-        <span className="ribbon-total">{formatDuration(focusTotal(sessions))}</span>
+        <span className="ribbon-total">{formatDuration(dayTotal)}</span>
       </section>
     );
   }
 
   const days = weekDays(day);
-  const totals = days.map((d) => focusTotal(week.filter((s) => startOfDay(s.startedAt) === d)));
+  const totals = days.map((d) => focusTotal(week.filter((s) => startOfDay(s.startedAt) === d)) + (d === today ? liveFocus : 0));
   const most = Math.max(...totals, 1);
 
   return (
@@ -109,7 +112,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
         <div className="ribbon-head">
           <h2>
             {isToday ? text.ribbon.today : dayLabel(day)}
-            <span className="ribbon-sum">{text.ribbon.focused(formatDuration(focusTotal(sessions)))}</span>
+            <span className="ribbon-sum">{text.ribbon.focused(formatDuration(dayTotal))}</span>
           </h2>
           <div className="ribbon-tools">
             {!isToday && (
