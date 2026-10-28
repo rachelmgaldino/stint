@@ -2003,15 +2003,18 @@ button.ribbon-seg:hover {
   background: var(--soft);
 }
 
+/* A done session: tinted with its category and outlined solid, where a planned event is dashed. */
 .when-block {
   position: absolute;
   left: 4px;
   right: 4px;
-  border-radius: 10px;
+  border: 1.5px solid var(--cat);
+  background: color-mix(in srgb, var(--cat) 30%, var(--soft));
+  border-radius: 8px;
 }
 
 .when-block:hover {
-  filter: brightness(1.05) saturate(1.1);
+  background: color-mix(in srgb, var(--cat) 45%, var(--soft));
 }
 
 /* Sessions and calendar events share a column; overlapping ones sit side by side. */

@@ -533,6 +533,10 @@
     border-width: 1.5px;
   }
 
+  .when-block {
+    border-width: 1px;
+  }
+
   .when-event span {
     display: none;
   }
