@@ -854,7 +854,7 @@ function TestButton() {
   );
 }
 
-function CalendarSection({ settings, google, onGoogleChanged, set }: Props & { set(c: CalendarSettings): void }) {
+function CalendarSection({ settings, google, categories, onGoogleChanged, set }: Props & { set(c: CalendarSettings): void }) {
   const cal = settings.calendar;
   const [clientId, setClientId] = useState("");
   const [secret, setSecret] = useState("");
@@ -954,6 +954,43 @@ function CalendarSection({ settings, google, onGoogleChanged, set }: Props & { s
         </select>
       </label>
       <Switch label={text.includeBreaks} checked={cal.syncBreaks} onChange={(v) => update({ syncBreaks: v })} />
+      {cal.syncSessions && (
+        <>
+          <div className="row">
+            <span>
+              {text.syncCategories}
+              <span className="hint">{text.syncCategoriesHint}</span>
+            </span>
+          </div>
+          <ul className="calendar-list">
+            {categories.map((c) => (
+              <li key={c.id}>
+                <label className="row">
+                  <span className="row-name">
+                    <span className="dot" style={{ background: soft(c.color) }} />
+                    {c.name}
+                  </span>
+                  <span className="toggle">
+                    <input
+                      type="checkbox"
+                      aria-label={text.syncCategory(c.name)}
+                      checked={!cal.skipCategories.includes(c.id)}
+                      onChange={(e) =>
+                        update({
+                          skipCategories: e.target.checked
+                            ? cal.skipCategories.filter((id) => id !== c.id)
+                            : [...cal.skipCategories, c.id],
+                        })
+                      }
+                    />
+                    <span className="switch" aria-hidden="true" />
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <Switch
         label={text.showEvents}
         hint={text.showEventsHint}
