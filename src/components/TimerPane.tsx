@@ -302,6 +302,7 @@ export function TimerPane(p: Props) {
               </>
             )}
           </div>
+          {adjustRow}
           <div className="stage-links">
             {timer.status === "running" ? (
               <button className="quiet-link" onClick={p.onPause}>
@@ -318,6 +319,7 @@ export function TimerPane(p: Props) {
           </div>
         </div>
         <div className="stage-dial">{dial(150)}</div>
+        {startEditor}
       </section>
     );
   }
