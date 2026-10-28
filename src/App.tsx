@@ -366,8 +366,8 @@ export default function App() {
     const parts: SessionRecord[] = [];
     for (const r of taskRecords(record, live.done ?? [])) parts.push({ ...r, id: await store.addSession(r) });
     const id = parts[0].id;
-    chooseKind(record.kind === "focus" ? "break" : "focus");
-    if (record.kind === "focus") setPlannedMin(next.minutes);
+    // Back at the plan card it's Focus again: a break only comes from Break (or the auto-break setting).
+    chooseKind("focus");
     setDay(startOfDay(end));
     refresh();
     if (asking) {
