@@ -1013,9 +1013,9 @@
   }
 }
 
-/* No room for the recent chips on a phone: the field lists them when tapped. */
+/* No room for the recent rows on a phone: the field lists them when tapped. */
 @media (max-width: 640px) {
-  .recent-chips {
+  .recent-rows {
     display: none;
   }
 

@@ -4194,41 +4194,54 @@ select.select-pill {
   color: var(--muted);
 }
 
-.recent-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
+/* The empty field and its recent tasks are one box: type, or pick a row. */
+.intention-box.with-recent {
+  border-radius: 18px;
+  background: var(--sunken);
 }
 
-.recent-label {
-  font-size: 12px;
-  font-weight: 700;
+.intention-box.with-recent > input {
+  background: transparent;
+}
+
+.recent-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.recent-row:hover,
+.recent-row:focus-visible {
+  background: var(--soft);
+}
+
+.recent-row svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
   color: var(--muted);
 }
 
-.recent-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.recent-chip {
-  max-width: 100%;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 12px;
-  background: var(--soft);
-  box-shadow: inset 0 0 0 1.5px var(--sunken);
-  font-size: 14px;
-  font-weight: 700;
+.recent-row span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.recent-chip:hover {
-  background: var(--sunken);
 }
 
 /* The intention while a session runs: tap it to change it, or add one. */

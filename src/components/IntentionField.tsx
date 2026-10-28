@@ -4,6 +4,7 @@ import { soft } from "../colors";
 import { addDays, startOfDay } from "../dates";
 import { fold, matching, recentFor, type PastIntention } from "../intentions";
 import { t } from "../i18n";
+import { ClockIcon } from "./icons";
 
 type Props = {
   value: string;
@@ -17,7 +18,7 @@ type Props = {
   label?: string;
   autoFocus?: boolean;
   placeholder?: string;
-  /** false: no recent chips; tapping the empty field lists them instead, as on a phone. */
+  /** false: no recent rows under the field; tapping the empty field lists them instead, as on a phone. */
   chips?: boolean;
   /** Enter with no suggestion open, or leaving the field (unless `doneOnBlur` is false). */
   onDone?(): void;
@@ -64,6 +65,8 @@ export function IntentionField(p: Props) {
   // the chips don't fit) the recent ones while it's empty.
   const rows = empty ? recent : found;
   const showList = open && rows.length > 0;
+  // While the field is empty, the recent ones sit under it inside the same box.
+  const inline = empty && recent.length > 0 && p.chips !== false;
   const catOf = (i: PastIntention) => p.categories.find((c) => c.id === i.categoryId);
 
   const pick = (i: PastIntention) => {
@@ -74,7 +77,7 @@ export function IntentionField(p: Props) {
   return (
     <div ref={root} className={`field intention-field${empty ? " is-empty" : ""}`}>
       <span>{p.label ?? text.intention}</span>
-      <div className="intention-box">
+      <div className={inline ? "intention-box with-recent" : "intention-box"}>
         <input
           aria-label={text.intention}
           placeholder={p.placeholder ?? text.intentionPlaceholder}
@@ -113,6 +116,24 @@ export function IntentionField(p: Props) {
             e.preventDefault();
           }}
         />
+        {inline && (
+          // The clock says these come from history, so the visible "Recent in" label is left out.
+          <div className="recent-rows" role="group" aria-label={text.recentIn(category?.name ?? "")}>
+            {recent.map((i) => (
+              <button
+                key={i.text}
+                className="recent-row"
+                title={i.text}
+                // Keep focus in the input so its blur doesn't close the field first.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(i)}
+              >
+                <ClockIcon />
+                <span>{i.text}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {showList && (
           <div className={`intention-list card${empty ? " recent-list" : ""}${p.chips === false ? " no-chips" : ""}`} role="listbox">
             {empty && <div className="intention-list-head">{text.recentIn(category?.name ?? "")}</div>}
@@ -140,24 +161,6 @@ export function IntentionField(p: Props) {
           </div>
         )}
       </div>
-      {empty && recent.length > 0 && p.chips !== false && (
-        <div className="recent-chips" aria-label={text.recentIn(category?.name ?? "")}>
-          <span className="recent-label">{text.recentIn(category?.name ?? "")}</span>
-          <div className="recent-chip-row">
-            {recent.map((i) => (
-              <button
-                key={i.text}
-                className="recent-chip"
-                // Keep focus in the input so its blur doesn't close the field first.
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(i)}
-              >
-                {i.text}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
