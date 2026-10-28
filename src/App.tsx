@@ -170,10 +170,12 @@ export default function App() {
       const list = await store.unsynced(since);
       const handled = new Set<number>();
       for (const s of list) {
-        if (handled.has(s.id) || (s.kind === "break" && !cal.syncBreaks)) continue;
+        if (handled.has(s.id)) continue;
         // A session with several tasks is one event that lists them.
         const parts = partsOf(s, list);
         for (const p of parts) handled.add(p.id);
+        // Skipped ones stay unsynced, so turning their category back on adds them.
+        if (!G.syncs(parts[0], cal)) continue;
         const c = categories.find((x) => x.id === parts[0].categoryId);
         const eventId = await G.createEvent(cal.targetId, parts[0], c, parts);
         for (const p of parts) await store.setGoogleEvent(p.id, cal.targetId, eventId);
@@ -206,6 +208,16 @@ export default function App() {
       return;
     }
     const first = parts[0] ?? s;
+    // Moved into a category that isn't synced: take it off the calendar.
+    if (!G.syncs(first, settings.calendar)) {
+      try {
+        await G.deleteEvent(s.googleCalendarId, s.googleEventId);
+        for (const p of parts) await store?.setGoogleEvent(p.id, null, null);
+      } catch (e) {
+        console.warn("calendar delete failed", e);
+      }
+      return;
+    }
     const c = categories.find((x) => x.id === first.categoryId);
     await G.updateEvent(s.googleCalendarId, s.googleEventId, first, c, parts).catch((e) => console.warn("calendar update failed", e));
   };

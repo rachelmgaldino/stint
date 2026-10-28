@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { Category, SessionRecord } from "./store";
+import type { CalendarSettings, Category, SessionRecord } from "./store";
 import { formatDuration } from "./timer";
 import { timeSpan } from "./dates";
 import { t } from "./i18n";
@@ -122,6 +122,12 @@ export function nearestColorId(hex: string): string {
     if (d < bestD) [best, bestD] = [c, d];
   }
   return best[0];
+}
+
+/** Whether a session belongs on Google Calendar: breaks only when asked for, and not from a skipped category. */
+export function syncs(s: SessionRecord, cal: Pick<CalendarSettings, "syncBreaks" | "skipCategories">): boolean {
+  if (s.kind === "break") return cal.syncBreaks;
+  return s.categoryId === null || !cal.skipCategories.includes(s.categoryId);
 }
 
 /**

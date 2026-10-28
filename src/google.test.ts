@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countable, eventKey, eventLanes, nearestColorId, sessionEvent, toCalendarEvent, type CalendarEvent } from "./google";
+import { countable, eventKey, eventLanes, nearestColorId, sessionEvent, syncs, toCalendarEvent, type CalendarEvent } from "./google";
 import type { SessionRecord } from "./store";
 
 const MIN = 60_000;
@@ -104,6 +104,27 @@ describe("google calendar helpers", () => {
       ["event", 1, 2],
       ["event", 0, 1],
     ]);
+  });
+
+  it("syncs a session unless its category is skipped, and breaks only when asked", () => {
+    const s: SessionRecord = {
+      id: 1,
+      kind: "focus",
+      intention: "",
+      categoryId: 2,
+      startedAt: 0,
+      endedAt: 30 * MIN,
+      plannedMs: 30 * MIN,
+      focusedMs: 30 * MIN,
+      reflection: "",
+      rating: 2,
+    };
+    const cal = { syncBreaks: false, skipCategories: [2] };
+    expect(syncs(s, cal)).toBe(false);
+    expect(syncs({ ...s, categoryId: 1 }, cal)).toBe(true);
+    expect(syncs({ ...s, categoryId: null }, cal)).toBe(true);
+    expect(syncs({ ...s, kind: "break", categoryId: null }, cal)).toBe(false);
+    expect(syncs({ ...s, kind: "break", categoryId: null }, { ...cal, syncBreaks: true })).toBe(true);
   });
 
   it("counts only timed events that are over", () => {

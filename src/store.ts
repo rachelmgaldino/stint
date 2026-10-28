@@ -92,6 +92,8 @@ export type CalendarSettings = {
   syncSessions: boolean;
   /** Also add breaks, not only focus sessions. */
   syncBreaks: boolean;
+  /** Categories whose sessions are not added to Google Calendar. */
+  skipCategories: number[];
   /** The Google calendar sessions are added to. */
   targetId: string | null;
   /** Sessions from this time on are synced; earlier ones are left alone. */
@@ -136,7 +138,7 @@ export const defaultSettings: Settings = {
   testBuilds: false,
   floatTimer: true,
   floatOnTop: true,
-  calendar: { syncSessions: false, syncBreaks: false, targetId: null, syncSince: 0, showEvents: false, hidden: [] },
+  calendar: { syncSessions: false, syncBreaks: false, skipCategories: [], targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
 
 function withDefaults(saved: Partial<Settings> | undefined): Settings {
