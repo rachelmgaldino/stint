@@ -20,7 +20,7 @@ type Props = {
   live: LiveBlock | null;
   /** Google Calendar events for this day. */
   events: CalendarEvent[];
-  /** A slim bar without events, hours or the week, shown during a session. */
+  /** A slim bar without hours or the week, shown during a session; events sit inside the track. */
   compact?: boolean;
   /** Set up a session from an event; absent while a timer runs. */
   onEvent?(e: CalendarEvent): void;
@@ -69,6 +69,21 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
   const titleOf = (s: SessionRecord) =>
     s.kind === "break" ? text.break : (s.categoryId !== null && byId.get(s.categoryId)?.name) || text.focus;
 
+  const eventChips = timed.map(({ event: e, lane, lanes }) => {
+    const label = `${e.title}, ${timeRange(e.start, e.end)}`;
+    return (
+      <button
+        key={`${e.calendarId}/${e.id}`}
+        className="ribbon-event"
+        style={{ ...place(e.start, e.end), "--lane": lane, "--lanes": lanes, "--event": e.color } as CSSProperties}
+        disabled={!onEvent}
+        onClick={() => onEvent?.(e)}
+        title={onEvent ? text.ribbon.eventHint(label) : label}
+        aria-label={label}
+      />
+    );
+  });
+
   const segments = (
     <>
       {sessions.map((s) => (
@@ -96,7 +111,11 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
     return (
       <section className="ribbon compact" aria-label={text.ribbon.today}>
         <span className="ribbon-title">{text.ribbon.today}</span>
-        <div className="ribbon-track">{segments}</div>
+        <div className="ribbon-track">
+          {/* Events sit under the sessions, so a session over a meeting covers it. */}
+          {eventChips}
+          {segments}
+        </div>
         <span className="ribbon-total">{formatDuration(dayTotal)}</span>
       </section>
     );
@@ -126,22 +145,7 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
           </div>
         </div>
         <div className="ribbon-body">
-          <div className="ribbon-events">
-            {timed.map(({ event: e, lane, lanes }) => {
-              const label = `${e.title}, ${timeRange(e.start, e.end)}`;
-              return (
-                <button
-                  key={`${e.calendarId}/${e.id}`}
-                  className="ribbon-event"
-                  style={{ ...place(e.start, e.end), "--lane": lane, "--lanes": lanes, "--event": e.color } as CSSProperties}
-                  disabled={!onEvent}
-                  onClick={() => onEvent?.(e)}
-                  title={onEvent ? text.ribbon.eventHint(label) : label}
-                  aria-label={label}
-                />
-              );
-            })}
-          </div>
+          <div className="ribbon-events">{eventChips}</div>
           <div className="ribbon-track">{segments}</div>
           <div className="ribbon-hours" aria-hidden="true">
             {labels.map((h) => (

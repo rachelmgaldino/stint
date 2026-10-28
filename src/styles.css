@@ -1331,6 +1331,14 @@ button.ribbon-seg:hover {
   border-radius: 9px;
 }
 
+/* Calendar events inside the slim track, split into lanes when they overlap. */
+.ribbon.compact .ribbon-event {
+  box-sizing: border-box;
+  top: calc(var(--lane) * 100% / var(--lanes));
+  height: calc(100% / var(--lanes));
+  border-radius: 9px;
+}
+
 .ribbon.compact .ribbon-now {
   top: -4px;
   bottom: -4px;
