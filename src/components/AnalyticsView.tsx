@@ -71,7 +71,7 @@ function WhenChart({
   selected,
   now,
   goal,
-  colorOf,
+  categoryColor,
   onDay,
   onOpen,
   onEvent,
@@ -84,7 +84,8 @@ function WhenChart({
   now: number;
   /** Focus sessions per day; each column gets a dot per session towards it. */
   goal: number;
-  colorOf(s: SessionRecord): string;
+  /** The session's category colour as picked, not softened: blocks tint and outline with it. */
+  categoryColor(s: SessionRecord): string;
   onDay(d: number): void;
   onOpen(s: SessionRecord): void;
   onEvent(e: CalendarEvent): void;
@@ -142,6 +143,8 @@ function WhenChart({
                   const top = ((hourOf(item.start) - from) / span) * 100;
                   const height = ((item.end - item.start) / 3_600_000 / span) * 100;
                   const place = { top: `${top}%`, height: `max(8px, ${height}%)`, "--lane": lane, "--lanes": lanes } as CSSProperties;
+                  // Sessions leave a 1px gap above and below, so back-to-back ones read as separate blocks.
+                  const block = { ...place, top: `calc(${top}% + 1px)`, height: `max(6px, calc(${height}% - 2px))` } as CSSProperties;
                   if ("event" in item) {
                     const e = item.event;
                     const label = `${e.title}, ${timeRange(e.start, e.end)}`;
@@ -163,7 +166,7 @@ function WhenChart({
                     <button
                       key={s.id}
                       className="when-block"
-                      style={{ ...place, background: colorOf(s) }}
+                      style={{ ...block, "--cat": categoryColor(s) } as CSSProperties}
                       onClick={() => onOpen(s)}
                       title={`${s.intention || t().focus}, ${timeRange(s.startedAt, s.endedAt)}`}
                       aria-label={`${s.intention || t().focus}, ${timeRange(s.startedAt, s.endedAt)}`}
@@ -275,8 +278,8 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
     else days.push({ day: d, items: [s] });
   }
 
-  const colorOf = (s: SessionRecord) =>
-    s.kind === "break" ? "var(--matcha)" : soft((s.categoryId !== null && byId.get(s.categoryId)?.color) || "#f4a988");
+  const categoryColor = (s: SessionRecord) => (s.categoryId !== null && byId.get(s.categoryId)?.color) || "#f4a988";
+  const colorOf = (s: SessionRecord) => (s.kind === "break" ? "var(--matcha)" : soft(categoryColor(s)));
   const rated = stats.ratings.focused + stats.ratings.neutral + stats.ratings.distracted;
   const pct = (n: number) => `${rated ? (n / rated) * 100 : 0}%`;
   const weekStart = range.kind === "month" ? null : weekDays(range.from);
@@ -397,7 +400,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
               selected={null}
               now={now}
               goal={dailyGoal}
-              colorOf={colorOf}
+              categoryColor={categoryColor}
               onDay={(d) => onRange(rangeFor("day", d))}
               onOpen={onOpen}
               onEvent={onEvent}
