@@ -284,7 +284,7 @@ export function TimerPane(p: Props) {
           <div className="button-row">
             {p.breakAction === "focus" ? (
               <>
-                <button className="squishy ink big" onClick={p.onBackToFocus}>
+                <button className="squishy ink big grow" onClick={p.onBackToFocus}>
                   <PlayIcon /> {text.backToFocus}
                 </button>
                 <button className="soft-button big" onClick={p.onFinish}>
@@ -293,7 +293,7 @@ export function TimerPane(p: Props) {
               </>
             ) : (
               <>
-                <button className="squishy ink big" onClick={p.onFinish}>
+                <button className="squishy ink big grow" onClick={p.onFinish}>
                   <StopIcon /> {text.endBreak}
                 </button>
                 <button className="soft-button big" onClick={p.onBackToFocus}>

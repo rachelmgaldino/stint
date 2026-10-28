@@ -994,14 +994,17 @@ main {
   flex-wrap: nowrap;
 }
 
+/* Shrinks to fit a narrow side column (the break page's) instead of spilling past it. */
 .adjust-row .step {
-  flex: 0 0 64px;
+  flex: 0 1 64px;
+  min-width: 44px;
   padding: 0;
   font-size: 22px;
 }
 
 .start-edit-button.time-range {
   flex: 1 1 auto;
+  min-width: 0;
   height: 48px;
   border-radius: 18px;
   justify-content: center;
