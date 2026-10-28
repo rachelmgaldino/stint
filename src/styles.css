@@ -4305,6 +4305,36 @@ select.select-pill {
   color: var(--text);
 }
 
+.task-card-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* In flow, the session's start as a small pill beside the pencil. */
+.task-start {
+  height: 30px;
+  padding: 0 12px 0 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sunken);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.task-start:hover {
+  color: var(--text);
+}
+
+.task-start svg {
+  width: 15px;
+  height: 15px;
+}
+
 .task-card .stage-title {
   width: 100%;
 }

@@ -178,6 +178,26 @@ export function TimerPane(p: Props) {
     />
   );
 
+  // − and + move the end by 5 minutes; the times between them open the start editor.
+  const adjustRow = active && (
+    <div className="button-row adjust-row">
+      <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
+        −
+      </button>
+      <button
+        className="start-edit-button time-range"
+        aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
+        onClick={() => setEditingStart(true)}
+      >
+        <PencilIcon />
+        {timer.status === "running" ? timeRange(timer.startedAt, plannedEnd) : text.startedAt(clockTime(timer.startedAt))}
+      </button>
+      <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
+        +
+      </button>
+    </div>
+  );
+
   if (active && kind === "focus") {
     // The big button is the one chosen in Settings; the other sits beside it,
     // or under it as a link while paused, when Resume takes its place.
@@ -208,6 +228,7 @@ export function TimerPane(p: Props) {
             next={next}
             onEditing={setEditing}
             onNext={setNext}
+            start={flow ? { at: timer.startedAt, edit: () => setEditingStart(true) } : undefined}
           />
           <div className="button-row">
             {breakFirst ? breakButton(true) : endButton(true)}
@@ -221,28 +242,8 @@ export function TimerPane(p: Props) {
               breakButton(false)
             )}
           </div>
-          {/* − and + move the end by 5 minutes; the times between them open the start editor.
-              Flow has no end to move, so only the start is left. */}
-          <div className="button-row adjust-row">
-            {!flow && (
-              <button className="soft-button step" aria-label={t().mini.less} disabled={left <= 60_000} onClick={() => p.onAdjust(-5)}>
-                −
-              </button>
-            )}
-            <button
-              className="start-edit-button time-range"
-              aria-label={text.changeStartLabel(clockTime(timer.startedAt))}
-              onClick={() => setEditingStart(true)}
-            >
-              <PencilIcon />
-              {running && !flow ? timeRange(timer.startedAt, plannedEnd) : text.startedAt(clockTime(timer.startedAt))}
-            </button>
-            {!flow && (
-              <button className="soft-button step" aria-label={t().mini.more} onClick={() => p.onAdjust(5)}>
-                +
-              </button>
-            )}
-          </div>
+          {/* Flow has no end to move, so its start sits on the task card instead. */}
+          {!flow && adjustRow}
           {p.nextEvent && <NextEvent event={p.nextEvent} />}
           <div className="stage-links">
             {running ? (
@@ -414,6 +415,8 @@ type TaskCardProps = Props & {
   next: { at: number; name: string; categoryId: number | null };
   onEditing(e: false | "rename" | "next"): void;
   onNext(n: { at: number; name: string; categoryId: number | null }): void;
+  /** In flow, the session's start shows on the card and opens the start editor. */
+  start?: { at: number; edit(): void };
 };
 
 /**
@@ -498,14 +501,28 @@ function TaskCard(p: TaskCardProps) {
         ) : (
           <span />
         )}
-        <button
-          className="task-pen"
-          title={named ? text.renameTask : text.addIntention}
-          aria-label={named ? text.renameTask : text.addIntention}
-          onClick={() => p.onEditing("rename")}
-        >
-          <PencilIcon />
-        </button>
+        <span className="task-card-tools">
+          {p.start && (
+            // The session's start, not this task's: after Next task the card shows a later task.
+            <button
+              className="task-start"
+              title={text.changeStartLabel(clockTime(p.start.at))}
+              aria-label={text.changeStartLabel(clockTime(p.start.at))}
+              onClick={p.start.edit}
+            >
+              <ClockIcon />
+              {text.since(clockTime(p.start.at))}
+            </button>
+          )}
+          <button
+            className="task-pen"
+            title={named ? text.renameTask : text.addIntention}
+            aria-label={named ? text.renameTask : text.addIntention}
+            onClick={() => p.onEditing("rename")}
+          >
+            <PencilIcon />
+          </button>
+        </span>
       </div>
       {editing === "rename" ? (
         <div className="stage-intention">
