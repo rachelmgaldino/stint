@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Pip, type Mood } from "./Pip";
 import { PinIcon } from "./floatIcons";
-import type { FloatDrag } from "./FloatTimer";
+import type { FloatAnchor, FloatDrag } from "./FloatTimer";
 
 // The ring in each place: its box, the circle's radius (to the middle of
 // its 2.5px line) and Pip, which leaves 1px between itself and the line.
@@ -25,6 +25,8 @@ type Props = {
   mood: Mood;
   onTop: boolean;
   drag: FloatDrag;
+  /** Which way the card opens: from the pill's centre, or from its edge on a docked side. */
+  anchor: FloatAnchor;
   title: string;
   onPointerDown: (e: PointerEvent) => void;
   onDrop: () => void;
@@ -43,9 +45,10 @@ type Props = {
 
 /** The sizes the handle allows, in steps, and how far apart they are. */
 export const SCALE = { min: 0.8, max: 1.5, step: 0.05 };
-// The handle's middle, 101px down the unscaled window: the card ends at 93
-// and the bar sits 6px under it, 4px tall.
-const HANDLE_Y = 101;
+// From the pill's top to the handle's middle, at size 1: the card is 87 tall
+// and the bar sits 6px under it, 4px tall. The 9px gap above the pill stays
+// the same at every size, so only this part grows.
+const HANDLE_BELOW = 95;
 
 /** A size on one of the handle's steps, within its range. */
 export function stepScale(s: number): number {
@@ -59,11 +62,11 @@ export function stepScale(s: number): number {
  * puts it back to normal. While the pill is held on the middle of the
  * screen it takes the category's colour, the snap's cue.
  */
-function Handle({ scale, onScale, label, centered, open, style }: { scale: number; onScale: (s: number) => void; label: string; centered: boolean; open: boolean; style: CSSProperties }) {
+function Handle({ scale, onScale, label, snapped, open, style }: { scale: number; onScale: (s: number) => void; label: string; snapped: boolean; open: boolean; style: CSSProperties }) {
   const held = useRef<{ y: number; scale: number } | null>(null);
   return (
     <button
-      className={centered ? "float-pill-handle centered" : "float-pill-handle"}
+      className={snapped ? "float-pill-handle snapped" : "float-pill-handle"}
       inert={!open}
       style={style}
       title={label}
@@ -77,7 +80,7 @@ function Handle({ scale, onScale, label, centered, open, style }: { scale: numbe
       // measured on the screen, where the pointer really is.
       onPointerMove={(e) => {
         const h = held.current;
-        if (h) onScale(stepScale(h.scale + (e.screenY - h.y) / HANDLE_Y));
+        if (h) onScale(stepScale(h.scale + (e.screenY - h.y) / HANDLE_BELOW));
       }}
       onPointerUp={() => (held.current = null)}
       onLostPointerCapture={() => (held.current = null)}
@@ -189,15 +192,16 @@ export function FloatPill(p: Props) {
     onDoubleClick: dbl,
   };
 
-  // While held and snapped to the middle of the screen, an outline around it
-  // and the handle under it, in the category's colour, say it has landed
-  // there. A drag starts with the pointer on the pill, so the card is open.
-  const centered = p.drag.dragging && p.drag.centered;
+  // While held and snapped to the middle of the screen or a side, an outline
+  // around it and the handle under it, in the category's colour, say it has
+  // landed there. A drag starts with the pointer on the pill, so the card is open.
+  const snapped = p.drag.dragging && p.drag.snapped;
   const mark = {
     "--pill-mark": p.color ?? "var(--float-text)",
     "--rest-w": `${restW}px`,
   } as CSSProperties;
-  const shell = ["float-pill", ready ? "ready" : "", p.open ? "open" : "", centered ? "centered" : ""].join(" ");
+  const from = p.anchor === "center" ? "" : `from-${p.anchor}`;
+  const shell = ["float-pill", from, ready ? "ready" : "", p.open ? "open" : "", snapped ? "snapped" : ""].join(" ");
 
   // One shell that grows from the pill into the card, with both rows inside
   // it: the one not showing fades out and is inert, so its buttons can't be
@@ -235,7 +239,7 @@ export function FloatPill(p: Props) {
           <div className="float-card-shelf">{p.buttons}</div>
         </div>
       </div>
-      <Handle scale={p.scale} onScale={p.onScale} label={p.resizeLabel} centered={centered} open={p.open} style={mark} />
+      <Handle scale={p.scale} onScale={p.onScale} label={p.resizeLabel} snapped={snapped} open={p.open} style={mark} />
     </>
   );
 }

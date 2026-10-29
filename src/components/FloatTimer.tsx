@@ -22,10 +22,12 @@ const send = (a: FloatAction) => void emitTo("main", "float-action", a).catch(()
 /** How much of the window runs off the screen on each side, from src-tauri/src/float.rs. */
 export type FloatEdges = { left: number; right: number; top: number; bottom: number };
 type Opened = FloatEdges & { open: boolean };
-/** Sent by float_drag in float.rs while the pill is held, `centered` once it snaps to the middle of the screen. */
-export type FloatDrag = { dragging: boolean; centered: boolean };
+/** Sent by float_drag in float.rs while the pill is held, `snapped` once it sits on the middle of the screen or docked to a side. */
+export type FloatDrag = { dragging: boolean; snapped: boolean };
+/** Which way the pill's card opens, from float.rs: from its centre, or from its left or right edge when docked near that side. */
+export type FloatAnchor = "center" | "left" | "right";
 
-const NOT_DRAGGING: FloatDrag = { dragging: false, centered: false };
+const NOT_DRAGGING: FloatDrag = { dragging: false, snapped: false };
 
 const NO_EDGES: FloatEdges = { left: 0, right: 0, top: 0, bottom: 0 };
 // The window and the bubble inside it, matching OPEN, SHIFT and BUBBLE in float.rs.
@@ -71,6 +73,7 @@ export type FloatPreviewProps = {
   now: number;
   edges?: FloatEdges;
   drag?: FloatDrag;
+  anchor?: FloatAnchor;
 };
 
 /**
@@ -84,6 +87,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   const [liveNow, setNow] = useState(Date.now());
   const [liveOpened, setOpened] = useState<Opened>({ open: false, ...NO_EDGES });
   const [liveDrag, setDragging] = useState<FloatDrag>(NOT_DRAGGING);
+  const [liveAnchor, setAnchor] = useState<FloatAnchor>("center");
   // The pill's size from the handle under its card, kept by float.rs.
   const [size, setSize] = useState(1);
   // In the preview these come from its props instead. The opened object is
@@ -98,6 +102,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   const now = preview ? preview.now : liveNow;
   const opened = previewOpened ?? liveOpened;
   const dragging = preview ? (preview.drag ?? NOT_DRAGGING) : liveDrag;
+  const anchor = preview ? (preview.anchor ?? "center") : liveAnchor;
   const [place, setPlace] = useState<{ tag: CSSProperties; shelf: CSSProperties } | null>(null);
   const tagRef = useRef<HTMLSpanElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
@@ -109,6 +114,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     const off = listen<FloatState>("float-state", (e) => setState(e.payload));
     const offOpen = listen<Opened>("float-open", (e) => setOpened(e.payload));
     const offDrag = listen<FloatDrag>("float-drag", (e) => setDragging(e.payload));
+    const offAnchor = listen<FloatAnchor>("float-anchor", (e) => setAnchor(e.payload));
     invoke<number>("float_pill_size", { size: null })
       .then(setSize)
       .catch(() => {});
@@ -118,6 +124,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
       void off.then((f) => f());
       void offOpen.then((f) => f());
       void offDrag.then((f) => f());
+      void offAnchor.then((f) => f());
       clearInterval(id);
     };
   }, []);
@@ -213,7 +220,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     return (
       // The whole pill is drawn at its size at once, so every gap and curve
       // keeps its ratio.
-      <div className={`${className} pill`} style={{ zoom: size }}>
+      <div className={`${className} pill`} style={{ zoom: size, "--pill-top": `${9 / size}px` } as CSSProperties}>
         <FloatPill
           open={open}
           clock={clock}
@@ -224,6 +231,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
           mood={mood}
           onTop={state.onTop}
           drag={dragging}
+          anchor={anchor}
           title={text.float.open}
           onPointerDown={drag}
           onDrop={drop}
