@@ -248,7 +248,7 @@ html.float-window #root {
 /* The pill: the other style of floating timer, a short bar at the top of the
    screen. In this style the window is 280 x 132 with its top at the screen's
    top (PILL_OPEN in src-tauri/src/float.rs), and only the resting pill's spot
-   opens it: 32 tall, 6 from the top, centred, as wide as FloatPill measures
+   opens it: 32 tall, 9 from the top, centred, as wide as FloatPill measures
    it (sent to float_pill_width). With the pointer on it the pill grows into a
    card, down and to both sides, keeping its top row where it was. */
 
@@ -256,9 +256,11 @@ html.float-window #root {
    the two rows inside it. Both are centred on the window's middle (140), so
    the shell grows evenly to both sides. It opens and closes at the same
    quick pace. */
+/* The gap above it stays 9px at every size: FloatTimer sets --pill-top to
+   9px divided by the pill's size, since the whole pill is zoomed by it. */
 .float-pill {
   position: absolute;
-  top: 6px;
+  top: var(--pill-top, 9px);
   left: calc(140px - var(--rest-w, 132px) / 2);
   width: var(--rest-w, 132px);
   height: 32px;
@@ -336,21 +338,54 @@ html.float-window #root {
   transition: opacity 140ms ease-out 60ms;
 }
 
-/* Held and snapped to the middle of the screen: an outline outside the
+/* Held and snapped to the middle of the screen or a side: an outline outside the
    look's own ring, and the handle under the card in the same colour. */
-.float-pill.centered {
+.float-pill.snapped {
   box-shadow: 0 0 0 calc(var(--float-ring) + 2px) var(--pill-mark), 0 4px 10px var(--float-glow);
 }
 
 
+/* Docked near a side (float.rs sends which): the card opens from the pill's
+   edge on that side instead of its centre, so it keeps 9px from the screen's
+   edge, and both rows hang from that edge too, so nothing slides as it grows.
+   The handle stays centred under the card. */
+.float-pill.from-left.open {
+  left: calc(140px - var(--rest-w, 132px) / 2);
+}
+
+.float-pill.from-right.open {
+  left: calc(140px + var(--rest-w, 132px) / 2 - 180px);
+}
+
+.float-pill.from-left .float-pill-rest,
+.float-pill.from-left .float-card {
+  left: 0;
+  transform: none;
+}
+
+.float-pill.from-right .float-pill-rest,
+.float-pill.from-right .float-card {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.float-pill.from-left ~ .float-pill-handle {
+  left: calc(140px - var(--rest-w, 132px) / 2 + 60px);
+}
+
+.float-pill.from-right ~ .float-pill-handle {
+  left: calc(140px + var(--rest-w, 132px) / 2 - 120px);
+}
+
 /* The resize handle under the open card: a 32 x 4 bar 6px below it (the
-   card ends at 93), in a 60 x 16 area that's easier to grab. It shows and
+   card is 87 tall), in a 60 x 16 area that's easier to grab. It shows and
    fades with the card. Over whatever app is underneath, a thin ring in the
    pill's own background keeps it visible on light and dark alike. */
 .float-pill-handle {
   position: absolute;
   left: 110px;
-  top: 93px;
+  top: calc(var(--pill-top, 9px) + 87px);
   width: 60px;
   height: 16px;
   padding: 0;
@@ -379,8 +414,8 @@ html.float-window #root {
   box-shadow: 0 0 0 1.5px var(--float-bg);
 }
 
-/* Held on the middle of the screen: the bar takes the category's colour. */
-.float-pill-handle.centered .float-pill-handle-bar {
+/* Held on the middle of the screen or a side: the bar takes the category's colour. */
+.float-pill-handle.snapped .float-pill-handle-bar {
   background: var(--pill-mark);
 }
 

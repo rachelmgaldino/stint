@@ -9,7 +9,7 @@ import type { Look } from "../look";
 import type { FloatStyle, Theme } from "../store";
 import type { FloatState } from "../float";
 import * as T from "../timer";
-import { FloatTimer, type FloatDrag, type FloatEdges } from "./FloatTimer";
+import { FloatTimer, type FloatAnchor, type FloatDrag, type FloatEdges } from "./FloatTimer";
 import "./FloatPreview.css";
 
 const q = new URLSearchParams(location.search);
@@ -60,17 +60,19 @@ function Frame({
   label,
   edges,
   drag,
+  anchor,
 }: {
   state: FloatState;
   open: boolean;
   label?: string;
   edges?: FloatEdges;
   drag?: FloatDrag;
+  anchor?: FloatAnchor;
 }) {
   return (
     <figure className="fpv-fig">
       <div className={state.style === "pill" ? "fpv-frame pill" : "fpv-frame"}>
-        <FloatTimer preview={{ state, open, now: NOW, edges, drag }} />
+        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor }} />
       </div>
       {label && <figcaption>{label}</figcaption>}
     </figure>
@@ -127,9 +129,11 @@ export function FloatPreview() {
         <Frame
           state={pill(focus(18))}
           open
-          drag={{ dragging: true, centered: true }}
+          drag={{ dragging: true, snapped: true }}
           label={pt ? "Arrastando, no centro" : "Dragging, centred"}
         />
+        <Frame state={pill(focus(18))} open anchor="left" label={pt ? "Na borda esquerda" : "Docked left"} />
+        <Frame state={pill(focus(18))} open anchor="right" label={pt ? "Na borda direita" : "Docked right"} />
       </div>
     </div>
   );

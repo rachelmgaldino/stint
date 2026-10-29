@@ -29,12 +29,13 @@ const BUBBLE: (f64, f64, f64) = (10.0, 10.0, 92.0);
 // category and buttons fit centred on the bubble.
 const ROOM: (f64, f64) = (46.0, 66.0);
 // The pill style: logical size of its window, and the resting pill inside it
-// (x, y, width, height), centred across the window and 6px below its top.
+// (x, y, width, height), centred across the window and 9px below its top.
+// The 9px gap stays the same at every size; the rest grows with it.
 // The width is its widest usual size; the page sends the real one
 // (float_pill_width), since the pill hugs the time and the pin.
 // They must match the pill layout in src/float.css.
 const PILL_OPEN: (f64, f64) = (280.0, 132.0);
-const PILL: (f64, f64, f64, f64) = (74.0, 6.0, 132.0, 32.0);
+const PILL: (f64, f64, f64, f64) = (74.0, 9.0, 132.0, 32.0);
 // How close (logical px) the pill's centre must come to the middle of the
 // screen while dragged to snap onto it.
 const SNAP: f64 = 24.0;
@@ -78,12 +79,21 @@ impl Style {
     }
 }
 
+/// A side of the screen the pill can be docked to.
+#[derive(Clone, Copy, PartialEq)]
+enum Edge {
+    Left,
+    Right,
+}
+
 /// Where the pill was left: its centre across the screen in physical pixels,
-/// and whether it was snapped onto the middle of that screen.
+/// and whether it was snapped onto the middle of that screen or docked to
+/// one of its sides.
 #[derive(Clone, Copy)]
 struct PillSpot {
     cx: i32,
     centered: bool,
+    edge: Option<Edge>,
 }
 
 #[derive(Default)]
@@ -110,6 +120,8 @@ struct Inner {
     edges: Option<Opened>,
     /// The drag cue last sent to the page (pill only).
     cue: Option<Dragging>,
+    /// Which way the card last opened from the pill, as sent to the page.
+    anchor: Option<&'static str>,
     /// The resting pill's width as the page measured it (logical px), since
     /// it hugs the time and the pin; none means PILL's width.
     pill_w: Option<f64>,
@@ -129,11 +141,12 @@ struct Opened {
 }
 
 /// Whether the pill is being dragged and whether it sits snapped on the
-/// middle of the screen, so the page can show a cue while it is.
+/// middle of the screen or docked to a side, so the page can show a cue
+/// while it is.
 #[derive(Clone, Copy, PartialEq, serde::Serialize)]
 struct Dragging {
     dragging: bool,
-    centered: bool,
+    snapped: bool,
 }
 
 fn saved_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
@@ -141,7 +154,8 @@ fn saved_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
 }
 
 /// Reads float.json once: the bubble's spot as x and y, the pill's as
-/// pill.cx and pill.centered. Older files have only x and y.
+/// pill.cx, pill.centered, pill.edge and pill.size. Older files have only x
+/// and y.
 fn load<R: Runtime>(app: &AppHandle<R>, s: &mut Inner) {
     if s.loaded {
         return;
@@ -156,7 +170,12 @@ fn load<R: Runtime>(app: &AppHandle<R>, s: &mut Inner) {
         }
         if let Some(cx) = v["pill"]["cx"].as_i64() {
             let centered = v["pill"]["centered"].as_bool().unwrap_or(false);
-            s.pill = Some(PillSpot { cx: cx as i32, centered });
+            let edge = match v["pill"]["edge"].as_str() {
+                Some("left") => Some(Edge::Left),
+                Some("right") => Some(Edge::Right),
+                _ => None,
+            };
+            s.pill = Some(PillSpot { cx: cx as i32, centered, edge });
         }
         if let Some(size) = v["pill"]["size"].as_f64() {
             s.pill_size = Some(size.clamp(PILL_SIZES.0, PILL_SIZES.1));
@@ -182,6 +201,10 @@ fn save<R: Runtime>(app: &AppHandle<R>, s: &Inner) {
     if let Some(p) = s.pill {
         pill.insert("cx".into(), p.cx.into());
         pill.insert("centered".into(), p.centered.into());
+        if let Some(edge) = p.edge {
+            let side = if edge == Edge::Left { "left" } else { "right" };
+            pill.insert("edge".into(), side.into());
+        }
     }
     if let Some(size) = s.pill_size.filter(|k| *k != 1.0) {
         pill.insert("size".into(), size.into());
@@ -264,12 +287,52 @@ fn pill_offset(scale: f64, size: f64) -> i32 {
     ((PILL.0 + PILL.2 / 2.0) * size * scale).round() as i32
 }
 
-/// Keeps the whole pill on the monitor, open or not: its centre stays half
-/// the open card in from either side of the work area.
-fn clamp_pill(m: &Monitor, cx: i32, size: f64) -> i32 {
+/// How far the pill keeps from the sides of the screen, in physical pixels:
+/// the same 9px as from the top, whatever its size.
+fn pill_margin(m: &Monitor) -> i32 {
+    (PILL.1 * m.scale_factor()).round() as i32
+}
+
+/// The pill's centre docked to a side: its resting edge 9px in from it.
+fn docked(m: &Monitor, s: &Inner, edge: Edge) -> i32 {
     let (mx, _, mw, _) = area(m);
-    let half = (PILL_CARD / 2.0 * size * m.scale_factor()).round() as i32;
-    cx.min(mx + mw - half).max(mx + half)
+    let half = (s.pill_w.unwrap_or(PILL.2) * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
+    let inset = pill_margin(m) + half;
+    match edge {
+        Edge::Left => mx + inset,
+        Edge::Right => mx + mw - inset,
+    }
+}
+
+/// Keeps the resting pill on the monitor, at least 9px in from either side.
+fn clamp_pill(m: &Monitor, s: &Inner, cx: i32) -> i32 {
+    cx.min(docked(m, s, Edge::Right)).max(docked(m, s, Edge::Left))
+}
+
+/// Which way the card opens from the pill there: from its centre, or from
+/// its left or right edge when a centred card would come closer than 9px to
+/// that side of the screen.
+fn anchor(m: &Monitor, s: &Inner, cx: i32) -> &'static str {
+    let (mx, _, mw, _) = area(m);
+    let half = (PILL_CARD * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
+    let margin = pill_margin(m);
+    if cx - half < mx + margin {
+        "left"
+    } else if cx + half > mx + mw - margin {
+        "right"
+    } else {
+        "center"
+    }
+}
+
+/// Tells the page which way the card opens, if that changed (or always,
+/// when the window has just been placed).
+fn send_anchor<R: Runtime>(app: &AppHandle<R>, s: &mut Inner, anchor: &'static str, always: bool) {
+    if !always && s.anchor == Some(anchor) {
+        return;
+    }
+    s.anchor = Some(anchor);
+    let _ = app.emit_to(LABEL, "float-anchor", anchor);
 }
 
 /// Where the resting spot goes: where it was left, if that spot is still on
@@ -290,20 +353,20 @@ fn rest_spot<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> {
     Some((x, y))
 }
 
-/// The pill window's top-left corner: on the top of the work area of the
-/// monitor it was left on, either at its saved spot or, if it was snapped,
-/// on that monitor's exact middle (which follows a resolution or scaling
-/// change). Nothing saved, or a monitor that's gone, means centred on the
-/// main screen.
-fn pill_window<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> {
+/// The pill window's top-left corner, and which way its card opens: on the
+/// top of the work area of the monitor it was left on, at its saved spot or,
+/// if it was snapped there, on that monitor's exact middle or 9px from its
+/// side (which follow a resolution, scaling or size change). Nothing saved,
+/// or a monitor that's gone, means centred on the main screen.
+fn pill_window<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32, &'static str)> {
     let saved = s.pill.and_then(|p| monitor_across(app, p.cx).map(|m| (m, p)));
     let (m, cx) = match saved {
-        Some((m, p)) if p.centered => {
-            let cx = middle(&m);
-            (m, cx)
-        }
         Some((m, p)) => {
-            let cx = clamp_pill(&m, p.cx, pill_size(s));
+            let cx = match (p.centered, p.edge) {
+                (true, _) => middle(&m),
+                (false, Some(edge)) => docked(&m, s, edge),
+                (false, None) => clamp_pill(&m, s, p.cx),
+            };
             (m, cx)
         }
         None => {
@@ -312,7 +375,7 @@ fn pill_window<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> 
             (m, cx)
         }
     };
-    Some((cx - pill_offset(m.scale_factor(), pill_size(s)), area(&m).1))
+    Some((cx - pill_offset(m.scale_factor(), pill_size(s)), area(&m).1, anchor(&m, s, cx)))
 }
 
 /// The window's top-left corner for a resting spot.
@@ -389,7 +452,7 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
             let k = pill_size(&s);
             let w = s.pill_w.unwrap_or(PILL.2);
             let x = PILL.0 + (PILL.2 - w) / 2.0;
-            px >= x * k && py >= PILL.1 * k && px < (x + w) * k && py < (PILL.1 + PILL.3) * k
+            px >= x * k && py >= PILL.1 && px < (x + w) * k && py < PILL.1 + PILL.3 * k
         }
     };
     if on {
@@ -450,9 +513,10 @@ fn send_cue<R: Runtime>(app: &AppHandle<R>, s: &mut Inner, cue: Dragging) {
     let _ = app.emit_to(LABEL, "float-drag", cue);
 }
 
-/// Whether the pill sits snapped on the middle (it does when nothing is saved).
-fn pill_centered(s: &Inner) -> bool {
-    s.pill.is_none_or(|p| p.centered)
+/// Whether the pill sits snapped on the middle or docked to a side (on the
+/// middle when nothing is saved).
+fn pill_snapped(s: &Inner) -> bool {
+    s.pill.is_none_or(|p| p.centered || p.edge.is_some())
 }
 
 /// Shows or hides the floating timer to match the current state.
@@ -490,8 +554,9 @@ fn place<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inner) {
             }
         }
         Style::Pill => {
-            if let Some((x, y)) = pill_window(app, s) {
+            if let Some((x, y, anchor)) = pill_window(app, s) {
                 let _ = w.set_position(PhysicalPosition::new(x, y));
+                send_anchor(app, s, anchor, true);
             }
         }
     }
@@ -525,8 +590,8 @@ pub fn float_drag(app: AppHandle, float: State<Float>, start: bool) {
     let scale = w.scale_factor().unwrap_or(1.0);
     s.grab = Some(((p.x - at.x as f64) / scale, (p.y - at.y as f64) / scale));
     if s.style == Style::Pill {
-        let centered = pill_centered(&s);
-        send_cue(&app, &mut s, Dragging { dragging: true, centered });
+        let snapped = pill_snapped(&s);
+        send_cue(&app, &mut s, Dragging { dragging: true, snapped });
     }
     if float.1.swap(true, Ordering::SeqCst) {
         return;
@@ -549,8 +614,8 @@ fn end_drag<R: Runtime>(app: &AppHandle<R>, dragging: &AtomicBool, s: &mut Inner
     dragging.store(false, Ordering::SeqCst);
     save(app, s);
     if s.style == Style::Pill {
-        let centered = pill_centered(s);
-        send_cue(app, s, Dragging { dragging: false, centered });
+        let snapped = pill_snapped(s);
+        send_cue(app, s, Dragging { dragging: false, snapped });
     }
 }
 
@@ -589,26 +654,37 @@ fn follow<R: Runtime>(app: &AppHandle<R>) {
 /// Slides the pill window sideways with the pointer, `grab_x` physical pixels
 /// right of the window's left edge. It sits on the top of the work area of
 /// the monitor under the pointer, so dragging across docks it to the next
-/// monitor's top; the whole pill stays on that monitor, and it snaps onto the
-/// exact middle when its centre comes within SNAP of it.
+/// monitor's top; the resting pill stays 9px in from the monitor's sides, and
+/// it snaps onto the exact middle, or onto a side 9px in, when its centre
+/// comes within SNAP of that spot.
 fn follow_pill<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inner, p: (f64, f64), grab_x: f64) {
     let Some(m) = monitor_under(app, p.0 as i32, p.1 as i32) else { return };
     let scale = m.scale_factor();
     let k = pill_size(s);
     let (_, top, _, _) = area(&m);
     let cx = (p.0 - grab_x).round() as i32 + pill_offset(scale, k);
-    let mid = middle(&m);
-    let centered = (cx - mid).abs() <= (SNAP * k * scale).round() as i32;
-    let cx = if centered { mid } else { clamp_pill(&m, cx, k) };
+    let snap = (SNAP * k * scale).round() as i32;
+    let (left, right, mid) = (docked(&m, s, Edge::Left), docked(&m, s, Edge::Right), middle(&m));
+    let (cx, centered, edge) = if (cx - mid).abs() <= snap {
+        (mid, true, None)
+    } else if cx <= left + snap {
+        (left, false, Some(Edge::Left))
+    } else if cx >= right - snap {
+        (right, false, Some(Edge::Right))
+    } else {
+        (cx, false, None)
+    };
     let (x, y) = (cx - pill_offset(scale, k), top);
     if w.outer_position().ok().map(|at| (at.x, at.y)) != Some((x, y)) {
         let _ = w.set_position(PhysicalPosition::new(x, y));
     }
-    s.pill = Some(PillSpot { cx, centered });
+    s.pill = Some(PillSpot { cx, centered, edge });
     if s.open {
         send_edges(app, w, s);
     }
-    send_cue(app, s, Dragging { dragging: true, centered });
+    let opens = anchor(&m, s, cx);
+    send_anchor(app, s, opens, false);
+    send_cue(app, s, Dragging { dragging: true, snapped: centered || edge.is_some() });
 }
 
 /// Called when the floating window moves: a drag moves the bubble's home.
@@ -654,10 +730,23 @@ pub fn float_config(app: AppHandle, float: State<Float>, active: bool, on_top: b
 
 /// The page says how wide the resting pill is now, so only the pill itself
 /// opens it (it changes with the pin and with a longer time, like 1:12:40).
+/// A pill docked to a side is placed again, so it keeps its 9px from it.
 #[tauri::command]
-pub fn float_pill_width(float: State<Float>, width: f64) {
+pub fn float_pill_width(app: AppHandle, float: State<Float>, width: f64) {
     let mut s = float.0.lock().unwrap();
-    s.pill_w = Some(width.clamp(32.0, PILL_CARD));
+    let width = width.clamp(32.0, PILL_CARD);
+    if s.pill_w == Some(width) {
+        return;
+    }
+    s.pill_w = Some(width);
+    if s.style != Style::Pill || s.grab.is_some() {
+        return;
+    }
+    if let Some(w) = app.get_webview_window(LABEL) {
+        if w.is_visible().unwrap_or(false) {
+            place(&app, &w, &mut s);
+        }
+    }
 }
 
 /// The pill's size: with one, the handle under the card set it, so it's kept
