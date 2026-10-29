@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Language } from "./i18n";
 import type { Look } from "./look";
-import type { Theme } from "./store";
+import type { FloatStyle, Theme } from "./store";
 import type * as T from "./timer";
 
 export const FLOAT_LABEL = "float";
@@ -19,6 +19,7 @@ export type FloatState = {
   theme: Theme;
   language: Language;
   onTop: boolean;
+  style: FloatStyle;
 };
 
 export type FloatAction = "break" | "end" | "focus" | "open" | "pin";
@@ -45,8 +46,8 @@ export function useFloatTimer(state: FloatState, enabled: boolean, onAction: (a:
 
   useEffect(() => {
     if (!isTauri()) return;
-    invoke("float_config", { active, onTop: state.onTop }).catch(() => {});
-  }, [active, state.onTop]);
+    invoke("float_config", { active, onTop: state.onTop, style: state.style }).catch(() => {});
+  }, [active, state.onTop, state.style]);
 
   useEffect(() => {
     if (!isTauri()) return;

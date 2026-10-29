@@ -632,8 +632,9 @@ export default function App() {
       theme: settings.theme,
       language: settings.language,
       onTop: settings.floatOnTop,
+      style: settings.floatStyle,
     }),
-    [timer, live.long, floatCategory, settings.look, settings.theme, settings.language, settings.floatOnTop],
+    [timer, live.long, floatCategory, settings.look, settings.theme, settings.language, settings.floatOnTop, settings.floatStyle],
   );
   useFloatTimer(floatState, settings.floatTimer, (action: FloatAction) => {
     // The reflection opens in this window, so bring it back for it.

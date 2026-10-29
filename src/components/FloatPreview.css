@@ -179,3 +179,17 @@
 :root[data-theme="dark"] .fpv-taskbar i {
   color: #ddd;
 }
+
+/* The pill's window, 280 x 132 (PILL_OPEN in float.rs), on its own row. */
+.fpv-frame.pill {
+  width: 280px;
+  height: 132px;
+}
+
+.fpv-row {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}

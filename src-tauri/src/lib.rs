@@ -242,6 +242,8 @@ pub fn run() {
             float::float_config,
             float::float_reset,
             float::float_drag,
+            float::float_pill_width,
+            float::float_pill_size,
             float_open,
         ])
         .setup(|app| {

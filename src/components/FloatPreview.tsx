@@ -2,13 +2,14 @@
 // /?float&look=lavender|mochi|notebook|riso&theme=light|dark&lang=en|pt-BR, add &desk=1
 // (with &open=1&kind=break, and &edge=right|bottom|top for a bubble pushed
 // against that screen edge, or &edge=stuck for where Windows used to stop it) for one bubble over a pretend desktop.
+// The board shows the pill style below the bubbles.
 
 import type { Language } from "../i18n";
 import type { Look } from "../look";
-import type { Theme } from "../store";
+import type { FloatStyle, Theme } from "../store";
 import type { FloatState } from "../float";
 import * as T from "../timer";
-import { FloatTimer, type FloatEdges } from "./FloatTimer";
+import { FloatTimer, type FloatDrag, type FloatEdges } from "./FloatTimer";
 import "./FloatPreview.css";
 
 const q = new URLSearchParams(location.search);
@@ -19,6 +20,7 @@ const base = {
   theme: (q.get("theme") ?? "light") as Theme,
   language: (q.get("lang") ?? "en") as Language,
   long: false,
+  style: "bubble" as FloatStyle,
 };
 
 const focus = (leftMin: number, onTop = true): FloatState => ({
@@ -44,11 +46,31 @@ const EDGES: Record<string, FloatEdges> = {
   stuck: { left: 0, right: 48, top: 0, bottom: 0 },
 };
 
-function Frame({ state, open, label, edges }: { state: FloatState; open: boolean; label?: string; edges?: FloatEdges }) {
+// The same states drawn as the pill.
+const pill = (s: FloatState): FloatState => ({ ...s, style: "pill" });
+const flow: FloatState = {
+  ...base,
+  onTop: true,
+  timer: { status: "running", kind: "focus", startedAt: NOW - 38 * 60_000, endsAt: NOW - 38 * 60_000, plannedMs: 0, pausedMs: 0, flow: true },
+};
+
+function Frame({
+  state,
+  open,
+  label,
+  edges,
+  drag,
+}: {
+  state: FloatState;
+  open: boolean;
+  label?: string;
+  edges?: FloatEdges;
+  drag?: FloatDrag;
+}) {
   return (
     <figure className="fpv-fig">
-      <div className="fpv-frame">
-        <FloatTimer preview={{ state, open, now: NOW, edges }} />
+      <div className={state.style === "pill" ? "fpv-frame pill" : "fpv-frame"}>
+        <FloatTimer preview={{ state, open, now: NOW, edges, drag }} />
       </div>
       {label && <figcaption>{label}</figcaption>}
     </figure>
@@ -95,6 +117,20 @@ export function FloatPreview() {
       <Frame state={focus(-5)} open={false} label={pt ? "Passou do tempo" : "Over time"} />
       <Frame state={paused} open={false} label={pt ? "Pausada" : "Paused"} />
       <Frame state={brk} open label={pt ? "Pausa" : "Break"} />
+      <div className="fpv-row">
+        <Frame state={pill(focus(18))} open={false} label={pt ? "Pílula, foco" : "Pill, focus"} />
+        <Frame state={pill(focus(18))} open label={pt ? "Com o ponteiro" : "Pointer on it"} />
+        <Frame state={pill(brk)} open label={pt ? "Pausa" : "Break"} />
+        <Frame state={pill(focus(-5))} open={false} label={pt ? "Passou do tempo" : "Over time"} />
+        <Frame state={pill(paused)} open={false} label={pt ? "Pausada" : "Paused"} />
+        <Frame state={pill(flow)} open={false} label={pt ? "Fluxo" : "Flow"} />
+        <Frame
+          state={pill(focus(18))}
+          open
+          drag={{ dragging: true, centered: true }}
+          label={pt ? "Arrastando, no centro" : "Dragging, centred"}
+        />
+      </div>
     </div>
   );
 }
