@@ -573,7 +573,8 @@ export default function App() {
       const max = idleKind === "focus" ? 180 : 60;
       setPlannedMin((m) => Math.min(max, Math.max(1, m + minutes)));
     } else {
-      setRemaining(Math.max(1, Math.ceil(T.remaining(timer, Date.now()) / 60_000) + minutes));
+      // Shift the end by exactly this much, so 2:51 + 5 is 7:51; scrub keeps at least a minute.
+      setLive((l) => ({ ...l, timer: T.scrub(l.timer, minutes * 60_000, Date.now()) }));
     }
   };
 
