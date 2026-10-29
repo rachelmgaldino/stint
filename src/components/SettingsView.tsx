@@ -576,6 +576,15 @@ export function SettingsView(p: Props) {
                 />
                 {settings.floatTimer && (
                   <>
+                    <Choice
+                      label={text.floatStyle}
+                      value={settings.floatStyle}
+                      options={[
+                        ["bubble", text.floatBubble],
+                        ["pill", text.floatPill],
+                      ]}
+                      onChange={(v) => set("floatStyle", v)}
+                    />
                     <Switch
                       sub
                       label={text.floatTop}
@@ -584,7 +593,7 @@ export function SettingsView(p: Props) {
                       onChange={(v) => set("floatOnTop", v)}
                     />
                     <div className="row sub-row">
-                      <span>{text.floatReset}</span>
+                      <span>{settings.floatStyle === "pill" ? text.floatResetPill : text.floatReset}</span>
                       <MiniButton label={text.floatReset2} onClick={resetFloat} />
                     </div>
                   </>

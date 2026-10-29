@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import * as T from "../timer";
@@ -10,46 +10,22 @@ import type { FloatAction, FloatState } from "../float";
 import { dialClock, upClock } from "./TimerPane";
 import { Pip } from "./Pip";
 import { CoffeeIcon, PlayIcon } from "./icons";
+import { OpenIcon, PinIcon, StopIcon } from "./floatIcons";
+import { FloatPill } from "./FloatPill";
 import "../float.css";
 
 const R = 38;
 const RING = 2 * Math.PI * R;
-
-const PinIcon = ({ on }: { on: boolean }) => (
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill={on ? "currentColor" : "none"}
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M9 4h6l-1 5 3 3v2H7v-2l3-3z" />
-    <path d="M12 14v6" fill="none" />
-  </svg>
-);
-
-const OpenIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M14 5h5v5M19 5l-8 8" />
-    <path d="M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4" />
-  </svg>
-);
-
-const StopIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="6" y="6" width="12" height="12" rx="3" fill="currentColor" />
-  </svg>
-);
 
 const send = (a: FloatAction) => void emitTo("main", "float-action", a).catch(() => {});
 
 /** How much of the window runs off the screen on each side, from src-tauri/src/float.rs. */
 export type FloatEdges = { left: number; right: number; top: number; bottom: number };
 type Opened = FloatEdges & { open: boolean };
+/** Sent by float_drag in float.rs while the pill is held, `centered` once it snaps to the middle of the screen. */
+export type FloatDrag = { dragging: boolean; centered: boolean };
+
+const NOT_DRAGGING: FloatDrag = { dragging: false, centered: false };
 
 const NO_EDGES: FloatEdges = { left: 0, right: 0, top: 0, bottom: 0 };
 // The window and the bubble inside it, matching OPEN, SHIFT and BUBBLE in float.rs.
@@ -86,15 +62,42 @@ function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { ta
 }
 
 /**
+ * What the dev preview page (FloatPreview.tsx) hands in instead of the Rust
+ * side and the main window, read again on every render.
+ */
+export type FloatPreviewProps = {
+  state: FloatState;
+  open: boolean;
+  now: number;
+  edges?: FloatEdges;
+  drag?: FloatDrag;
+};
+
+/**
  * The floating timer's own window: a round bubble with the mascot, the time
  * and a ring that fills like the dial. With the pointer on it, the category
  * and a shelf of buttons show around it. The Rust side watches the pointer,
  * since the window lets clicks through to other apps while resting.
  */
-export function FloatTimer({ preview }: { preview?: { state: FloatState; open: boolean; now: number; edges?: FloatEdges } }) {
-  const [state, setState] = useState<FloatState | null>(preview?.state ?? null);
-  const [now, setNow] = useState(preview?.now ?? Date.now());
-  const [opened, setOpened] = useState<Opened>({ open: preview?.open ?? false, ...(preview?.edges ?? NO_EDGES) });
+export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
+  const [liveState, setState] = useState<FloatState | null>(null);
+  const [liveNow, setNow] = useState(Date.now());
+  const [liveOpened, setOpened] = useState<Opened>({ open: false, ...NO_EDGES });
+  const [liveDrag, setDragging] = useState<FloatDrag>(NOT_DRAGGING);
+  // The pill's size from the handle under its card, kept by float.rs.
+  const [size, setSize] = useState(1);
+  // In the preview these come from its props instead. The opened object is
+  // kept while its values stay the same, since the bubble's layout effect
+  // below runs again whenever it changes.
+  const edges = preview?.edges;
+  const previewOpened = useMemo<Opened | null>(
+    () => (preview ? { open: preview.open, ...(edges ?? NO_EDGES) } : null),
+    [!!preview, preview?.open, edges?.left, edges?.right, edges?.top, edges?.bottom],
+  );
+  const state = preview ? preview.state : liveState;
+  const now = preview ? preview.now : liveNow;
+  const opened = previewOpened ?? liveOpened;
+  const dragging = preview ? (preview.drag ?? NOT_DRAGGING) : liveDrag;
   const [place, setPlace] = useState<{ tag: CSSProperties; shelf: CSSProperties } | null>(null);
   const tagRef = useRef<HTMLSpanElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
@@ -105,18 +108,24 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
     if (preview) return;
     const off = listen<FloatState>("float-state", (e) => setState(e.payload));
     const offOpen = listen<Opened>("float-open", (e) => setOpened(e.payload));
+    const offDrag = listen<FloatDrag>("float-drag", (e) => setDragging(e.payload));
+    invoke<number>("float_pill_size", { size: null })
+      .then(setSize)
+      .catch(() => {});
     void emitTo("main", "float-ready").catch(() => {});
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => {
       void off.then((f) => f());
       void offOpen.then((f) => f());
+      void offDrag.then((f) => f());
       clearInterval(id);
     };
   }, []);
 
   // Measured before painting, so the parts appear straight in their place.
+  // The pill lays itself out with CSS alone, so this is the bubble's only.
   useLayoutEffect(() => {
-    if (!open || !tagRef.current || !shelfRef.current) return setPlace(null);
+    if (state?.style === "pill" || !open || !tagRef.current || !shelfRef.current) return setPlace(null);
     const ring = parseFloat(getComputedStyle(tagRef.current).getPropertyValue("--float-ring")) || 0;
     setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened, ring));
   }, [opened, state]);
@@ -145,20 +154,91 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
   const clock = flow ? upClock(spent) : dialClock(left);
   const color = focus && state.category ? soft(state.category.color) : undefined;
   const tag = focus ? (state.category?.name ?? text.focus) : state.long ? text.float.longBreak : text.float.shortBreak;
+  const mood = paused ? "asleep" : focus ? "awake" : "break";
 
   // Stint moves the window itself while the bubble is held (see float_drag
-  // in float.rs), so the bubble can reach the very top of the screen.
+  // in float.rs), so the bubble can reach the very top of the screen. The
+  // pill's buttons sit inside the part that drags, so a press on them is left alone.
   const drag = (e: PointerEvent) => {
-    if (e.button !== 0 || e.detail > 1) return;
+    if (e.button !== 0 || e.detail > 1 || (e.target as Element).closest("button")) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     void invoke("float_drag", { start: true }).catch(() => {});
   };
   const drop = () => void invoke("float_drag", { start: false }).catch(() => {});
+  // A new size from the handle: drawn here at once, and float.rs resizes the
+  // window around the pill and keeps the size for next time.
+  const resize = (next: number) => {
+    if (next === size) return;
+    setSize(next);
+    if (!preview) void invoke("float_pill_size", { size: next }).catch(() => {});
+  };
+
+  // The same four buttons on the bubble's shelf and in the pill's card.
+  const buttons = (
+    <>
+      {focus ? (
+        <button className="float-btn" title={text.timer.takeBreak} aria-label={text.timer.takeBreak} onClick={() => send("break")}>
+          <CoffeeIcon />
+        </button>
+      ) : (
+        <button className="float-btn main" title={text.timer.backToFocus} aria-label={text.timer.backToFocus} onClick={() => send("focus")}>
+          <PlayIcon />
+        </button>
+      )}
+      <button
+        className={focus ? "float-btn main" : "float-btn"}
+        title={focus ? text.timer.endSession : text.timer.endBreak}
+        aria-label={focus ? text.timer.endSession : text.timer.endBreak}
+        onClick={() => send("end")}
+      >
+        <StopIcon />
+      </button>
+      <button
+        className={state.onTop ? "float-btn pin on" : "float-btn pin"}
+        title={state.onTop ? text.float.pinOn : text.float.pinOff}
+        aria-label={state.onTop ? text.float.pinOn : text.float.pinOff}
+        aria-pressed={state.onTop}
+        onClick={() => send("pin")}
+      >
+        <PinIcon on={state.onTop} />
+      </button>
+      <button className="float-btn" title={text.float.open} aria-label={text.float.open} onClick={() => send("open")}>
+        <OpenIcon />
+      </button>
+    </>
+  );
+  const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : ""].join(" ");
+
+  if (state.style === "pill")
+    return (
+      // The whole pill is drawn at its size at once, so every gap and curve
+      // keeps its ratio.
+      <div className={`${className} pill`} style={{ zoom: size }}>
+        <FloatPill
+          open={open}
+          clock={clock}
+          done={done}
+          over={over}
+          color={color}
+          tag={tag}
+          mood={mood}
+          onTop={state.onTop}
+          drag={dragging}
+          title={text.float.open}
+          onPointerDown={drag}
+          onDrop={drop}
+          onOpen={() => send("open")}
+          buttons={buttons}
+          onRestWidth={(width) => void invoke("float_pill_width", { width }).catch(() => {})}
+          scale={size}
+          onScale={resize}
+          resizeLabel={text.float.resize}
+        />
+      </div>
+    );
 
   return (
-    <div
-      className={["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : ""].join(" ")}
-    >
+    <div className={className}>
       {open && (
         <span className="float-tag" ref={tagRef} style={place?.tag ?? { visibility: "hidden" }}>
           {color && <span className="dot" style={{ background: color }} />}
@@ -188,7 +268,7 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
           />
         </svg>
         <span className="float-face">
-          <Pip size={30} mood={paused ? "asleep" : focus ? "awake" : "break"} />
+          <Pip size={30} mood={mood} />
         </span>
         <span className={over ? "float-clock over" : "float-clock"}>{clock}</span>
         {state.onTop && !open && (
@@ -199,35 +279,7 @@ export function FloatTimer({ preview }: { preview?: { state: FloatState; open: b
       </div>
       {open && (
         <div className="float-shelf" ref={shelfRef} style={place?.shelf ?? { visibility: "hidden" }}>
-          {focus ? (
-            <button className="float-btn" title={text.timer.takeBreak} aria-label={text.timer.takeBreak} onClick={() => send("break")}>
-              <CoffeeIcon />
-            </button>
-          ) : (
-            <button className="float-btn main" title={text.timer.backToFocus} aria-label={text.timer.backToFocus} onClick={() => send("focus")}>
-              <PlayIcon />
-            </button>
-          )}
-          <button
-            className={focus ? "float-btn main" : "float-btn"}
-            title={focus ? text.timer.endSession : text.timer.endBreak}
-            aria-label={focus ? text.timer.endSession : text.timer.endBreak}
-            onClick={() => send("end")}
-          >
-            <StopIcon />
-          </button>
-          <button
-            className={state.onTop ? "float-btn pin on" : "float-btn pin"}
-            title={state.onTop ? text.float.pinOn : text.float.pinOff}
-            aria-label={state.onTop ? text.float.pinOn : text.float.pinOff}
-            aria-pressed={state.onTop}
-            onClick={() => send("pin")}
-          >
-            <PinIcon on={state.onTop} />
-          </button>
-          <button className="float-btn" title={text.float.open} aria-label={text.float.open} onClick={() => send("open")}>
-            <OpenIcon />
-          </button>
+          {buttons}
         </div>
       )}
     </div>

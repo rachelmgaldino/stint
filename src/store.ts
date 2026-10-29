@@ -85,7 +85,11 @@ export type Settings = {
   floatTimer: boolean;
   /** Keep the floating timer above other apps (the pin on the pill). */
   floatOnTop: boolean;
+  /** Which floating timer shows: the round bubble or the pill at the top of the screen. */
+  floatStyle: FloatStyle;
 };
+
+export type FloatStyle = "bubble" | "pill";
 
 export type CalendarSettings = {
   /** Add each finished session to Google Calendar. */
@@ -138,6 +142,7 @@ export const defaultSettings: Settings = {
   testBuilds: false,
   floatTimer: true,
   floatOnTop: true,
+  floatStyle: "bubble",
   calendar: { syncSessions: false, syncBreaks: false, skipCategories: [], targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
 
