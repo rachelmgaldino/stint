@@ -3259,6 +3259,9 @@ select.select-pill {
 }
 
 .story {
+  --story-time: 46px;
+  --story-dot: 16px;
+  --story-gap: 14px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3268,11 +3271,16 @@ select.select-pill {
   position: relative;
 }
 
-/* The rail the sessions hang from. */
+/* "10:00 AM" is the longest time; 24-hour times fit the narrower column. */
+.story:lang(en) {
+  --story-time: 66px;
+}
+
+/* The rail the sessions hang from, through the middle of the dots. */
 .story::before {
   content: "";
   position: absolute;
-  left: 61px;
+  left: calc(var(--story-time) + var(--story-gap) + var(--story-dot) / 2 - 1.5px);
   top: 14px;
   bottom: 14px;
   width: 3px;
@@ -3287,7 +3295,7 @@ select.select-pill {
 }
 
 .story-gap {
-  margin-left: 90px;
+  margin-left: calc(var(--story-time) + var(--story-dot) + var(--story-gap) * 2);
   padding: 6px 12px;
   align-self: flex-start;
   border-radius: 999px;
@@ -3299,9 +3307,9 @@ select.select-pill {
 
 .story-row {
   display: grid;
-  grid-template-columns: 46px 16px minmax(0, 1fr);
+  grid-template-columns: var(--story-time) var(--story-dot) minmax(0, 1fr);
   align-items: start;
-  column-gap: 14px;
+  column-gap: var(--story-gap);
   position: relative;
 }
 
@@ -3316,8 +3324,8 @@ select.select-pill {
 
 .story-dot {
   margin-top: 14px;
-  width: 16px;
-  height: 16px;
+  width: var(--story-dot);
+  height: var(--story-dot);
   border-radius: 50%;
   box-shadow: 0 0 0 4px var(--surface);
   position: relative;
