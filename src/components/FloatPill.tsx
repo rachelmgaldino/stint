@@ -105,19 +105,20 @@ function Handle({ scale, onScale, label, snapped, open, style }: { scale: number
 
 /**
  * The small ring with the mascot inside, the pill's version of the bubble's
- * ring. With `press` it's a button: the mascot pauses the clock while it
- * runs, and pause bars take its place until the clock starts again.
+ * ring, with pause bars in its place until a paused clock starts again. With
+ * `press` it's a button: a press pauses the clock or lets it run again.
  */
 function Ring({
   done,
   over,
   color,
   mood,
+  paused,
   at,
   press,
-}: Pick<Props, "done" | "over" | "color" | "mood"> & {
+}: Pick<Props, "done" | "over" | "color" | "mood" | "paused"> & {
   at: keyof typeof RINGS;
-  press?: { paused: boolean; label: string; onClick: () => void };
+  press?: { label: string; onClick: () => void };
 }) {
   const { box, r, pip } = RINGS[at];
   const c = box / 2;
@@ -136,7 +137,7 @@ function Ring({
           style={color && !over ? { stroke: color } : undefined}
         />
       </svg>
-      {press?.paused ? (
+      {paused ? (
         <span className="float-pill-pause">
           <PauseIcon />
         </span>
@@ -208,7 +209,7 @@ export function FloatPill(p: Props) {
       watch.disconnect();
     };
   }, []);
-  const face = { done: p.done, over: p.over, color: p.color, mood: p.mood };
+  const face = { done: p.done, over: p.over, color: p.color, mood: p.mood, paused: p.paused };
   const clock = <Clock text={p.clock} over={p.over} />;
   // A double click on a button is two clicks on it, not a request to open Stint.
   const dbl = (e: MouseEvent) => {
@@ -254,7 +255,7 @@ export function FloatPill(p: Props) {
         </div>
         <div className="float-card" inert={!p.open}>
           <div className="float-card-top">
-            <Ring {...face} at="card" press={{ paused: p.paused, label: p.pauseLabel, onClick: p.onTogglePause }} />
+            <Ring {...face} at="card" press={{ label: p.pauseLabel, onClick: p.onTogglePause }} />
             {clock}
             {p.color && <span className="dot" style={{ background: p.color }} />}
             <span className="float-card-tag">{p.tag}</span>
