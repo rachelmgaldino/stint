@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { colorRef, isDark } from "./colors";
 import { t } from "./i18n";
 
 export async function notify(title: string, body: string): Promise<void> {
@@ -28,6 +29,12 @@ export function setTrayTooltip(text: string): void {
 export function setTrayMenu(open: string, quit: string): void {
   if (!isTauri()) return;
   invoke("set_tray_menu", { open, quit }).catch(() => {});
+}
+
+/** Paints the window's title bar to match the page under it. */
+export function setTitleBar(ground: string, ink: string): void {
+  if (!isTauri()) return;
+  invoke("set_title_bar", { color: colorRef(ground), text: colorRef(ink), dark: isDark(ground) }).catch(() => {});
 }
 
 let audio: AudioContext | null = null;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { playSound, setTrayMenu, setTrayTooltip, syncAlarms, type Sound } from "./platform";
+import { playSound, setTitleBar, setTrayMenu, setTrayTooltip, syncAlarms, type Sound } from "./platform";
 import { plannedAlarms } from "./alarms";
 import * as G from "./google";
 import {
@@ -130,6 +130,7 @@ export default function App() {
   const [openEvent, setOpenEvent] = useState<G.CalendarEvent | null>(null);
   const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
   const syncing = useRef(false);
+  const shell = useRef<HTMLDivElement>(null);
   // Waits for the saved settings, so a switched-off automatic check never runs.
   const updater = useUpdater(store !== null && settings.checkUpdates, settings.testBuilds);
 
@@ -138,6 +139,8 @@ export default function App() {
   setLanguage(settings.language);
   setLook(settings.look);
   const text = t();
+  // Focus sessions turn the whole window to night; breaks get a green stage.
+  const mode = view === "timer" && timer.status !== "idle" ? timer.kind : "plan";
 
   useEffect(() => {
     openStore().then(async (s) => {
@@ -292,6 +295,20 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.look = settings.look;
   }, [settings.look]);
+
+  // Read from the shell, not the root: that's where focus sessions turn night.
+  const loaded = store !== null;
+  useEffect(() => {
+    const paint = () => {
+      if (!shell.current) return;
+      const css = getComputedStyle(shell.current);
+      setTitleBar(css.getPropertyValue("--ground").trim(), css.getPropertyValue("--ink").trim());
+    };
+    paint();
+    const windowsTheme = matchMedia("(prefers-color-scheme: dark)");
+    windowsTheme.addEventListener("change", paint);
+    return () => windowsTheme.removeEventListener("change", paint);
+  }, [loaded, mode, settings.theme, settings.look]);
 
   const left = T.remaining(timer, now);
   // A break started from the plan card is long when it's set to the long length.
@@ -685,8 +702,6 @@ export default function App() {
     timer.status === "idle"
       ? null
       : today.reduce<number | null>((m, s) => (s.endedAt <= timer.startedAt && (m === null || s.endedAt > m) ? s.endedAt : m), null);
-  // Focus sessions turn the whole window to night; breaks get a green stage.
-  const mode = view === "timer" && timer.status !== "idle" ? timer.kind : "plan";
   const nextEvent =
     events
       .filter((e) => !e.allDay && e.start > now && startOfDay(e.start) === startOfDay(now))
@@ -699,7 +714,7 @@ export default function App() {
   ];
 
   return (
-    <div className="shell" data-mode={mode}>
+    <div className="shell" data-mode={mode} ref={shell}>
       <header className="topbar">
         <div className="brand">
           <Pip size={40} label="Pip" heat={timer.status !== "idle" ? T.heat(timer, now) : idleFlow ? 0 : idleKind === "focus" ? T.heatFor(plannedMin) : 0} />

@@ -115,6 +115,28 @@ fn set_tray_menu(app: AppHandle, open: String, quit: String) {
     }
 }
 
+/// Paints the main window's title bar, which the page can't reach. Colors are
+/// Windows' 0x00bbggrr, and `dark` matches the caption buttons to the bar.
+#[tauri::command]
+fn set_title_bar(app: AppHandle, color: u32, text: u32, dark: bool) {
+    #[cfg(windows)]
+    if let Some(Ok(hwnd)) = app.get_webview_window("main").map(|w| w.hwnd()) {
+        use windows::Win32::Graphics::Dwm::{
+            DwmSetWindowAttribute, DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR,
+            DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWINDOWATTRIBUTE,
+        };
+        let set = |attribute: DWMWINDOWATTRIBUTE, value: u32| {
+            let value: *const u32 = &value;
+            let _ = unsafe { DwmSetWindowAttribute(hwnd, attribute, value.cast(), 4) };
+        };
+        set(DWMWA_USE_IMMERSIVE_DARK_MODE, dark as u32);
+        set(DWMWA_CAPTION_COLOR, color);
+        set(DWMWA_TEXT_COLOR, text);
+    }
+    #[cfg(not(windows))]
+    let _ = (app, color, text, dark);
+}
+
 /// Pending alarms by key ("end", "soon", "overflow", ...). Each schedule or
 /// cancel of a key gives it a new generation, and a sleeping alarm only fires
 /// if its generation is still the latest for that key.
@@ -227,6 +249,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_tray_tooltip,
             set_tray_menu,
+            set_title_bar,
             schedule_alarm,
             cancel_alarm,
             test_notification,
