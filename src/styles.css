@@ -3139,7 +3139,11 @@ select.select-pill {
 
   .plan-card {
     gap: 12px;
-    padding: 22px;
+    padding: 22px 22px 0;
+  }
+
+  .plan-foot {
+    padding-bottom: 22px;
   }
 
   .break-clock {
@@ -3683,7 +3687,7 @@ select.select-pill {
   }
 
   .plan-card {
-    padding: 22px 24px 24px;
+    padding: 22px 24px 0;
     gap: 14px;
   }
 
@@ -3699,10 +3703,39 @@ select.select-pill {
     height: 40px;
   }
 
-  /* If a long category list still doesn't fit, the form scrolls and Start stays put. */
-  .plan-card > .squishy.huge {
+  /* Short of room, the recent tasks give way first and scroll inside their box. */
+  .plan-card > .intention-field:has(.with-recent) {
+    min-height: 124px;
+  }
+
+  .plan-card .intention-box.with-recent {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .plan-card .recent-rows {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .plan-card .recent-row {
+    flex: 0 0 auto;
+  }
+
+  /* If a long category list still doesn't fit, the form scrolls behind the next
+     event and Start, which stay put with the card's padding under them. */
+  .plan-foot {
     position: sticky;
     bottom: 0;
+    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
+    background: var(--surface);
   }
 
   /* The dial takes whatever height the card has left. */

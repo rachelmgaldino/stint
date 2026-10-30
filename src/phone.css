@@ -139,6 +139,7 @@
   }
 
   .plan-card,
+  .plan-foot,
   .dial-card {
     display: contents;
   }
@@ -218,7 +219,7 @@
     height: 40px;
   }
 
-  .plan-card > .squishy.huge {
+  .plan-foot > .squishy.huge {
     order: 7;
     min-height: 60px;
     font-size: 20px;
@@ -909,7 +910,7 @@
     height: 34px;
   }
 
-  .plan-card > .squishy.huge {
+  .plan-foot > .squishy.huge {
     height: 50px;
     min-height: 0;
     font-size: 18px;
