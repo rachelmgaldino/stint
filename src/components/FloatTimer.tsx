@@ -9,8 +9,9 @@ import { setLook } from "../look";
 import type { FloatAction, FloatState } from "../float";
 import { dialClock, upClock } from "./TimerPane";
 import { Pip } from "./Pip";
-import { CoffeeIcon, PlayIcon } from "./icons";
+import { CheckIcon, CoffeeIcon, PlayIcon } from "./icons";
 import { OpenIcon, PinIcon, StopIcon } from "./floatIcons";
+import { FloatNext } from "./FloatNext";
 import { FloatPill } from "./FloatPill";
 import "../float.css";
 
@@ -35,6 +36,8 @@ const WIN = { w: 300, h: 340 };
 const BUB = { x: 104, y: 124, size: 92 };
 const GAP = 8;
 const PAD = 4;
+// The Next task form's width, matching .float-next-card in float.css.
+const FORM_W = 190;
 
 /**
  * Where the category and the shelf of buttons go: centred on the bubble,
@@ -63,6 +66,12 @@ function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { ta
   };
 }
 
+/** The Next task form over the bubble: kept on the screen, hanging from the side of the window with more of it showing. */
+function formPlace(e: FloatEdges): CSSProperties {
+  const left = Math.max(e.left + PAD, Math.min(BUB.x + BUB.size / 2 - FORM_W / 2, WIN.w - e.right - PAD - FORM_W));
+  return e.bottom > e.top ? { left, bottom: e.bottom + PAD } : { left, top: e.top + PAD };
+}
+
 /**
  * What the dev preview page (FloatPreview.tsx) hands in instead of the Rust
  * side and the main window, read again on every render.
@@ -74,6 +83,8 @@ export type FloatPreviewProps = {
   edges?: FloatEdges;
   drag?: FloatDrag;
   anchor?: FloatAnchor;
+  /** Shows the Next task form from the start. */
+  naming?: boolean;
 };
 
 /**
@@ -90,6 +101,9 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   const [liveAnchor, setAnchor] = useState<FloatAnchor>("center");
   // The pill's size from the handle under its card, kept by float.rs.
   const [size, setSize] = useState(1);
+  // With the Next task form showing: when its button was pressed, which is
+  // when the task in hand ended, as in the main window.
+  const [naming, setNaming] = useState<number | null>(preview?.naming ? preview.now : null);
   // In the preview these come from its props instead. The opened object is
   // kept while its values stay the same, since the bubble's layout effect
   // below runs again whenever it changes.
@@ -135,7 +149,11 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     if (state?.style === "pill" || !open || !tagRef.current || !shelfRef.current) return setPlace(null);
     const ring = parseFloat(getComputedStyle(tagRef.current).getPropertyValue("--float-ring")) || 0;
     setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened, ring));
-  }, [opened, state]);
+  }, [opened, state, naming]);
+
+  useEffect(() => {
+    if (!open) setNaming(null);
+  }, [open]);
 
   useEffect(() => {
     if (!state) return;
@@ -165,9 +183,9 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
 
   // Stint moves the window itself while the bubble is held (see float_drag
   // in float.rs), so the bubble can reach the very top of the screen. The
-  // pill's buttons sit inside the part that drags, so a press on them is left alone.
+  // pill's buttons and field sit inside the part that drags, so a press on them is left alone.
   const drag = (e: PointerEvent) => {
-    if (e.button !== 0 || e.detail > 1 || (e.target as Element).closest("button")) return;
+    if (e.button !== 0 || e.detail > 1 || (e.target as Element).closest("button, input")) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     void invoke("float_drag", { start: true }).catch(() => {});
   };
@@ -180,9 +198,14 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     if (!preview) void invoke("float_pill_size", { size: next }).catch(() => {});
   };
 
-  // The same four buttons on the bubble's shelf and in the pill's card.
+  // The same buttons on the bubble's shelf and in the pill's card.
   const buttons = (
     <>
+      {focus && (
+        <button className="float-btn" title={text.timer.nextTask} aria-label={text.timer.nextTask} onClick={() => setNaming(Date.now())}>
+          <CheckIcon />
+        </button>
+      )}
       {focus ? (
         <button className="float-btn" title={text.timer.takeBreak} aria-label={text.timer.takeBreak} onClick={() => send("break")}>
           <CoffeeIcon />
@@ -214,7 +237,20 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
       </button>
     </>
   );
-  const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : ""].join(" ");
+  const form =
+    naming !== null && focus ? (
+      <FloatNext
+        state={state}
+        now={now}
+        preview={!!preview}
+        onStart={(next, categoryId) => {
+          send({ next, categoryId, at: naming });
+          setNaming(null);
+        }}
+        onCancel={() => setNaming(null)}
+      />
+    ) : null;
+  const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : "", form ? "naming" : ""].join(" ");
 
   if (state.style === "pill")
     return (
@@ -237,6 +273,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
           onDrop={drop}
           onOpen={() => send("open")}
           buttons={buttons}
+          form={form}
           paused={paused}
           onTogglePause={() => send(paused ? "resume" : "pause")}
           pauseLabel={paused ? (focus ? text.timer.resume : text.timer.resumeBreak) : focus ? text.timer.pauseSession : text.timer.pauseBreak}
@@ -250,7 +287,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
 
   return (
     <div className={className}>
-      {open && (
+      {open && !form && (
         <span className="float-tag" ref={tagRef} style={place?.tag ?? { visibility: "hidden" }}>
           {color && <span className="dot" style={{ background: color }} />}
           <span className="float-tag-name">{tag}</span>
@@ -288,9 +325,14 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
           </span>
         )}
       </div>
-      {open && (
+      {open && !form && (
         <div className="float-shelf" ref={shelfRef} style={place?.shelf ?? { visibility: "hidden" }}>
           {buttons}
+        </div>
+      )}
+      {form && (
+        <div className="float-next-card" style={formPlace(opened)}>
+          {form}
         </div>
       )}
     </div>

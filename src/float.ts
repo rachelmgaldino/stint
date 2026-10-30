@@ -5,8 +5,9 @@
 import { useEffect, useRef } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Language } from "./i18n";
+import type { PastIntention } from "./intentions";
 import type { Look } from "./look";
-import type { FloatStyle, Theme } from "./store";
+import type { Category, FloatStyle, Theme } from "./store";
 import type * as T from "./timer";
 
 export const FLOAT_LABEL = "float";
@@ -20,9 +21,23 @@ export type FloatState = {
   language: Language;
   onTop: boolean;
   style: FloatStyle;
+  /** The task in hand, and what the Next task form offers. */
+  intention: string;
+  categoryId: number | null;
+  categories: Category[];
+  past: PastIntention[];
 };
 
-export type FloatAction = "break" | "end" | "focus" | "open" | "pause" | "pin" | "resume";
+export type FloatAction =
+  | "break"
+  | "end"
+  | "focus"
+  | "open"
+  | "pause"
+  | "pin"
+  | "resume"
+  /** Next task: the one in hand ended at `at` and the session carries on with this one. */
+  | { next: string; categoryId: number | null; at: number };
 
 /** True inside the floating timer's own window. */
 export function isFloatWindow(): boolean {

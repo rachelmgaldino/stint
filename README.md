@@ -15,7 +15,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - Drag a dot around the dial to set a session of up to 3 hours, or to change the time left while it runs
 - Flow mode for focus that counts up with no time limit
 - An intention and a category for each session, with recent tasks to pick from and a daily goal drawn in each look's own style
-- Next task switches tasks inside a session, and Split does it afterwards, so the day shows the real time per task
+- Next task switches tasks inside a session, from the app or the floating timer, and Split does it afterwards, so the day shows the real time per task
 - Sessions and breaks keep counting into overtime until you end them, so stopping is always a choice
 - Short and long breaks: the long one comes once enough focus has piled up today
 - Reminders: a heads-up before the end, a presence sound during focus, and nudges when a session, a break or a pause runs too long
