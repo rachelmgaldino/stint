@@ -106,6 +106,8 @@ export type CalendarSettings = {
   showEvents: boolean;
   /** Calendars whose events are not shown. */
   hidden: string[];
+  /** The calendar the last event was added to from Stint. */
+  eventTargetId: string | null;
 };
 
 export const defaultSettings: Settings = {
@@ -143,7 +145,7 @@ export const defaultSettings: Settings = {
   floatTimer: true,
   floatOnTop: true,
   floatStyle: "bubble",
-  calendar: { syncSessions: false, syncBreaks: false, skipCategories: [], targetId: null, syncSince: 0, showEvents: false, hidden: [] },
+  calendar: { syncSessions: false, syncBreaks: false, skipCategories: [], targetId: null, syncSince: 0, showEvents: false, hidden: [], eventTargetId: null },
 };
 
 function withDefaults(saved: Partial<Settings> | undefined): Settings {

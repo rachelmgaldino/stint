@@ -4,7 +4,7 @@ import { addDays, clockTime, dayLabel, startOfDay, timeRange, weekDays } from ".
 import { formatDuration } from "../timer";
 import { eventLanes, type CalendarEvent } from "../google";
 import { soft } from "../colors";
-import { PlusIcon } from "./icons";
+import { CalendarPlusIcon, PlusIcon } from "./icons";
 import { formatDate, t } from "../i18n";
 
 const HOUR = 3_600_000;
@@ -27,13 +27,15 @@ type Props = {
   onDay(day: number): void;
   onOpen(s: SessionRecord): void;
   onAdd(): void;
+  /** Adds a Google Calendar event; absent when events can't be added. */
+  onAddEvent?(): void;
 };
 
 const focusTotal = (list: SessionRecord[]) =>
   list.filter((s) => s.kind === "focus").reduce((a, s) => a + s.focusedMs, 0);
 
 /** The day as a horizontal ribbon, from 08 to 20 unless sessions fall outside that. */
-export function TodayRibbon({ day, now, week, categories, live, events, compact, onEvent, onDay, onOpen, onAdd }: Props) {
+export function TodayRibbon({ day, now, week, categories, live, events, compact, onEvent, onDay, onOpen, onAdd, onAddEvent }: Props) {
   const today = startOfDay(now);
   const isToday = day === today;
   const byId = new Map(categories.map((c) => [c.id, c]));
@@ -117,6 +119,11 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
           {segments}
         </div>
         <span className="ribbon-total">{formatDuration(dayTotal)}</span>
+        {onAddEvent && (
+          <button className="ribbon-add-event" aria-label={text.events.addEvent} title={text.events.addEvent} onClick={onAddEvent}>
+            <CalendarPlusIcon />
+          </button>
+        )}
       </section>
     );
   }
@@ -137,6 +144,11 @@ export function TodayRibbon({ day, now, week, categories, live, events, compact,
             {!isToday && (
               <button className="chip-button" onClick={() => onDay(today)}>
                 {text.ribbon.backToToday}
+              </button>
+            )}
+            {onAddEvent && (
+              <button className="add-button add-event" aria-label={text.events.addEvent} title={text.events.addEvent} onClick={onAddEvent}>
+                <CalendarPlusIcon />
               </button>
             )}
             <button className="add-button" aria-label={text.ribbon.addSession} title={text.ribbon.addSession} onClick={onAdd}>

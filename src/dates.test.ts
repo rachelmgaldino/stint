@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { addDays, atTime, clockTime, fromIsoDate, inputTime, isoDate, startOfDay, startOfWeek, timeRange, timeSpan, weekDays } from "./dates";
+import {
+  addDays,
+  atTime,
+  clockTime,
+  fromIsoDate,
+  inputTime,
+  isoDate,
+  nextHalfHour,
+  startOfDay,
+  startOfWeek,
+  timeRange,
+  timeSpan,
+  weekDays,
+} from "./dates";
 import { setLanguage } from "./i18n";
 
 // setLanguage sets the page's lang, so tests give it a stand-in document.
@@ -45,6 +58,15 @@ describe("dates", () => {
     expect(atTime(day, "9:05")).toBe(new Date(2026, 9, 17, 9, 5).getTime());
     expect(atTime(day, "24:00")).toBeNull();
     expect(atTime(day, "nope")).toBeNull();
+  });
+
+  it("finds the next half hour, never the current moment", () => {
+    const at = (h: number, m: number, s = 0) => new Date(2026, 9, 17, h, m, s).getTime();
+    expect(nextHalfHour(at(10, 0))).toBe(at(10, 30));
+    expect(nextHalfHour(at(10, 29))).toBe(at(10, 30));
+    expect(nextHalfHour(at(10, 29, 59))).toBe(at(10, 30));
+    expect(nextHalfHour(at(10, 30))).toBe(at(11, 0));
+    expect(nextHalfHour(at(23, 45))).toBe(new Date(2026, 9, 18).getTime());
   });
 
   it("says AM or PM once when a range stays in the same half of the day", () => {

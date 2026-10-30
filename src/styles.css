@@ -370,6 +370,17 @@ input[type="time"] {
   color: var(--on-ink);
 }
 
+/* The quieter button beside the dark add-session one. */
+.add-event {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.add-event:hover {
+  background: var(--sunken);
+}
+
 .round-button {
   width: 46px;
   height: 46px;
@@ -1355,6 +1366,28 @@ button.ribbon-seg:hover {
   white-space: nowrap;
 }
 
+/* Not an .add-button: phones hide those on the ribbon, and this one stays during a session. */
+.ribbon-add-event {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.ribbon-add-event:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.ribbon-add-event svg {
+  width: 18px;
+  height: 18px;
+}
+
 .break-stage ~ .ribbon {
   background: var(--surface);
 }
@@ -1381,6 +1414,27 @@ button.ribbon-seg:hover {
 .mini-timer.break {
   background: var(--matcha);
   color: var(--on-pastel);
+}
+
+/* Says a saved event worked. Above the tab bar and mini timer, under any dialog.
+   Centred with auto margins: left: 50% would cap its width at half the window. */
+.event-notice {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Clears the full ribbon, which is where the new event shows up. */
+  bottom: 176px;
+  width: fit-content;
+  max-width: min(420px, calc(var(--vw) - 32px));
+  margin: 0 auto;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  z-index: 7;
+  pointer-events: none;
 }
 
 .mini-info {
@@ -1700,6 +1754,17 @@ button.ribbon-seg:hover {
   height: auto;
 }
 
+.event-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet .event-link input {
+  flex: 1;
+  min-width: 0;
+}
+
 .sheet .just-added {
   margin-top: 10px;
   padding: 10px 14px;
@@ -1800,6 +1865,10 @@ button.ribbon-seg:hover {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.event-confirm .error {
+  color: var(--danger);
 }
 
 .confirm-actions {
@@ -2098,6 +2167,13 @@ button.ribbon-seg:hover {
 
 .event-when {
   font-weight: 600;
+}
+
+.event-join {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .event-note {

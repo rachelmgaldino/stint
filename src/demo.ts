@@ -182,7 +182,21 @@ export function demoEvents(from: number, to: number, language: Language): Calend
     const dow = day.getDay();
     const at = (h: number, min: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, min).getTime();
     const add = (key: string, title: string, start: number, minutes: number, color: string) =>
-      out.push({ id: `${key}-${day.getTime()}`, calendarId: "demo", title, color, start, end: start + minutes * MIN, allDay: false });
+      out.push({
+        id: `${key}-${day.getTime()}`,
+        calendarId: "demo",
+        title,
+        untitled: false,
+        color,
+        start,
+        end: start + minutes * MIN,
+        allDay: false,
+        writable: false,
+        shared: false,
+        recurring: false,
+        joinUrl: null,
+        location: "",
+      });
     if (dow >= 1 && dow <= 5) add("standup", m.standup, at(9, 30), 15, "#7986cb");
     if (dow === 2 || dow === 4) add("one", m.oneOnOne, at(11, 0), 30, "#33b679");
     if (dow === 3) add("review", m.review, at(14, 0), 60, "#e67c73");
