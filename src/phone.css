@@ -690,26 +690,18 @@
     border-radius: 28px;
   }
 
-  .story::before {
-    left: 47px;
+  .story {
+    --story-time: 38px;
+    --story-dot: 12px;
+    --story-gap: 10px;
   }
 
-  .story-row {
-    grid-template-columns: 38px 12px minmax(0, 1fr);
-    column-gap: 10px;
+  .story:lang(en) {
+    --story-time: 56px;
   }
 
   .story-time {
     font-size: 11px;
-  }
-
-  .story-dot {
-    width: 12px;
-    height: 12px;
-  }
-
-  .story-gap {
-    margin-left: 70px;
   }
 
   .story-title {
