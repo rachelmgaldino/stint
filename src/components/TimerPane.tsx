@@ -371,11 +371,13 @@ export function TimerPane(p: Props) {
           </>
         )}
         <span className="grow" />
-        {p.nextEvent && <NextEvent event={p.nextEvent} />}
-        <button className={kind === "focus" ? "squishy apricot huge" : "squishy matcha huge"} onClick={p.onStart}>
-          <PlayIcon />
-          {flow ? text.startFlow : kind === "focus" ? text.startFocusing : text.startBreak}
-        </button>
+        <div className="plan-foot">
+          {p.nextEvent && <NextEvent event={p.nextEvent} />}
+          <button className={kind === "focus" ? "squishy apricot huge" : "squishy matcha huge"} onClick={p.onStart}>
+            <PlayIcon />
+            {flow ? text.startFlow : kind === "focus" ? text.startFocusing : text.startBreak}
+          </button>
+        </div>
       </section>
 
       <section className="card dial-card" aria-label={text.sessionLength}>
