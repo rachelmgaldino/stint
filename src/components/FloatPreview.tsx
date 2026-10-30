@@ -34,6 +34,7 @@ const brk: FloatState = {
   timer: { status: "running", kind: "break", startedAt: NOW - 2 * 60_000, endsAt: NOW + 3 * 60_000 + 15_000, plannedMs: 5 * 60_000, pausedMs: 0 },
 };
 const paused: FloatState = { ...focus(12), timer: T.pause(focus(12).timer, NOW) };
+const brkPaused: FloatState = { ...brk, timer: T.pause(brk.timer, NOW) };
 
 // How far the window runs off the pretend screen in each spot (see .fpv-spot).
 const EDGES: Record<string, FloatEdges> = {
@@ -125,6 +126,8 @@ export function FloatPreview() {
         <Frame state={pill(brk)} open label={pt ? "Pausa" : "Break"} />
         <Frame state={pill(focus(-5))} open={false} label={pt ? "Passou do tempo" : "Over time"} />
         <Frame state={pill(paused)} open={false} label={pt ? "Pausada" : "Paused"} />
+        <Frame state={pill(paused)} open label={pt ? "Pausada, com o ponteiro" : "Paused, pointer on it"} />
+        <Frame state={pill(brkPaused)} open label={pt ? "Pausa pausada" : "Break paused"} />
         <Frame state={pill(flow)} open={false} label={pt ? "Fluxo" : "Flow"} />
         <Frame
           state={pill(focus(18))}

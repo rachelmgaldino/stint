@@ -22,7 +22,7 @@ export type FloatState = {
   style: FloatStyle;
 };
 
-export type FloatAction = "break" | "end" | "focus" | "open" | "pin";
+export type FloatAction = "break" | "end" | "focus" | "open" | "pause" | "pin" | "resume";
 
 /** True inside the floating timer's own window. */
 export function isFloatWindow(): boolean {

@@ -540,6 +540,40 @@ html.float-window #root {
   align-self: center;
 }
 
+/* The card's ring is the pause button. The padding keeps its hover circle
+   3px in, just inside the ring's line, and the background stays under Pip
+   and the bars since it's the button's own. */
+.float-pill-press {
+  padding: 3px;
+  border-radius: 50%;
+  background-clip: content-box;
+  pointer-events: auto;
+}
+
+.float-pill-press:hover {
+  background-color: var(--float-btn);
+}
+
+.float.break .float-pill-press:hover {
+  background-color: rgb(255 255 255 / 0.45);
+}
+
+.float-pill-press:focus-visible {
+  outline: 2px solid var(--float-text);
+  outline-offset: 1px;
+}
+
+/* Lifted over the ring's svg, which is positioned. */
+.float-pill-pause {
+  position: relative;
+  display: flex;
+}
+
+.float-pill-pause svg {
+  width: 17px;
+  height: 17px;
+}
+
 .float-card-top .float-clock {
   grid-column: 2 / 4;
   grid-row: 1;
