@@ -105,8 +105,8 @@ function Handle({ scale, onScale, label, snapped, open, style }: { scale: number
 
 /**
  * The small ring with the mascot inside, the pill's version of the bubble's
- * ring. With `press` it's a button: pause bars while the clock runs, and the
- * sleeping mascot, which wakes it, while paused.
+ * ring. With `press` it's a button: the mascot pauses the clock while it
+ * runs, and pause bars take its place until the clock starts again.
  */
 function Ring({
   done,
@@ -136,7 +136,7 @@ function Ring({
           style={color && !over ? { stroke: color } : undefined}
         />
       </svg>
-      {press && !press.paused ? (
+      {press?.paused ? (
         <span className="float-pill-pause">
           <PauseIcon />
         </span>
