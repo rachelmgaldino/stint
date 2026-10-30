@@ -21,6 +21,19 @@ const base = {
   language: (q.get("lang") ?? "en") as Language,
   long: false,
   style: "bubble" as FloatStyle,
+  intention: "Weekly report",
+  categoryId: 1,
+  categories: [
+    { id: 1, name: q.get("cat") ?? "Work", color: "#e8594f" },
+    { id: 2, name: "Study", color: "#5b8def" },
+    { id: 3, name: "Home", color: "#57b894" },
+  ],
+  past: ["Review pull request", "Reply to emails", "Plan the sprint", "Weekly report"].map((text, i) => ({
+    text,
+    categoryId: 1,
+    uses: 4 - i,
+    lastAt: NOW - i * 86_400_000,
+  })),
 };
 
 const focus = (leftMin: number, onTop = true): FloatState => ({
@@ -62,6 +75,7 @@ function Frame({
   edges,
   drag,
   anchor,
+  naming,
 }: {
   state: FloatState;
   open: boolean;
@@ -69,11 +83,12 @@ function Frame({
   edges?: FloatEdges;
   drag?: FloatDrag;
   anchor?: FloatAnchor;
+  naming?: boolean;
 }) {
   return (
     <figure className="fpv-fig">
       <div className={state.style === "pill" ? "fpv-frame pill" : "fpv-frame"}>
-        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor }} />
+        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor, naming }} />
       </div>
       {label && <figcaption>{label}</figcaption>}
     </figure>
@@ -120,6 +135,7 @@ export function FloatPreview() {
       <Frame state={focus(-5)} open={false} label={pt ? "Passou do tempo" : "Over time"} />
       <Frame state={paused} open={false} label={pt ? "Pausada" : "Paused"} />
       <Frame state={brk} open label={pt ? "Pausa" : "Break"} />
+      <Frame state={focus(18)} open naming label={pt ? "Próxima tarefa" : "Next task"} />
       <div className="fpv-row">
         <Frame state={pill(focus(18))} open={false} label={pt ? "Pílula, foco" : "Pill, focus"} />
         <Frame state={pill(focus(18))} open label={pt ? "Com o ponteiro" : "Pointer on it"} />
@@ -137,6 +153,9 @@ export function FloatPreview() {
         />
         <Frame state={pill(focus(18))} open anchor="left" label={pt ? "Na borda esquerda" : "Docked left"} />
         <Frame state={pill(focus(18))} open anchor="right" label={pt ? "Na borda direita" : "Docked right"} />
+        <Frame state={pill(focus(18))} open naming label={pt ? "Próxima tarefa" : "Next task"} />
+        <Frame state={pill(focus(18))} open naming anchor="left" label={pt ? "Próxima tarefa, à esquerda" : "Next task, docked left"} />
+        <Frame state={pill(focus(18))} open naming anchor="right" label={pt ? "Próxima tarefa, à direita" : "Next task, docked right"} />
       </div>
     </div>
   );

@@ -651,10 +651,31 @@ export default function App() {
       language: settings.language,
       onTop: settings.floatOnTop,
       style: settings.floatStyle,
+      intention: live.intention,
+      categoryId: live.categoryId,
+      categories,
+      past,
     }),
-    [timer, live.long, floatCategory, settings.look, settings.theme, settings.language, settings.floatOnTop, settings.floatStyle],
+    [
+      timer,
+      live.long,
+      floatCategory,
+      settings.look,
+      settings.theme,
+      settings.language,
+      settings.floatOnTop,
+      settings.floatStyle,
+      live.intention,
+      live.categoryId,
+      categories,
+      past,
+    ],
   );
   useFloatTimer(floatState, settings.floatTimer, (action: FloatAction) => {
+    if (typeof action === "object") {
+      nextTask(action.next, action.categoryId, action.at);
+      return;
+    }
     // The reflection opens in this window, so bring it back for it.
     const reflecting = timer.status !== "idle" && timer.kind === "focus" && settings.askReflection;
     switch (action) {

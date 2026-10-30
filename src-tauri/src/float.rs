@@ -36,6 +36,9 @@ const ROOM: (f64, f64) = (46.0, 66.0);
 // They must match the pill layout in src/float.css.
 const PILL_OPEN: (f64, f64) = (280.0, 132.0);
 const PILL: (f64, f64, f64, f64) = (74.0, 9.0, 132.0, 32.0);
+// How tall the pill's window is while the Next task form shows, with five
+// matches listed. The width stays, so the pill doesn't move.
+const PILL_NAMING: f64 = 330.0;
 // How close (logical px) the pill's centre must come to the middle of the
 // screen while dragged to snap onto it.
 const SNAP: f64 = 24.0;
@@ -53,6 +56,34 @@ const LEAVE_TICKS: u32 = 7;
 const PILL_LEAVE_TICKS: u32 = 3;
 // How often the bubble follows the pointer while it is being dragged.
 const DRAG_TICK: Duration = Duration::from_millis(8);
+
+#[cfg(windows)]
+#[link(name = "user32")]
+extern "system" {
+    fn GetForegroundWindow() -> isize;
+    fn SetForegroundWindow(window: isize) -> i32;
+}
+
+/// The window taking the keyboard right now, 0 where that can't be told.
+#[cfg(windows)]
+fn foreground() -> isize {
+    unsafe { GetForegroundWindow() }
+}
+
+#[cfg(not(windows))]
+fn foreground() -> isize {
+    0
+}
+
+#[cfg(windows)]
+fn give_keyboard_to(window: isize) {
+    unsafe {
+        SetForegroundWindow(window);
+    }
+}
+
+#[cfg(not(windows))]
+fn give_keyboard_to(_window: isize) {}
 
 /// The state, and whether the bubble is being dragged (read by the drag
 /// loop's own thread, which never takes the lock).
@@ -127,6 +158,12 @@ struct Inner {
     pill_w: Option<f64>,
     /// How big the pill is drawn, from its handle; none means 1.
     pill_size: Option<f64>,
+    /// The Next task form is showing, so the timer stays open and has the keyboard.
+    naming: bool,
+    /// The window that had the keyboard when the timer opened, given back
+    /// after the form. Read on opening since a click on the form's button
+    /// already takes it.
+    before: isize,
 }
 
 /// How much of the open window runs off the screen on each side, in logical
@@ -275,7 +312,10 @@ fn pill_size(s: &Inner) -> f64 {
 fn window_size(s: &Inner) -> (f64, f64) {
     match s.style {
         Style::Bubble => OPEN,
-        Style::Pill => (PILL_OPEN.0 * pill_size(s), PILL_OPEN.1 * pill_size(s)),
+        Style::Pill => {
+            let height = if s.naming { PILL_NAMING } else { PILL_OPEN.1 };
+            (PILL_OPEN.0 * pill_size(s), height * pill_size(s))
+        }
     }
 }
 
@@ -430,6 +470,9 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
     let (Ok(p), Ok(at)) = (app.cursor_position(), w.outer_position()) else { return };
     let scale = w.scale_factor().unwrap_or(1.0);
     let (px, py) = ((p.x - at.x as f64) / scale, (p.y - at.y as f64) / scale);
+    if s.naming {
+        return;
+    }
     if s.open {
         let (ow, oh) = window_size(&s);
         let inside = px >= 0.0 && py >= 0.0 && px < ow && py < oh;
@@ -463,6 +506,7 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
 fn open_shelf<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inner) {
     s.open = true;
     s.off_ticks = 0;
+    s.before = foreground();
     let _ = w.set_ignore_cursor_events(false);
     send_edges(app, w, s);
 }
@@ -497,6 +541,7 @@ fn close_shelf<R: Runtime>(w: &WebviewWindow<R>, s: &mut Inner) {
         return;
     }
     s.open = false;
+    s.naming = false;
     s.edges = None;
     let _ = w.set_ignore_cursor_events(true);
     let _ = w.app_handle().emit_to(LABEL, "float-open", Opened { open: false, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 });
@@ -772,6 +817,29 @@ pub fn float_pill_size(app: AppHandle, float: State<Float>, size: Option<f64>) -
         }
     }
     size
+}
+
+/// The page says the Next task form opened or closed. While it shows the
+/// timer stays open wherever the pointer goes, the pill's window is taller to
+/// hold it, and the window takes the keyboard. Closing gives the keyboard back
+/// to the app that had it, unless another app was clicked in the meantime.
+#[tauri::command]
+pub fn float_naming(app: AppHandle, float: State<Float>, naming: bool) {
+    let mut s = float.0.lock().unwrap();
+    if s.naming == naming {
+        return;
+    }
+    s.naming = naming;
+    s.off_ticks = 0;
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    if s.style == Style::Pill {
+        place(&app, &w, &mut s);
+    }
+    if naming {
+        let _ = w.set_focus();
+    } else if w.is_focused().unwrap_or(false) {
+        give_keyboard_to(s.before);
+    }
 }
 
 /// Forgets where the timer was dragged in the current style and puts it back

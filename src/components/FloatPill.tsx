@@ -34,6 +34,8 @@ type Props = {
   onOpen: () => void;
   /** The same buttons as the bubble's shelf, from FloatTimer. */
   buttons: ReactNode;
+  /** The Next task form, which takes the place of the buttons while it shows. */
+  form?: ReactNode;
   paused: boolean;
   /** A press on the card's ring: freezes the clock or lets it run again. */
   onTogglePause: () => void;
@@ -213,12 +215,12 @@ export function FloatPill(p: Props) {
   const clock = <Clock text={p.clock} over={p.over} />;
   // A double click on a button is two clicks on it, not a request to open Stint.
   const dbl = (e: MouseEvent) => {
-    if (!(e.target as Element).closest("button")) p.onOpen();
+    if (!(e.target as Element).closest("button, input")) p.onOpen();
   };
   const handlers = {
     role: "timer",
     "aria-label": `${p.tag} ${p.clock}`,
-    title: p.title,
+    title: p.form ? undefined : p.title,
     onPointerDown: p.onPointerDown,
     onPointerUp: p.onDrop,
     onLostPointerCapture: p.onDrop,
@@ -234,7 +236,7 @@ export function FloatPill(p: Props) {
     "--rest-w": `${restW}px`,
   } as CSSProperties;
   const from = p.anchor === "center" ? "" : `from-${p.anchor}`;
-  const shell = ["float-pill", from, ready ? "ready" : "", p.open ? "open" : "", snapped ? "snapped" : ""].join(" ");
+  const shell = ["float-pill", from, ready ? "ready" : "", p.open ? "open" : "", snapped ? "snapped" : "", p.form ? "naming" : ""].join(" ");
 
   // One shell that grows from the pill into the card, with both rows inside
   // it: the one not showing fades out and is inert, so its buttons can't be
@@ -269,7 +271,7 @@ export function FloatPill(p: Props) {
               }}
             />
           </div>
-          <div className="float-card-shelf">{p.buttons}</div>
+          {p.form ?? <div className="float-card-shelf">{p.buttons}</div>}
         </div>
       </div>
       <Handle scale={p.scale} onScale={p.onScale} label={p.resizeLabel} snapped={snapped} open={p.open} style={mark} />

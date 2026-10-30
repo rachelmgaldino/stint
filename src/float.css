@@ -274,7 +274,7 @@ html.float-window #root {
   transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* 180 wide so the four 30px buttons leave five gaps of exactly 12px, and
+/* 180 wide so the five 30px buttons leave six gaps of exactly 5px, and
    87 tall: the top row, the bar and the buttons' row (42 + 3 + 42). The
    corner nests around the ring: the ring (radius 15) sits 6 in from the
    side and the top, and 15 + 6 = 21. PILL_CARD in float.rs matches the width. */
@@ -368,6 +368,154 @@ html.float-window #root {
   left: auto;
   right: 0;
   transform: none;
+}
+
+/* The Next task form: 190 wide, still inside the window's 280 when the card
+   opens from a docked side, and as tall as its rows need. float.rs makes the
+   window taller around it (PILL_NAMING). */
+.float-pill.open.naming {
+  left: 45px;
+  width: 190px;
+  height: auto;
+  cursor: default;
+}
+
+.float-pill.from-left.open.naming {
+  left: calc(140px - var(--rest-w, 132px) / 2);
+}
+
+.float-pill.from-right.open.naming {
+  left: calc(140px + var(--rest-w, 132px) / 2 - 190px);
+}
+
+.float-pill.naming .float-card {
+  position: relative;
+  left: auto;
+  right: auto;
+  width: 100%;
+  transform: none;
+}
+
+.float-pill.naming ~ .float-pill-handle {
+  display: none;
+}
+
+/* On the bubble the form covers the bubble, so it stands alone. */
+.float-next-card {
+  position: absolute;
+  width: 190px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--float-bg);
+  box-shadow: var(--float-shadow);
+}
+
+.float.naming .float-bubble {
+  visibility: hidden;
+}
+
+.float-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 9px;
+  cursor: default;
+}
+
+.float-next .field {
+  gap: 4px;
+}
+
+.float-next .field > span {
+  padding-left: 4px;
+  font-size: 11px;
+}
+
+.float-next input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.float-next .intention-box.with-recent {
+  border-radius: 12px;
+}
+
+.float-next .recent-rows {
+  padding: 3px;
+}
+
+.float-next .recent-row {
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+/* The list of matches pushes down the rows under it: the shell clips anything that hangs out of it. */
+.float-next .intention-list {
+  position: static;
+  margin-top: 4px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.float-next .intention-row {
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.float-next .intention-row .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.float-next .intention-row-meta {
+  display: none;
+}
+
+.float-next-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.float-next-cat {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  cursor: pointer;
+}
+
+.float-next-cat[aria-pressed="true"] {
+  background: var(--float-btn);
+}
+
+.float-next-cat span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.float-next-hint {
+  margin: 0;
+  padding-left: 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .float-pill.from-left ~ .float-pill-handle {
