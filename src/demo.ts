@@ -195,6 +195,7 @@ export function demoEvents(from: number, to: number, language: Language): Calend
         shared: false,
         recurring: false,
         joinUrl: null,
+        location: "",
       });
     if (dow >= 1 && dow <= 5) add("standup", m.standup, at(9, 30), 15, "#7986cb");
     if (dow === 2 || dow === 4) add("one", m.oneOnOne, at(11, 0), 30, "#33b679");

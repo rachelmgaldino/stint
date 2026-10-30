@@ -24,7 +24,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - Add or edit past sessions and breaks by hand, and move the start of a running session if you started the timer late
 - Analytics by day, week and month: a timeline of the day with notes and breaks, focus by category and task, and change from the previous period
 - Export a day as a CSV, or copy a short summary
-- Two-way link with Google Calendar: sessions from the categories you choose are written to a calendar you pick, and your calendar's events show beside your sessions, where a past one can count as focus, and you can add, edit or delete events from inside Stint, with an optional Google Meet link on a new event (events with guests and repeating events stay read-only, because those choices live in Google)
+- Two-way link with Google Calendar: sessions from the categories you choose are written to a calendar you pick, and your calendar's events show beside your sessions, where a past one can count as focus, and you can add, edit or delete events from inside Stint, and an added event can have a meeting link: paste one, or create a Google Meet link to copy before saving (events with guests and repeating events stay read-only, because those choices live in Google)
 - Updates itself: Settings checks GitHub for a newer version and Update now installs it and restarts, with a quiet check when it opens and every six hours
 - Four looks (Lavender with Pip, Mochi the cat, Notebook with Memo the sticky note, Riso with a mushroom by day and a ghost by night), each with light, dark and match-Windows themes, in English or Portuguese (Brazil)
 - Mascots warm up after an hour of focus and overheat after two, as a nudge to take a break
@@ -57,7 +57,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - **Desktop shell:** Tauri 2 and Rust (tray, notifications, single instance, floating window, save dialog, signed self-updates, OAuth with `reqwest`, `keyring`, `sha2`)
 - **Interface:** React 19 and TypeScript, built with Vite; plain CSS with custom properties for the four looks and their themes
 - **Data:** SQLite through `tauri-plugin-sql`
-- **Tests:** Vitest for timer, dial, date, analytics, calendar, alarm, break, task, report and update logic; Rust unit tests for PKCE and the OAuth redirect parser
+- **Tests:** Vitest for timer, dial, date, analytics, calendar, alarm, break, task, report and update logic; Rust unit tests for PKCE, the OAuth redirect parser and the https link check
 - **CI:** GitHub Actions tests and builds the Windows installer on every push to main and every pull request, attaches a test installer to pull requests from this repo, publishes a versioned GitHub Release (with a version bump) of everything merged since the last one each time a pull request is merged, and deploys the web demo to GitHub Pages
 
 ## Running it locally

@@ -7,6 +7,7 @@ import {
   eventErrorKey,
   eventKey,
   linkHost,
+  meetingLink,
   newEventId,
   openMeeting,
   type CalendarEvent,
@@ -17,6 +18,7 @@ import {
 import { compactDuration } from "../analytics";
 import { atTime, dayLabel, fromIsoDate, isoDate, nextHalfHour, startOfDay, timeRange } from "../dates";
 import { capitalize, formatDate, t } from "../i18n";
+import { CopyButton } from "./CopyButton";
 import { CalendarIcon } from "./icons";
 import { useTimeFields } from "./useTimeFields";
 
@@ -81,15 +83,18 @@ export function EventCard({
           {!event.allDay && <strong> · {compactDuration(event.end - event.start)}</strong>}
         </p>
         {event.joinUrl && (
-          <button
-            type="button"
-            className="chip-button event-join"
-            title={linkHost(event.joinUrl)}
-            aria-label={text.joinMeetingAt(linkHost(event.joinUrl))}
-            onClick={() => join(event.joinUrl!)}
-          >
-            {text.joinMeeting}
-          </button>
+          <div className="event-join">
+            <button
+              type="button"
+              className="chip-button"
+              title={linkHost(event.joinUrl)}
+              aria-label={text.joinMeetingAt(linkHost(event.joinUrl))}
+              onClick={() => join(event.joinUrl!)}
+            >
+              {text.joinMeeting}
+            </button>
+            <CopyButton title={text.copyLink} text={() => event.joinUrl!} />
+          </div>
         )}
         <p className="muted event-note">{canCount ? text.countNote : event.allDay ? text.allDayNote : text.laterNote}</p>
         <div className="sheet-actions">
@@ -98,12 +103,12 @@ export function EventCard({
               {t().dialog.delete}
             </button>
           )}
-          <span className="spacer" />
           {onEdit && canEdit(event) && (
-            <button type="button" className="secondary" onClick={onEdit}>
+            <button type="button" className="split-link" onClick={onEdit}>
               {text.edit}
             </button>
           )}
+          <span className="spacer" />
           <button type="button" className="secondary" onClick={onClose}>
             {canCount ? t().dialog.cancel : text.close}
           </button>
@@ -166,6 +171,8 @@ export function EventForm({
   calendars,
   calendarId,
   onSave,
+  onCreateLink,
+  onDiscard,
   onClose,
 }: {
   /** The event to edit; absent when adding a new one. */
@@ -178,9 +185,13 @@ export function EventForm({
   calendarId: string | null;
   /**
    * Rejects if Google refuses, and the form stays open with what was typed.
-   * "meetNotReady" means the event was added without its Meet link, so the form stays open to say so.
+   * `createdId` is the event onCreateLink already put on the calendar, if any.
    */
-  onSave(draft: EventDraft, calendarId: string): Promise<"meetNotReady" | void>;
+  onSave(draft: EventDraft, calendarId: string, createdId?: string): Promise<void>;
+  /** Makes a Meet link, saving a new event to hold it. `link` is null if Google didn't make one. Rejects if Google refuses. */
+  onCreateLink(draft: EventDraft, calendarId: string): Promise<{ id: string; link: string | null }>;
+  /** Takes an event onCreateLink made back off the calendar. Rejects if Google refuses. */
+  onDiscard(calendarId: string, eventId: string): Promise<void>;
   onClose(): void;
 }) {
   const text = t().events;
@@ -190,12 +201,19 @@ export function EventForm({
   const [title, setTitle] = useState(event?.untitled ? "" : (event?.title ?? ""));
   const [date, setDate] = useState(isoDate(from));
   const [picked, setPicked] = useState(calendarId);
-  const [meet, setMeet] = useState(false);
+  const [paste, setPaste] = useState("");
+  const [link, setLink] = useState(event?.joinUrl ?? null);
+  // The event the Create Meet link button made while adding: from here on it's on the calendar.
+  const [created, setCreated] = useState<{ id: string; calendarId: string } | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [linkError, setLinkError] = useState<EventErrorKey | "meetFailed" | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState<EventErrorKey | null>(null);
-  const [meetNotReady, setMeetNotReady] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState<EventErrorKey | null>(null);
   // One id for every try, so Google can tell a retry from a new event.
-  const [newId] = useState(newEventId);
+  const [newId, setNewId] = useState(newEventId);
 
   const pickedDay = fromIsoDate(date);
   const eventDay = pickedDay ?? startOfDay(from);
@@ -219,19 +237,28 @@ export function EventForm({
   const target = event?.calendarId ?? picked;
   // An untitled event stays open to edit, so its time can change without inventing a title.
   const titled = title.trim() !== "" || !!event?.untitled;
-  const ready = !saving && !meetNotReady && !error && titled && target !== null;
+  const pasted = paste.trim();
+  const pastedLink = pasted ? meetingLink(pasted) : null;
+  const badLink = pasted !== "" && pastedLink === null;
+  // Pasting writes the location, and this one is an address, not a link.
+  const canPaste = !link && !event?.location;
+  const busy = saving || creating;
+  const ready = !busy && !error && !badLink && titled && target !== null;
+  const canCreate = !busy && !error && target !== null;
+  const draft: EventDraft | null =
+    startMs === null || endMs === null
+      ? null
+      : { title: title.trim(), start: startMs, end: endMs, ...(pastedLink && { link: pastedLink }), ...(!event && { id: newId }) };
+  const message = error || (badLink && text.badLink) || (linkError && text[linkError]) || (failed && text[failed]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ready || startMs === null || endMs === null) return;
+    if (!ready || !draft) return;
     setSaving(true);
     setFailed(null);
+    setLinkError(null);
     try {
-      const draft = { title: title.trim(), start: startMs, end: endMs, ...(meet && { meet }), ...(!event && { id: newId }) };
-      if ((await onSave(draft, target)) === "meetNotReady") {
-        setMeetNotReady(true);
-        setSaving(false);
-      }
+      await onSave(draft, target, created?.id);
     } catch (err) {
       console.warn("Couldn't save the calendar event", err);
       setFailed(eventErrorKey(err));
@@ -239,16 +266,57 @@ export function EventForm({
     }
   };
 
+  const createLink = async () => {
+    if (!canCreate || !draft) return;
+    setCreating(true);
+    setFailed(null);
+    setLinkError(null);
+    try {
+      const made = await onCreateLink(draft, target);
+      if (made.link) {
+        setLink(made.link);
+        if (!event) setCreated({ id: made.id, calendarId: target });
+      } else {
+        if (!event) {
+          // A retry with this id would land on the same link-less event, through the 409.
+          await onDiscard(target, made.id).catch((err) => console.warn("Couldn't discard the event without a link", err));
+          setNewId(newEventId());
+        }
+        setLinkError("meetFailed");
+      }
+    } catch (err) {
+      console.warn("Couldn't create the Meet link", err);
+      setLinkError(eventErrorKey(err));
+    }
+    setCreating(false);
+  };
+
+  const cancel = () => {
+    if (busy) return;
+    if (created) setConfirmDiscard(true);
+    else onClose();
+  };
+  const closeConfirm = () => {
+    if (discarding) return;
+    setConfirmDiscard(false);
+    setDiscardError(null);
+  };
+  const discard = async () => {
+    if (!created) return;
+    setDiscarding(true);
+    setDiscardError(null);
+    try {
+      await onDiscard(created.calendarId, created.id);
+      onClose();
+    } catch (err) {
+      console.warn("Couldn't discard the calendar event", err);
+      setDiscardError(eventErrorKey(err));
+      setDiscarding(false);
+    }
+  };
+
   return (
-    <div
-      className="overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="event-form-title"
-      onClick={() => {
-        if (!saving) onClose();
-      }}
-    >
+    <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="event-form-title" onClick={cancel}>
       <form className="sheet" onSubmit={submit} onClick={(e) => e.stopPropagation()}>
         <h2 id="event-form-title">{event ? text.editEvent : text.addEvent}</h2>
         <label htmlFor="ef-title">{text.eventTitle}</label>
@@ -294,7 +362,7 @@ export function EventForm({
         {!event && calendars.length > 1 && (
           <>
             <label htmlFor="ef-calendar">{text.calendar}</label>
-            <select id="ef-calendar" value={picked ?? ""} onChange={(e) => setPicked(e.target.value)}>
+            <select id="ef-calendar" value={picked ?? ""} disabled={creating || created !== null} onChange={(e) => setPicked(e.target.value)}>
               {calendars.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -303,44 +371,79 @@ export function EventForm({
             </select>
           </>
         )}
-        {!event && (
-          <label className="keep-adding event-meet">
-            <span className="toggle">
-              <input type="checkbox" role="switch" checked={meet} onChange={(e) => setMeet(e.target.checked)} />
-              <span className="switch" aria-hidden="true" />
-            </span>
-            {text.addMeet}
-          </label>
-        )}
-        {meetNotReady ? (
-          <p className="time-note" role="status">
-            {text.meetNotReady}
-          </p>
-        ) : saving && meet ? (
-          <p className="time-note" role="status">
-            {text.creatingMeet}
-          </p>
+        <label htmlFor={link || canPaste ? "ef-link" : undefined}>{text.meetingLink}</label>
+        {link ? (
+          <div className="event-link">
+            <input id="ef-link" value={link} readOnly />
+            <CopyButton title={text.copyLink} text={() => link} />
+          </div>
         ) : (
-          (error || failed) && <p className="error">{error || (failed && text[failed])}</p>
+          <>
+            {canPaste && (
+              <input
+                id="ef-link"
+                value={paste}
+                placeholder={text.pasteLink}
+                disabled={creating}
+                onChange={(e) => {
+                  setPaste(e.target.value);
+                  setLinkError(null);
+                }}
+              />
+            )}
+            {pasted === "" && (
+              <button type="button" className="secondary" disabled={!canCreate} onClick={createLink}>
+                {creating ? text.creatingMeet : text.createMeet}
+              </button>
+            )}
+          </>
         )}
+        {message && <p className="error">{message}</p>}
         <div className="sheet-actions">
           <span className="spacer" />
-          {meetNotReady ? (
-            <button type="button" className="primary" autoFocus onClick={onClose}>
-              {text.close}
-            </button>
-          ) : (
-            <>
-              <button type="button" className="secondary" disabled={saving} onClick={onClose}>
-                {dialog.cancel}
-              </button>
-              <button type="submit" className="primary" disabled={!ready}>
-                {event ? dialog.save : dialog.add}
-              </button>
-            </>
-          )}
+          <button type="button" className="secondary" disabled={busy} onClick={cancel}>
+            {dialog.cancel}
+          </button>
+          <button type="submit" className="primary" disabled={!ready}>
+            {event ? dialog.save : dialog.add}
+          </button>
         </div>
       </form>
+      {confirmDiscard && (
+        <div
+          className="confirm-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            closeConfirm();
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation();
+            closeConfirm();
+          }}
+        >
+          <div
+            className="confirm-card event-confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            aria-describedby="confirm-body"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="confirm-title">{text.discardTitle}</h3>
+            <p id="confirm-body">{text.discardBody}</p>
+            {discardError && <p className="error">{discardError === "saveFailed" ? text.deleteFailed : text[discardError]}</p>}
+            <div className="confirm-actions">
+              <button type="button" className="secondary" autoFocus disabled={discarding} onClick={closeConfirm}>
+                {text.keepEditing}
+              </button>
+              <button type="button" className="danger-button" disabled={discarding} onClick={discard}>
+                {text.discard}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

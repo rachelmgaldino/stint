@@ -552,21 +552,20 @@ export default function App() {
     refresh();
   };
 
-  // Errors reach EventForm, which shows them and stays open. "meetNotReady" also
-  // keeps it open, to say the event exists without its link.
-  const saveEvent = async (draft: G.EventDraft, calendarId: string): Promise<"meetNotReady" | void> => {
-    let meetNotReady = false;
-    if (eventForm?.event) {
-      try {
-        await G.changeEvent(eventForm.event.calendarId, eventForm.event.id, draft);
-      } catch (err) {
-        // Deleted elsewhere: take it off the list as well as showing the error.
-        if (G.eventGone(err)) setEventsVersion((v) => v + 1);
-        throw err;
-      }
-    } else {
-      const { id, meet } = await G.addEvent(calendarId, draft);
-      meetNotReady = meet === "failed" || (meet === "pending" && !(await G.waitForMeet(calendarId, id)));
+  // Errors reach EventForm, which shows them and stays open. `createdId` is the
+  // event its Create Meet link button already put on the calendar.
+  const saveEvent = async (draft: G.EventDraft, calendarId: string, createdId?: string): Promise<void> => {
+    const open = eventForm?.event;
+    try {
+      if (open) await G.changeEvent(open.calendarId, open.id, draft);
+      else if (createdId) await G.changeEvent(calendarId, createdId, draft);
+      else await G.addEvent(calendarId, draft);
+    } catch (err) {
+      // Deleted elsewhere: take it off the list as well as showing the error.
+      if (G.eventGone(err)) setEventsVersion((v) => v + 1);
+      throw err;
+    }
+    if (!open) {
       const { settings: saved } = latest.current;
       if (calendarId !== saved.calendar.eventTargetId) {
         // Not updateSettings: that resets the length dialled on the idle timer.
@@ -580,11 +579,29 @@ export default function App() {
     // From the Timer, so the new event is in view; a running session keeps the ribbon on today.
     if (from === "timer" && running.status === "idle") setDay(startOfDay(draft.start));
     if (from === "analytics" && shown.kind === "day") setRange(rangeFor("day", draft.start));
-    if (meetNotReady) return "meetNotReady";
     const title = draft.title || t().events.noTitle;
     const label = `${dayLabel(startOfDay(draft.start))}, ${clockTime(draft.start)}`;
-    setEventNotice(eventForm?.event ? t().events.eventSaved(title, label) : t().events.eventAdded(title, label));
+    setEventNotice(open ? t().events.eventSaved(title, label) : t().events.eventAdded(title, label));
     setEventForm(null);
+  };
+
+  // Google only makes a Meet link as part of an event, so a new one is saved here, before the form is done.
+  const createLink = async (draft: G.EventDraft, calendarId: string): Promise<{ id: string; link: string | null }> => {
+    const open = eventForm?.event;
+    if (!open) return G.addMeeting(calendarId, draft);
+    const link = await G.addMeetTo(open.calendarId, open.id);
+    setEventsVersion((v) => v + 1);
+    return { id: open.id, link };
+  };
+
+  const discardEvent = async (calendarId: string, id: string): Promise<void> => {
+    try {
+      await G.deleteEvent(calendarId, id);
+    } catch (err) {
+      // Already gone is what the user asked for.
+      if (!G.eventGone(err)) throw err;
+    }
+    setEventsVersion((v) => v + 1);
   };
 
   useEffect(() => {
@@ -946,6 +963,8 @@ export default function App() {
           calendars={addable}
           calendarId={G.defaultEventCalendar(addable, settings.calendar.eventTargetId)?.id ?? null}
           onSave={saveEvent}
+          onCreateLink={createLink}
+          onDiscard={discardEvent}
           onClose={() => setEventForm(null)}
         />
       )}

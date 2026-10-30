@@ -27,9 +27,12 @@ export type CalendarEvent = {
   recurring: boolean;
   /** Where to join its video call, if it has one. */
   joinUrl: string | null;
+  /** Its location as Google has it, "" if none. */
+  location: string;
 };
 
-export type EventDraft = { title: string; start: number; end: number; meet?: boolean; id?: string };
+/** `link` is written to the event's location; left out, the location stays as it is. */
+export type EventDraft = { title: string; start: number; end: number; id?: string; link?: string };
 
 export type MeetState = "ready" | "pending" | "failed";
 
@@ -97,6 +100,7 @@ type ApiEvent = {
   id: string;
   summary?: string;
   status?: string;
+  location?: string;
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
   extendedProperties?: { private?: Record<string, string> };
@@ -122,6 +126,29 @@ export function linkHost(url: string): string {
   }
 }
 
+/** What someone pasted as a meeting link, made whole, or null if it isn't an https link to a real host. */
+export function meetingLink(value: string): string | null {
+  const text = value.trim();
+  if (/\s/.test(text)) return null;
+  const link = /^[a-z][a-z0-9+-]*:/i.test(text) ? text : `https://${text}`;
+  try {
+    const url = new URL(link);
+    // href, not what was typed: locationLink only reads a location starting with a lowercase https://.
+    return url.protocol === "https:" && url.hostname.includes(".") ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The link of the event's own video call, if Google has given it one. */
+function conferenceLink(e: MeetFields): string | null {
+  const link = e.hangoutLink ?? e.conferenceData?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ?? null;
+  return link?.startsWith("https://") && linkHost(link) ? link : null;
+}
+
+// A pasted link lives in the location, where Google Calendar shows it. Only a location that is nothing but a link counts, so a street address never becomes one.
+const locationLink = (location = "") => (location.startsWith("https://") && !/\s/.test(location) && linkHost(location) ? location : null);
+
 export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string; writable?: boolean }): CalendarEvent | null {
   // Skip cancelled events and the ones Stint itself added for sessions.
   if (e.status === "cancelled" || e.extendedProperties?.private?.stint) return null;
@@ -129,7 +156,6 @@ export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string; w
   const start = allDay ? localDate(e.start.date!) : Date.parse(e.start.dateTime!);
   const end = allDay ? localDate(e.end.date!) : Date.parse(e.end.dateTime!);
   if (Number.isNaN(start) || Number.isNaN(end)) return null;
-  const link = e.hangoutLink ?? e.conferenceData?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ?? null;
   return {
     id: e.id,
     calendarId: cal.id,
@@ -143,7 +169,8 @@ export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string; w
     // `self` defaults to false, so an organizer without it is someone else.
     shared: (e.attendees ?? []).some((a) => !a.self) || (!!e.organizer && !e.organizer.self),
     recurring: !!e.recurringEventId,
-    joinUrl: link?.startsWith("https://") && linkHost(link) ? link : null,
+    joinUrl: conferenceLink(e) ?? locationLink(e.location),
+    location: e.location ?? "",
   };
 }
 
@@ -248,6 +275,9 @@ export async function deleteEvent(calendarId: string, eventId: string) {
 /** An id for an event not yet on Google. Google allows only a-v and 0-9 here, which a UUID without its dashes keeps to. */
 export const newEventId = () => crypto.randomUUID().replaceAll("-", "");
 
+/** Asks Google for a Meet link; it only listens with conferenceDataVersion=1 on the request. */
+const meetRequest = (requestId: string) => ({ createRequest: { requestId, conferenceSolutionKey: { type: "hangoutsMeet" } } });
+
 /**
  * An event the user added from Stint. No `extendedProperties`: toCalendarEvent
  * hides anything tagged `stint`, so the event would vanish. No `transparency`
@@ -259,13 +289,14 @@ export function eventBody(d: EventDraft) {
     summary: d.title,
     start: { dateTime: new Date(d.start).toISOString() },
     end: { dateTime: new Date(d.end).toISOString() },
-    ...(d.meet && {
-      conferenceData: { createRequest: { requestId: d.id ?? crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } },
-    }),
+    ...(d.link !== undefined && { location: d.link }),
   };
 }
 
-type MeetFields = { hangoutLink?: string; conferenceData?: { createRequest?: { status?: { statusCode?: string } } } };
+type MeetFields = {
+  hangoutLink?: string;
+  conferenceData?: { createRequest?: { status?: { statusCode?: string } }; entryPoints?: { entryPointType: string; uri: string }[] };
+};
 
 /** How far Google has got with a Meet link it was asked for. */
 export function meetState(r: MeetFields): MeetState {
@@ -275,37 +306,67 @@ export function meetState(r: MeetFields): MeetState {
 }
 
 /** A look that fails says nothing about the link, and the event exists either way, so it never rejects. */
-const readMeet = (calendarId: string, eventId: string) =>
-  request<MeetFields>("GET", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`)
-    .then(meetState)
-    .catch((): MeetState => "pending");
+const readEvent = (calendarId: string, eventId: string) =>
+  request<MeetFields>("GET", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`).catch((): MeetFields => ({}));
 
-export async function addEvent(calendarId: string, d: EventDraft): Promise<{ id: string; meet: MeetState | null }> {
-  // Without conferenceDataVersion=1 Google drops the Meet request without an error.
-  const query = d.meet ? "?conferenceDataVersion=1" : "";
+export async function addEvent(calendarId: string, d: EventDraft): Promise<string> {
   try {
-    const r = await request<MeetFields & { id: string }>("POST", `/calendars/${enc(calendarId)}/events${query}`, { id: d.id, ...eventBody(d) });
-    return { id: r.id, meet: d.meet ? meetState(r) : null };
+    const r = await request<{ id: string }>("POST", `/calendars/${enc(calendarId)}/events`, { id: d.id, ...eventBody(d) });
+    return r.id;
   } catch (err) {
     // The id is already taken: an earlier try got through and only its answer was lost.
     if (errorStatus(err) !== 409 || !d.id) throw err;
     // The form may have changed since that try, and what's in it now is what the user saved.
     await changeEvent(calendarId, d.id, d);
-    return { id: d.id, meet: d.meet ? await readMeet(calendarId, d.id) : null };
+    return d.id;
   }
 }
 
-/** Google makes the Meet link in the background: looks every 1.5 seconds, six times at most. */
-export async function waitForMeet(calendarId: string, eventId: string): Promise<boolean> {
+/** Google makes the Meet link in the background: looks every 1.5 seconds, six times at most, until the answer isn't "pending". */
+async function poll<T>(look: () => Promise<T | "pending">): Promise<T | "pending"> {
   for (let tries = 0; tries < 6; tries++) {
     await new Promise((done) => setTimeout(done, 1500));
-    const state = await readMeet(calendarId, eventId);
-    if (state !== "pending") return state === "ready";
+    const answer = await look();
+    if (answer !== "pending") return answer;
   }
-  return false;
+  return "pending";
 }
 
-/** PATCH, not PUT: PUT replaces the whole event and would wipe its description, location and reminders. */
+/** The event's Meet link once Google has made it; null if it failed or is taking too long. */
+export async function waitForLink(calendarId: string, eventId: string): Promise<string | null> {
+  const link = await poll(async () => {
+    const r = await readEvent(calendarId, eventId);
+    return conferenceLink(r) ?? (meetState(r) === "failed" ? null : "pending");
+  });
+  return link === "pending" ? null : link;
+}
+
+/** Saves a new event with a Meet link, so the link exists before the form is done. */
+export async function addMeeting(calendarId: string, d: EventDraft): Promise<{ id: string; link: string | null }> {
+  const body = { id: d.id, ...eventBody(d), conferenceData: meetRequest(d.id ?? crypto.randomUUID()) };
+  let r: MeetFields & { id: string };
+  try {
+    r = await request("POST", `/calendars/${enc(calendarId)}/events?conferenceDataVersion=1`, body);
+  } catch (err) {
+    // The id is already taken: an earlier try got through and only its answer was lost.
+    if (errorStatus(err) !== 409 || !d.id) throw err;
+    r = { ...(await readEvent(calendarId, d.id)), id: d.id };
+  }
+  return { id: r.id, link: conferenceLink(r) ?? (await waitForLink(calendarId, r.id)) };
+}
+
+/** Gives an event already on Google a Meet link, sending only that so nothing else about it changes. */
+export async function addMeetTo(calendarId: string, eventId: string): Promise<string | null> {
+  const r = await request<MeetFields>("PATCH", `/calendars/${enc(calendarId)}/events/${enc(eventId)}?conferenceDataVersion=1`, {
+    conferenceData: meetRequest(crypto.randomUUID()),
+  });
+  return conferenceLink(r) ?? waitForLink(calendarId, eventId);
+}
+
+/**
+ * PATCH, not PUT: PUT replaces the whole event and would wipe its description, location and reminders.
+ * No conferenceDataVersion: version 0 leaves any existing conference alone, and writing with version 1 can remove one.
+ */
 export async function changeEvent(calendarId: string, eventId: string, d: EventDraft) {
   await request("PATCH", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`, eventBody(d));
 }

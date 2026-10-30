@@ -4,6 +4,7 @@ import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { useEffect, useState } from "react";
 import { CalendarIcon, CalendarPlusIcon, CoffeeIcon, CopyIcon, DownloadIcon, PlusIcon } from "./icons";
+import { CopyButton } from "./CopyButton";
 import { countable, eventKey, type CalendarEvent } from "../google";
 import type { CSSProperties } from "react";
 import { GoalSprouts, Pip, RatingFace } from "./Pip";
@@ -245,31 +246,6 @@ function DayExport({ day, sessions, categories }: { day: number; sessions: Sessi
         {done === "copy" ? text.copied : text.copy}
       </button>
     </div>
-  );
-}
-
-/** A small Copy button that says Copied for a moment. */
-function CopyButton({ title, text }: { title: string; text(): string }) {
-  const words = t().report;
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const id = setTimeout(() => setCopied(false), 1800);
-    return () => clearTimeout(id);
-  }, [copied]);
-  return (
-    <button
-      className="export-button small"
-      title={title}
-      aria-label={title}
-      onClick={async () => {
-        await copyText(text());
-        setCopied(true);
-      }}
-    >
-      <CopyIcon />
-      {copied ? words.copied : words.copy}
-    </button>
   );
 }
 

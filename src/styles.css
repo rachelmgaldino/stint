@@ -1754,8 +1754,15 @@ button.ribbon-seg:hover {
   height: auto;
 }
 
-.sheet .event-meet {
-  margin-top: 6px;
+.event-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet .event-link input {
+  flex: 1;
+  min-width: 0;
 }
 
 .sheet .just-added {
@@ -2163,7 +2170,10 @@ button.ribbon-seg:hover {
 }
 
 .event-join {
-  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .event-note {
