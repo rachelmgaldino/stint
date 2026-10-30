@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Pip, type Mood } from "./Pip";
 import { PinIcon } from "./floatIcons";
+import { PauseIcon } from "./icons";
 import type { FloatAnchor, FloatDrag } from "./FloatTimer";
 
 // The ring in each place: its box, the circle's radius (to the middle of
@@ -33,6 +34,11 @@ type Props = {
   onOpen: () => void;
   /** The same buttons as the bubble's shelf, from FloatTimer. */
   buttons: ReactNode;
+  paused: boolean;
+  /** A press on the card's ring: freezes the clock or lets it run again. */
+  onTogglePause: () => void;
+  /** The card's ring's tooltip and label. */
+  pauseLabel: string;
   /** The resting pill's width whenever it changes, for float.rs's hover spot. */
   onRestWidth: (w: number) => void;
   /** How big the whole pill is drawn, 1 being normal (see SCALE). */
@@ -97,13 +103,27 @@ function Handle({ scale, onScale, label, snapped, open, style }: { scale: number
   );
 }
 
-/** The small ring with the mascot inside, the pill's version of the bubble's ring. */
-function Ring({ done, over, color, mood, at }: Pick<Props, "done" | "over" | "color" | "mood"> & { at: keyof typeof RINGS }) {
+/**
+ * The small ring with the mascot inside, the pill's version of the bubble's
+ * ring. With `press` it's a button: pause bars while the clock runs, and the
+ * sleeping mascot, which wakes it, while paused.
+ */
+function Ring({
+  done,
+  over,
+  color,
+  mood,
+  at,
+  press,
+}: Pick<Props, "done" | "over" | "color" | "mood"> & {
+  at: keyof typeof RINGS;
+  press?: { paused: boolean; label: string; onClick: () => void };
+}) {
   const { box, r, pip } = RINGS[at];
   const c = box / 2;
   const ring = 2 * Math.PI * r;
-  return (
-    <span className="float-pill-face">
+  const inside = (
+    <>
       <svg className="float-pill-ring" width={box} height={box} viewBox={`0 0 ${box} ${box}`} aria-hidden="true">
         <circle cx={c} cy={c} r={r} className="track" />
         <circle
@@ -116,8 +136,20 @@ function Ring({ done, over, color, mood, at }: Pick<Props, "done" | "over" | "co
           style={color && !over ? { stroke: color } : undefined}
         />
       </svg>
-      <Pip size={pip} mood={mood} />
-    </span>
+      {press && !press.paused ? (
+        <span className="float-pill-pause">
+          <PauseIcon />
+        </span>
+      ) : (
+        <Pip size={pip} mood={mood} />
+      )}
+    </>
+  );
+  if (!press) return <span className="float-pill-face">{inside}</span>;
+  return (
+    <button className="float-pill-face float-pill-press" title={press.label} aria-label={press.label} onClick={press.onClick}>
+      {inside}
+    </button>
   );
 }
 
@@ -145,9 +177,9 @@ function Clock({ text, over }: { text: string; over: boolean }) {
 /**
  * The floating timer as a pill at the top of the screen: the ring, the time
  * and the pin while resting, growing into a card with the category, a bar
- * and the buttons when the pointer is on it. FloatTimer keeps the timer's
- * state and hands it down; the window's size and the spot that opens it are
- * set in float.rs.
+ * and the buttons when the pointer is on it, its ring being the button that
+ * pauses the clock. FloatTimer keeps the timer's state and hands it down; the
+ * window's size and the spot that opens it are set in float.rs.
  */
 export function FloatPill(p: Props) {
   // The resting pill hugs the ring, the time and the pin, so its width
@@ -222,7 +254,7 @@ export function FloatPill(p: Props) {
         </div>
         <div className="float-card" inert={!p.open}>
           <div className="float-card-top">
-            <Ring {...face} at="card" />
+            <Ring {...face} at="card" press={{ paused: p.paused, label: p.pauseLabel, onClick: p.onTogglePause }} />
             {clock}
             {p.color && <span className="dot" style={{ background: p.color }} />}
             <span className="float-card-tag">{p.tag}</span>

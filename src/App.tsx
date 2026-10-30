@@ -655,6 +655,12 @@ export default function App() {
       case "open":
         openMain();
         break;
+      case "pause":
+        setLive((l) => ({ ...l, timer: T.pause(l.timer, Date.now()) }));
+        break;
+      case "resume":
+        setLive((l) => ({ ...l, timer: T.resume(l.timer, Date.now()) }));
+        break;
       case "pin":
         void updateSettings({ ...settings, floatOnTop: !settings.floatOnTop });
         break;

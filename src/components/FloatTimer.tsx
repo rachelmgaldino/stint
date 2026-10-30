@@ -237,6 +237,9 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
           onDrop={drop}
           onOpen={() => send("open")}
           buttons={buttons}
+          paused={paused}
+          onTogglePause={() => send(paused ? "resume" : "pause")}
+          pauseLabel={paused ? (focus ? text.timer.resume : text.timer.resumeBreak) : focus ? text.timer.pauseSession : text.timer.pauseBreak}
           onRestWidth={(width) => void invoke("float_pill_width", { width }).catch(() => {})}
           scale={size}
           onScale={resize}
