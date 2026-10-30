@@ -420,6 +420,15 @@
     display: none;
   }
 
+  .event-notice {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  /* The mini timer already takes the spot above the tab bar. */
+  .mini-timer ~ .event-notice {
+    bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
   /* Analytics */
   .analytics,
   .settings-page {

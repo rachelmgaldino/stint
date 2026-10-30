@@ -13,6 +13,7 @@ import {
   eventGone,
   eventKey,
   eventLanes,
+  linkHost,
   meetState,
   nearestColorId,
   newEventId,
@@ -285,6 +286,12 @@ describe("google calendar helpers", () => {
     expect(join({ conferenceData: { entryPoints: [{ entryPointType: "phone", uri: "tel:+1-555" }, { entryPointType: "video", uri: meet }] } })).toBe(meet);
     expect(join({ conferenceData: { entryPoints: [{ entryPointType: "phone", uri: "https://tel.meet/abc" }] } })).toBeNull();
     expect(join({ hangoutLink: "http://meet.google.com/abc-defg-hij" })).toBeNull();
+    expect(join({ hangoutLink: "https://" })).toBeNull();
+  });
+
+  it("reads the host a link goes to", () => {
+    expect(linkHost("https://meet.google.com/abc-defg-hij")).toBe("meet.google.com");
+    expect(linkHost("not a link")).toBe("");
   });
 
   it("lets only the user's own one-off events be deleted, and timed ones under a day be edited", () => {

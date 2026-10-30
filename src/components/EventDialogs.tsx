@@ -6,6 +6,7 @@ import {
   countable,
   eventErrorKey,
   eventKey,
+  linkHost,
   newEventId,
   openMeeting,
   type CalendarEvent,
@@ -80,7 +81,13 @@ export function EventCard({
           {!event.allDay && <strong> · {compactDuration(event.end - event.start)}</strong>}
         </p>
         {event.joinUrl && (
-          <button type="button" className="chip-button event-join" onClick={() => join(event.joinUrl!)}>
+          <button
+            type="button"
+            className="chip-button event-join"
+            title={linkHost(event.joinUrl)}
+            aria-label={text.joinMeetingAt(linkHost(event.joinUrl))}
+            onClick={() => join(event.joinUrl!)}
+          >
             {text.joinMeeting}
           </button>
         )}
@@ -308,6 +315,10 @@ export function EventForm({
         {meetNotReady ? (
           <p className="time-note" role="status">
             {text.meetNotReady}
+          </p>
+        ) : saving && meet ? (
+          <p className="time-note" role="status">
+            {text.creatingMeet}
           </p>
         ) : (
           (error || failed) && <p className="error">{error || (failed && text[failed])}</p>

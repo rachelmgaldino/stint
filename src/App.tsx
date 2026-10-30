@@ -11,7 +11,7 @@ import {
   type Store,
 } from "./store";
 import * as T from "./timer";
-import { addDays, clockTime, startOfDay, startOfWeek } from "./dates";
+import { addDays, clockTime, dayLabel, startOfDay, startOfWeek } from "./dates";
 import { previousRange, rangeFor, type Range } from "./analytics";
 import { TimerPane, upClock } from "./components/TimerPane";
 import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
@@ -133,6 +133,8 @@ export default function App() {
   const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
   // The event form: an event to edit, or none to add one on `day`.
   const [eventForm, setEventForm] = useState<{ event?: G.CalendarEvent; day: number } | null>(null);
+  // Says a saved event worked, since the form closes and the event may be out of view.
+  const [eventNotice, setEventNotice] = useState<string | null>(null);
   // Bumped to reload events right after a change, instead of waiting for the five-minute check.
   const [eventsVersion, setEventsVersion] = useState(0);
   const syncing = useRef(false);
@@ -579,8 +581,17 @@ export default function App() {
     if (from === "timer" && running.status === "idle") setDay(startOfDay(draft.start));
     if (from === "analytics" && shown.kind === "day") setRange(rangeFor("day", draft.start));
     if (meetNotReady) return "meetNotReady";
+    const title = draft.title || t().events.noTitle;
+    const label = `${dayLabel(startOfDay(draft.start))}, ${clockTime(draft.start)}`;
+    setEventNotice(eventForm?.event ? t().events.eventSaved(title, label) : t().events.eventAdded(title, label));
     setEventForm(null);
   };
+
+  useEffect(() => {
+    if (!eventNotice) return;
+    const id = setTimeout(() => setEventNotice(null), 4000);
+    return () => clearTimeout(id);
+  }, [eventNotice]);
 
   // Errors reach EventCard, which shows them in the confirmation.
   const removeEvent = async (e: G.CalendarEvent): Promise<void> => {
@@ -899,6 +910,11 @@ export default function App() {
         />
       )}
 
+      {eventNotice && (
+        <div className="event-notice" role="status">
+          {eventNotice}
+        </div>
+      )}
       {pending && (
         <Reflection
           pending={pending}

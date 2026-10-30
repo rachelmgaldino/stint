@@ -113,6 +113,15 @@ function localDate(d: string): number {
   return new Date(y, m - 1, day).getTime();
 }
 
+/** The host a link goes to, or "" if it isn't a valid URL. */
+export function linkHost(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string; writable?: boolean }): CalendarEvent | null {
   // Skip cancelled events and the ones Stint itself added for sessions.
   if (e.status === "cancelled" || e.extendedProperties?.private?.stint) return null;
@@ -134,7 +143,7 @@ export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string; w
     // `self` defaults to false, so an organizer without it is someone else.
     shared: (e.attendees ?? []).some((a) => !a.self) || (!!e.organizer && !e.organizer.self),
     recurring: !!e.recurringEventId,
-    joinUrl: link?.startsWith("https://") ? link : null,
+    joinUrl: link?.startsWith("https://") && linkHost(link) ? link : null,
   };
 }
 

@@ -1416,6 +1416,27 @@ button.ribbon-seg:hover {
   color: var(--on-pastel);
 }
 
+/* Says a saved event worked. Above the tab bar and mini timer, under any dialog.
+   Centred with auto margins: left: 50% would cap its width at half the window. */
+.event-notice {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Clears the full ribbon, which is where the new event shows up. */
+  bottom: 176px;
+  width: fit-content;
+  max-width: min(420px, calc(var(--vw) - 32px));
+  margin: 0 auto;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  z-index: 7;
+  pointer-events: none;
+}
+
 .mini-info {
   display: flex;
   align-items: center;
