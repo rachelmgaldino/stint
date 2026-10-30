@@ -58,7 +58,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - **Interface:** React 19 and TypeScript, built with Vite; plain CSS with custom properties for the four looks and their themes
 - **Data:** SQLite through `tauri-plugin-sql`
 - **Tests:** Vitest for timer, dial, date, analytics, calendar, alarm, break, task, report and update logic; Rust unit tests for PKCE and the OAuth redirect parser
-- **CI:** GitHub Actions tests and builds the Windows installer on every push to main and every pull request, attaches a test installer to pull requests from this repo, publishes a versioned GitHub Release (with a version bump) every time a pull request is merged, and deploys the web demo to GitHub Pages
+- **CI:** GitHub Actions tests and builds the Windows installer on every push to main and every pull request, attaches a test installer to pull requests from this repo, publishes a versioned GitHub Release (with a version bump) of everything merged since the last one each time a pull request is merged, and deploys the web demo to GitHub Pages
 
 ## Running it locally
 
@@ -86,7 +86,7 @@ Optional. You need your own OAuth client: in Google Cloud Console, enable the Go
 
 ### Updates
 
-Every merged pull request becomes a release: a patch version by default, or minor or major when the PR has that label (`no release` skips it). Releases are signed so installed copies can update themselves. The Release workflow needs two repository secrets, `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and stops before bumping the version if the key is missing. The public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Pull request builds use the same secrets to sign their test builds; without them a test build still installs by hand but isn't offered in the app. A fork needs its own key pair (`npx tauri signer generate`) and its own endpoint.
+Every merged pull request ends up in a release: a patch version by default, or minor or major when the PR has that label (`no release` skips it). Pull requests merged close together go out as one release, and the highest label among them sets the version. Releases are signed so installed copies can update themselves. The Release workflow needs two repository secrets, `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and stops before bumping the version if the key is missing. The public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Pull request builds use the same secrets to sign their test builds; without them a test build still installs by hand but isn't offered in the app. A fork needs its own key pair (`npx tauri signer generate`) and its own endpoint.
 
 ## What I'd improve
 
