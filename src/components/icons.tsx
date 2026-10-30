@@ -34,6 +34,13 @@ export const CalendarIcon = () => (
   </svg>
 );
 
+export const CalendarPlusIcon = () => (
+  <svg {...base} strokeWidth={2.2}>
+    <rect x="3" y="5" width="18" height="16" rx="3" />
+    <path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
+  </svg>
+);
+
 export const StopIcon = () => (
   <svg width={18} height={18} viewBox="0 0 24 24" aria-hidden="true">
     <rect x="5" y="5" width="14" height="14" rx="4" fill="currentColor" />

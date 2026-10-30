@@ -3,7 +3,7 @@ import { clockTime, startOfDay, timeRange, timeSpan, weekDays } from "../dates";
 import type { Category, SessionRecord } from "../store";
 import { soft } from "../colors";
 import { useEffect, useState } from "react";
-import { CalendarIcon, CoffeeIcon, CopyIcon, DownloadIcon, PlusIcon } from "./icons";
+import { CalendarIcon, CalendarPlusIcon, CoffeeIcon, CopyIcon, DownloadIcon, PlusIcon } from "./icons";
 import { countable, eventKey, type CalendarEvent } from "../google";
 import type { CSSProperties } from "react";
 import { GoalSprouts, Pip, RatingFace } from "./Pip";
@@ -30,6 +30,8 @@ type Props = {
   /** Makes a past event into a focus session. */
   onCountEvent(e: CalendarEvent): void;
   onAdd(): void;
+  /** Adds a Google Calendar event; absent when events can't be added. */
+  onAddEvent?(): void;
 };
 
 const focusOf = (list: SessionRecord[]) => list.filter((s) => s.kind === "focus").reduce((a, s) => a + s.focusedMs, 0);
@@ -271,7 +273,7 @@ function CopyButton({ title, text }: { title: string; text(): string }) {
   );
 }
 
-export function DayAnalytics({ day, sessions, week, stats, categories, now, dailyGoal, events, onDay, onOpen, onEvent, onCountEvent, onAdd }: Props) {
+export function DayAnalytics({ day, sessions, week, stats, categories, now, dailyGoal, events, onDay, onOpen, onEvent, onCountEvent, onAdd, onAddEvent }: Props) {
   const text = t().analytics;
   const byId = new Map(categories.map((c) => [c.id, c]));
   const colorOf = (s: SessionRecord) =>
@@ -341,9 +343,16 @@ export function DayAnalytics({ day, sessions, week, stats, categories, now, dail
           <div className="card-head">
             <h2>{text.yourDay}</h2>
             <DayExport day={day} sessions={sessions} categories={categories} />
-            <button className="add-button" aria-label={text.addSession} title={text.addSession} onClick={onAdd}>
-              <PlusIcon />
-            </button>
+            <div className="list-tools">
+              {onAddEvent && (
+                <button className="add-button add-event" aria-label={t().events.addEvent} title={t().events.addEvent} onClick={onAddEvent}>
+                  <CalendarPlusIcon />
+                </button>
+              )}
+              <button className="add-button" aria-label={text.addSession} title={text.addSession} onClick={onAdd}>
+                <PlusIcon />
+              </button>
+            </div>
           </div>
           {sessions.length === 0 && !events.some((e) => !e.allDay) ? (
             <div className="entries-empty">

@@ -29,6 +29,8 @@ type Props = {
   /** Opens the picker for counting several past events as focus. */
   onCountEvents(list: CalendarEvent[]): void;
   onAdd(): void;
+  /** Adds a Google Calendar event; absent when events can't be added. */
+  onAddEvent?(): void;
 };
 
 /** "Saturday 17 October", or "Sábado, 17 de outubro" in Portuguese. */
@@ -254,7 +256,7 @@ function DayChart({ perDay, kind, color }: { perDay: { day: number; ms: number }
   );
 }
 
-export function AnalyticsView({ range, sessions, previous, week, categories, now, dailyGoal, events, onRange, onOpen, onEvent, onCountEvent, onCountEvents, onAdd }: Props) {
+export function AnalyticsView({ range, sessions, previous, week, categories, now, dailyGoal, events, onRange, onOpen, onEvent, onCountEvent, onCountEvents, onAdd, onAddEvent }: Props) {
   const [notesOnly, setNotesOnly] = useState(false);
   const [filter, setFilter] = useState<number | "all">("all");
   const [showAll, setShowAll] = useState(false);
@@ -335,6 +337,7 @@ export function AnalyticsView({ range, sessions, previous, week, categories, now
           onEvent={onEvent}
           onCountEvent={onCountEvent}
           onAdd={onAdd}
+          onAddEvent={onAddEvent}
         />
       ) : (
       <>

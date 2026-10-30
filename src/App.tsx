@@ -18,7 +18,7 @@ import { TodayRibbon, type LiveBlock } from "./components/TodayRibbon";
 import { SettingsView } from "./components/SettingsView";
 import { Reflection, type PendingReflection, type ReflectionUpdate } from "./components/Reflection";
 import { SessionDialog } from "./components/SessionDialog";
-import { CountEventsDialog, EventCard } from "./components/EventDialogs";
+import { CountEventsDialog, EventCard, EventForm } from "./components/EventDialogs";
 import { AnalyticsView } from "./components/AnalyticsView";
 import { MiniTimer } from "./components/MiniTimer";
 import { ChartIcon, ClockIcon, SlidersIcon } from "./components/icons";
@@ -125,15 +125,24 @@ export default function App() {
   const [now, setNow] = useState(Date.now());
   const [google, setGoogle] = useState<{ connected: boolean; calendars: G.GoogleCalendar[] }>({ connected: false, calendars: [] });
   const [events, setEvents] = useState<G.CalendarEvent[]>([]);
+  // Today's events while the ribbon is on another day; empty when `events` already has them.
+  const [todayEvents, setTodayEvents] = useState<G.CalendarEvent[]>([]);
   const [rangeEvents, setRangeEvents] = useState<G.CalendarEvent[]>([]);
   // An event opened from Analytics, and the list for counting several at once.
   const [openEvent, setOpenEvent] = useState<G.CalendarEvent | null>(null);
   const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
+  // The event form: an event to edit, or none to add one on `day`.
+  const [eventForm, setEventForm] = useState<{ event?: G.CalendarEvent; day: number } | null>(null);
+  // Bumped to reload events right after a change, instead of waiting for the five-minute check.
+  const [eventsVersion, setEventsVersion] = useState(0);
   const syncing = useRef(false);
   // Waits for the saved settings, so a switched-off automatic check never runs.
   const updater = useUpdater(store !== null && settings.checkUpdates, settings.testBuilds);
 
   const { timer } = live;
+  // The latest of these for code waiting on Google, whose own copies go stale during the await.
+  const latest = useRef({ settings, timer, range, view });
+  latest.current = { settings, timer, range, view };
   // Set before the children render, so they all read the chosen language and look.
   setLanguage(settings.language);
   setLook(settings.look);
@@ -230,7 +239,7 @@ export default function App() {
       if (!google.connected || !cal.showEvents) return [];
       return G.eventsBetween(google.calendars.filter((c) => !cal.hidden.includes(c.id)), from, to);
     },
-    [google, settings.calendar.showEvents, settings.calendar.hidden, settings.language],
+    [google, settings.calendar.showEvents, settings.calendar.hidden, settings.language, eventsVersion],
   );
 
   // The day on the Today ribbon, and the day or week open in Analytics.
@@ -239,6 +248,8 @@ export default function App() {
 
   // Changes at midnight, so the lists below reload even while Stint sits in the tray.
   const todayStart = startOfDay(now);
+  // What's next on the plan card is about today, whichever day the ribbon is on.
+  useEvents(fetchEvents, todayStart, addDays(todayStart, 1), setTodayEvents, day === todayStart);
   const refresh = useCallback(async () => {
     if (!store) return;
     const from = startOfWeek(day);
@@ -270,6 +281,11 @@ export default function App() {
     lastToday.current = todayStart;
     setDay((d) => (d === before ? todayStart : d));
   }, [todayStart]);
+
+  // A session runs today, however it was started, so the ribbon has to be there to draw it.
+  useEffect(() => {
+    if (timer.status !== "idle") setDay(startOfDay(Date.now()));
+  }, [timer.status]);
 
   useEffect(() => saveLive(live), [live]);
   const past = useMemo(() => pastIntentions(history, todayStart), [history, todayStart]);
@@ -534,6 +550,50 @@ export default function App() {
     refresh();
   };
 
+  // Errors reach EventForm, which shows them and stays open. "meetNotReady" also
+  // keeps it open, to say the event exists without its link.
+  const saveEvent = async (draft: G.EventDraft, calendarId: string): Promise<"meetNotReady" | void> => {
+    let meetNotReady = false;
+    if (eventForm?.event) {
+      try {
+        await G.changeEvent(eventForm.event.calendarId, eventForm.event.id, draft);
+      } catch (err) {
+        // Deleted elsewhere: take it off the list as well as showing the error.
+        if (G.eventGone(err)) setEventsVersion((v) => v + 1);
+        throw err;
+      }
+    } else {
+      const { id, meet } = await G.addEvent(calendarId, draft);
+      meetNotReady = meet === "failed" || (meet === "pending" && !(await G.waitForMeet(calendarId, id)));
+      const { settings: saved } = latest.current;
+      if (calendarId !== saved.calendar.eventTargetId) {
+        // Not updateSettings: that resets the length dialled on the idle timer.
+        const next = { ...saved, calendar: { ...saved.calendar, eventTargetId: calendarId } };
+        setSettings(next);
+        void store?.saveSettings(next);
+      }
+    }
+    setEventsVersion((v) => v + 1);
+    const { timer: running, range: shown, view: from } = latest.current;
+    // From the Timer, so the new event is in view; a running session keeps the ribbon on today.
+    if (from === "timer" && running.status === "idle") setDay(startOfDay(draft.start));
+    if (from === "analytics" && shown.kind === "day") setRange(rangeFor("day", draft.start));
+    if (meetNotReady) return "meetNotReady";
+    setEventForm(null);
+  };
+
+  // Errors reach EventCard, which shows them in the confirmation.
+  const removeEvent = async (e: G.CalendarEvent): Promise<void> => {
+    try {
+      await G.deleteEvent(e.calendarId, e.id);
+    } catch (err) {
+      // Already gone is what the user asked for.
+      if (!G.eventGone(err)) throw err;
+    }
+    setOpenEvent(null);
+    setEventsVersion((v) => v + 1);
+  };
+
   const nextEntry = (prev: SessionRecord): SessionRecord => {
     // Same length as the one just added, so a run of 25 min blocks is quick to log.
     const start = prev.endedAt;
@@ -609,7 +669,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (e.code !== "Space" || pending || editing || view !== "timer") return;
+      if (e.code !== "Space" || pending || editing || eventForm || view !== "timer") return;
       if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(el.tagName)) return;
       e.preventDefault();
       const n = Date.now();
@@ -682,9 +742,14 @@ export default function App() {
   // Focus sessions turn the whole window to night; breaks get a green stage.
   const mode = view === "timer" && timer.status !== "idle" ? timer.kind : "plan";
   const nextEvent =
-    events
-      .filter((e) => !e.allDay && e.start > now && startOfDay(e.start) === startOfDay(now))
+    (day === todayStart ? events : todayEvents)
+      .filter((e) => !e.allDay && e.start > now && startOfDay(e.start) === todayStart)
       .sort((a, b) => a.start - b.start)[0] ?? null;
+  // The open event as last read from Google, so a Meet link that arrived later shows on the card.
+  const shownEvent = openEvent && (rangeEvents.find((e) => G.eventKey(e) === G.eventKey(openEvent)) ?? openEvent);
+  const addable = G.addableCalendars(google.calendars, settings.calendar.hidden);
+  // Only when the new event would show afterwards.
+  const canAddEvents = google.connected && settings.calendar.showEvents && addable.length > 0;
 
   const tabs: { id: View; label: string; icon: ReactNode }[] = [
     { id: "timer", label: text.tabs.timer, icon: <ClockIcon /> },
@@ -782,6 +847,7 @@ export default function App() {
             onDay={setDay}
             onOpen={setEditing}
             onAdd={() => setEditing(newSession(day))}
+            onAddEvent={canAddEvents ? () => setEventForm({ day }) : undefined}
           />
         </main>
       ) : view === "analytics" ? (
@@ -800,6 +866,7 @@ export default function App() {
           onCountEvent={countEvent}
           onCountEvents={setCounting}
           onAdd={() => setEditing(newSession(range.kind === "day" ? range.from : startOfDay(Date.now())))}
+          onAddEvent={canAddEvents ? () => setEventForm({ day: range.kind === "day" ? range.from : startOfDay(Date.now()) }) : undefined}
         />
       ) : (
         <main className="settings-page">
@@ -843,8 +910,28 @@ export default function App() {
           onSkip={closeReflection}
         />
       )}
-      {openEvent && (
-        <EventCard event={openEvent} now={now} onCount={() => countEvent(openEvent)} onClose={() => setOpenEvent(null)} />
+      {shownEvent && (
+        <EventCard
+          event={shownEvent}
+          now={now}
+          onCount={() => countEvent(shownEvent)}
+          onEdit={() => {
+            setEventForm({ event: shownEvent, day: startOfDay(shownEvent.start) });
+            setOpenEvent(null);
+          }}
+          onDelete={() => removeEvent(shownEvent)}
+          onClose={() => setOpenEvent(null)}
+        />
+      )}
+      {eventForm && (
+        <EventForm
+          event={eventForm.event}
+          day={eventForm.day}
+          calendars={addable}
+          calendarId={G.defaultEventCalendar(addable, settings.calendar.eventTargetId)?.id ?? null}
+          onSave={saveEvent}
+          onClose={() => setEventForm(null)}
+        />
       )}
       {counting && (
         <CountEventsDialog

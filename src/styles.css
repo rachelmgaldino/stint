@@ -370,6 +370,17 @@ input[type="time"] {
   color: var(--on-ink);
 }
 
+/* The quieter button beside the dark add-session one. */
+.add-event {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.add-event:hover {
+  background: var(--sunken);
+}
+
 .round-button {
   width: 46px;
   height: 46px;
@@ -1355,6 +1366,28 @@ button.ribbon-seg:hover {
   white-space: nowrap;
 }
 
+/* Not an .add-button: phones hide those on the ribbon, and this one stays during a session. */
+.ribbon-add-event {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.ribbon-add-event:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.ribbon-add-event svg {
+  width: 18px;
+  height: 18px;
+}
+
 .break-stage ~ .ribbon {
   background: var(--surface);
 }
@@ -1700,6 +1733,10 @@ button.ribbon-seg:hover {
   height: auto;
 }
 
+.sheet .event-meet {
+  margin-top: 6px;
+}
+
 .sheet .just-added {
   margin-top: 10px;
   padding: 10px 14px;
@@ -1800,6 +1837,10 @@ button.ribbon-seg:hover {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.event-confirm .error {
+  color: var(--danger);
 }
 
 .confirm-actions {
@@ -2098,6 +2139,10 @@ button.ribbon-seg:hover {
 
 .event-when {
   font-weight: 600;
+}
+
+.event-join {
+  align-self: flex-start;
 }
 
 .event-note {

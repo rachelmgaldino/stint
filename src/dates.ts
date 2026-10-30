@@ -71,6 +71,13 @@ export function msIntoDay(ms: number): number {
   return ms - startOfDay(ms);
 }
 
+/** The next :00 or :30 after `now`, never `now` itself. Past 23:30 that is the next day. */
+export function nextHalfHour(now: number): number {
+  const d = new Date(now);
+  d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
+  return d.getTime();
+}
+
 /** Parse "HH:MM" on a given day. Returns null for anything malformed. */
 export function atTime(dayMs: number, hhmm: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());

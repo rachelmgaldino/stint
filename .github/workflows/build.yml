@@ -31,6 +31,26 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # Separate on purpose: nothing needs this job, so a failing Rust test shows
+  # up on the run without blocking the installer build.
+  rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      # The Tauri context macro needs the built frontend folder to exist.
+      - run: npm run build
+      - run: cargo test
+        working-directory: src-tauri
+
   windows:
     needs: test
     runs-on: windows-latest

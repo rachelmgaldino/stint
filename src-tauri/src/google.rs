@@ -316,9 +316,34 @@ pub async fn google_request(
     }
 }
 
+/// Accepts a link only if it is https.
+fn https_only(url: &str) -> Result<url::Url, String> {
+    let u = url::Url::parse(url).map_err(|e| e.to_string())?;
+    if u.scheme() != "https" {
+        return Err("Only https links can be opened.".into());
+    }
+    Ok(u)
+}
+
+/// Opens a meeting link in the browser. Only https, since the link comes from calendar data.
+#[tauri::command]
+pub fn google_open_meeting(app: AppHandle, url: String) -> Result<(), String> {
+    let url = https_only(&url)?;
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn opens_only_https_links() {
+        assert!(https_only("https://meet.google.com/abc-defg-hij").is_ok());
+        assert!(https_only("http://meet.google.com/abc-defg-hij").is_err());
+        assert!(https_only("file:///C:/Windows/System32/calc.exe").is_err());
+        assert!(https_only("javascript:alert(1)").is_err());
+        assert!(https_only("not a link").is_err());
+    }
 
     #[test]
     fn pkce_matches_the_rfc_example() {

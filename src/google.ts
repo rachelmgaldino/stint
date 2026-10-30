@@ -13,11 +13,28 @@ export type CalendarEvent = {
   id: string;
   calendarId: string;
   title: string;
+  /** Google has no title for it, so `title` is only a placeholder to show. */
+  untitled: boolean;
   color: string;
   start: number;
   end: number;
   allDay: boolean;
+  /** Its calendar is one the user owns or can write to. */
+  writable: boolean;
+  /** It has guests other than the user, or someone else organizes it. */
+  shared: boolean;
+  /** It is one occurrence of a repeating event. */
+  recurring: boolean;
+  /** Where to join its video call, if it has one. */
+  joinUrl: string | null;
 };
+
+export type EventDraft = { title: string; start: number; end: number; meet?: boolean; id?: string };
+
+export type MeetState = "ready" | "pending" | "failed";
+
+/** Which message a failed save or delete shows; the same names as the strings in `events`. */
+export type EventErrorKey = "saveFailed" | "needsReconnect" | "googleRefused";
 
 export const googleAvailable = isTauri;
 
@@ -27,16 +44,39 @@ export const eventKey = (e: CalendarEvent) => `${e.calendarId}/${e.id}`;
 /** An event can count as focus once it is over, if it has a time of day. */
 export const countable = (e: CalendarEvent, now: number) => !e.allDay && e.end <= now;
 
+// Events with guests or that repeat stay in Google, where the guest-notification and this-or-all-occurrences choices live.
+export const canDelete = (e: CalendarEvent) => e.writable && !e.shared && !e.recurring;
+export const canEdit = (e: CalendarEvent) => canDelete(e) && !e.allDay && e.end - e.start < 24 * 3_600_000;
+
 export const connect = (clientId: string, clientSecret: string) =>
   invoke<void>("google_connect", { clientId, clientSecret });
 export const isConnected = () => (isTauri() ? invoke<boolean>("google_status") : Promise.resolve(false));
 export const disconnect = () => invoke<void>("google_disconnect");
+export const openMeeting = (url: string) => invoke<void>("google_open_meeting", { url });
 
 function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   return invoke<T>("google_request", { method, path, body: body ?? null });
 }
 
 const enc = encodeURIComponent;
+
+/** The HTTP status in the desktop shell's "Google Calendar returned 404 Not Found: ...", if it has one. */
+export function errorStatus(err: unknown): number | null {
+  const match = String(err).match(/Google Calendar returned (\d{3})\b/);
+  return match ? Number(match[1]) : null;
+}
+
+/** The event is no longer on Google, so there's nothing left to change or delete. */
+export const eventGone = (err: unknown) => [404, 410].includes(errorStatus(err) ?? 0);
+
+/** Sorts a failure into a message of ours; Google's own text never reaches the screen. */
+export function eventErrorKey(err: unknown): EventErrorKey {
+  const message = String(err);
+  const status = errorStatus(err);
+  if (status === 401 || status === 403) return "needsReconnect";
+  if (message.includes("Google refused the sign-in") || message.includes("Google Calendar isn't connected")) return "needsReconnect";
+  return status === null ? "saveFailed" : "googleRefused";
+}
 
 type ListEntry = { id: string; summary: string; summaryOverride?: string; backgroundColor?: string; primary?: boolean; accessRole: string };
 
@@ -60,6 +100,11 @@ type ApiEvent = {
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
   extendedProperties?: { private?: Record<string, string> };
+  recurringEventId?: string;
+  attendees?: { self?: boolean }[];
+  organizer?: { self?: boolean };
+  hangoutLink?: string;
+  conferenceData?: { entryPoints?: { entryPointType: string; uri: string }[] };
 };
 
 /** Parses "2026-10-18" as local midnight, the way an all-day event means it. */
@@ -68,14 +113,29 @@ function localDate(d: string): number {
   return new Date(y, m - 1, day).getTime();
 }
 
-export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string }): CalendarEvent | null {
+export function toCalendarEvent(e: ApiEvent, cal: { id: string; color: string; writable?: boolean }): CalendarEvent | null {
   // Skip cancelled events and the ones Stint itself added for sessions.
   if (e.status === "cancelled" || e.extendedProperties?.private?.stint) return null;
   const allDay = !e.start.dateTime;
   const start = allDay ? localDate(e.start.date!) : Date.parse(e.start.dateTime!);
   const end = allDay ? localDate(e.end.date!) : Date.parse(e.end.dateTime!);
   if (Number.isNaN(start) || Number.isNaN(end)) return null;
-  return { id: e.id, calendarId: cal.id, title: e.summary || "(No title)", color: cal.color, start, end, allDay };
+  const link = e.hangoutLink ?? e.conferenceData?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ?? null;
+  return {
+    id: e.id,
+    calendarId: cal.id,
+    title: e.summary || t().events.noTitle,
+    untitled: !e.summary,
+    color: cal.color,
+    start,
+    end,
+    allDay,
+    writable: !!cal.writable,
+    // `self` defaults to false, so an organizer without it is someone else.
+    shared: (e.attendees ?? []).some((a) => !a.self) || (!!e.organizer && !e.organizer.self),
+    recurring: !!e.recurringEventId,
+    joinUrl: link?.startsWith("https://") ? link : null,
+  };
 }
 
 export async function eventsBetween(cals: GoogleCalendar[], from: number, to: number): Promise<CalendarEvent[]> {
@@ -175,6 +235,81 @@ export async function updateEvent(calendarId: string, eventId: string, s: Sessio
 export async function deleteEvent(calendarId: string, eventId: string) {
   await request("DELETE", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`);
 }
+
+/** An id for an event not yet on Google. Google allows only a-v and 0-9 here, which a UUID without its dashes keeps to. */
+export const newEventId = () => crypto.randomUUID().replaceAll("-", "");
+
+/**
+ * An event the user added from Stint. No `extendedProperties`: toCalendarEvent
+ * hides anything tagged `stint`, so the event would vanish. No `transparency`
+ * or `reminders`: Google's defaults apply (busy, the user's default reminders).
+ * No `id`: changeEvent sends this too, and only addEvent names the event.
+ */
+export function eventBody(d: EventDraft) {
+  return {
+    summary: d.title,
+    start: { dateTime: new Date(d.start).toISOString() },
+    end: { dateTime: new Date(d.end).toISOString() },
+    ...(d.meet && {
+      conferenceData: { createRequest: { requestId: d.id ?? crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } },
+    }),
+  };
+}
+
+type MeetFields = { hangoutLink?: string; conferenceData?: { createRequest?: { status?: { statusCode?: string } } } };
+
+/** How far Google has got with a Meet link it was asked for. */
+export function meetState(r: MeetFields): MeetState {
+  const code = r.conferenceData?.createRequest?.status?.statusCode;
+  if (r.hangoutLink || code === "success") return "ready";
+  return code === "failure" ? "failed" : "pending";
+}
+
+/** A look that fails says nothing about the link, and the event exists either way, so it never rejects. */
+const readMeet = (calendarId: string, eventId: string) =>
+  request<MeetFields>("GET", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`)
+    .then(meetState)
+    .catch((): MeetState => "pending");
+
+export async function addEvent(calendarId: string, d: EventDraft): Promise<{ id: string; meet: MeetState | null }> {
+  // Without conferenceDataVersion=1 Google drops the Meet request without an error.
+  const query = d.meet ? "?conferenceDataVersion=1" : "";
+  try {
+    const r = await request<MeetFields & { id: string }>("POST", `/calendars/${enc(calendarId)}/events${query}`, { id: d.id, ...eventBody(d) });
+    return { id: r.id, meet: d.meet ? meetState(r) : null };
+  } catch (err) {
+    // The id is already taken: an earlier try got through and only its answer was lost.
+    if (errorStatus(err) !== 409 || !d.id) throw err;
+    // The form may have changed since that try, and what's in it now is what the user saved.
+    await changeEvent(calendarId, d.id, d);
+    return { id: d.id, meet: d.meet ? await readMeet(calendarId, d.id) : null };
+  }
+}
+
+/** Google makes the Meet link in the background: looks every 1.5 seconds, six times at most. */
+export async function waitForMeet(calendarId: string, eventId: string): Promise<boolean> {
+  for (let tries = 0; tries < 6; tries++) {
+    await new Promise((done) => setTimeout(done, 1500));
+    const state = await readMeet(calendarId, eventId);
+    if (state !== "pending") return state === "ready";
+  }
+  return false;
+}
+
+/** PATCH, not PUT: PUT replaces the whole event and would wipe its description, location and reminders. */
+export async function changeEvent(calendarId: string, eventId: string, d: EventDraft) {
+  await request("PATCH", `/calendars/${enc(calendarId)}/events/${enc(eventId)}`, eventBody(d));
+}
+
+/** Calendars an event can be added to; one added to a hidden calendar would seem to vanish. */
+export const addableCalendars = (cals: GoogleCalendar[], hidden: string[]) => cals.filter((c) => c.writable && !hidden.includes(c.id));
+
+/**
+ * Where a new event goes, from the addable calendars. The session sync target
+ * is deliberately not used: it may be a dedicated calendar, not where meetings belong.
+ */
+export const defaultEventCalendar = (cals: GoogleCalendar[], lastId: string | null) =>
+  cals.find((c) => c.id === lastId) ?? cals.find((c) => c.primary) ?? cals[0] ?? null;
 
 /**
  * Side-by-side columns for overlapping events: each event gets a lane, and

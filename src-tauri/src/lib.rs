@@ -235,6 +235,7 @@ pub fn run() {
             google::google_status,
             google::google_disconnect,
             google::google_request,
+            google::google_open_meeting,
             updates::update_check,
             updates::update_install,
             updates::update_test_builds,
