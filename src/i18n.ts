@@ -154,7 +154,8 @@ const en = {
     pinOn: "On top of other apps. Click to let windows cover it",
     pinOff: "Keep on top of other apps",
     resize: "Drag to resize. Double-click for the normal size",
-    nextHint: "Enter starts, Esc cancels",
+    working: "Currently working on:",
+    taskName: "Name of the task",
   },
   mini: {
     label: "Timer",
@@ -655,7 +656,8 @@ const ptBR: Strings = {
     pinOn: "Por cima dos outros apps. Clique para deixar as janelas cobrirem",
     pinOff: "Manter por cima dos outros apps",
     resize: "Arraste para mudar o tamanho. Clique duas vezes para o tamanho normal",
-    nextHint: "Enter começa, Esc cancela",
+    working: "Trabalhando em:",
+    taskName: "Nome da tarefa",
   },
   mini: {
     label: "Timer",

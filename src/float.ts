@@ -8,6 +8,7 @@ import type { Language } from "./i18n";
 import type { PastIntention } from "./intentions";
 import type { Look } from "./look";
 import type { Category, FloatStyle, Theme } from "./store";
+import type { DoneTask } from "./tasks";
 import type * as T from "./timer";
 
 export const FLOAT_LABEL = "float";
@@ -21,10 +22,11 @@ export type FloatState = {
   language: Language;
   onTop: boolean;
   style: FloatStyle;
-  /** The task in hand, and what the Next task form offers. */
+  /** The task in hand, the ones before it, and what Next task suggests. */
   intention: string;
   categoryId: number | null;
   categories: Category[];
+  done: DoneTask[];
   past: PastIntention[];
 };
 
@@ -37,7 +39,9 @@ export type FloatAction =
   | "pin"
   | "resume"
   /** Next task: the one in hand ended at `at` and the session carries on with this one. */
-  | { next: string; categoryId: number | null; at: number };
+  | { next: string; at: number }
+  /** The name of the task in hand, fixed right after switching to it. */
+  | { rename: string };
 
 /** True inside the floating timer's own window. */
 export function isFloatWindow(): boolean {

@@ -36,9 +36,11 @@ const ROOM: (f64, f64) = (46.0, 66.0);
 // They must match the pill layout in src/float.css.
 const PILL_OPEN: (f64, f64) = (280.0, 132.0);
 const PILL: (f64, f64, f64, f64) = (74.0, 9.0, 132.0, 32.0);
-// How tall the pill's window is while the Next task form shows, with five
-// matches listed. The width stays, so the pill doesn't move.
-const PILL_NAMING: f64 = 330.0;
+// The Next task card, wider than the open card when it has the room: its
+// width (.float-pill.open.naming in src/float.css) and the tallest window
+// it may ask for. The window's width stays, so the pill doesn't move.
+const PILL_FORM: f64 = 230.0;
+const PILL_FORM_MAX: f64 = 460.0;
 // How close (logical px) the pill's centre must come to the middle of the
 // screen while dragged to snap onto it.
 const SNAP: f64 = 24.0;
@@ -158,10 +160,14 @@ struct Inner {
     pill_w: Option<f64>,
     /// How big the pill is drawn, from its handle; none means 1.
     pill_size: Option<f64>,
-    /// The Next task form is showing, so the timer stays open and has the keyboard.
-    naming: bool,
+    /// The Next task card is showing, this tall (logical px, at size 1).
+    card: Option<f64>,
+    /// The card stays open wherever the pointer goes.
+    hold: bool,
+    /// The card has the keyboard.
+    keys: bool,
     /// The window that had the keyboard when the timer opened, given back
-    /// after the form. Read on opening since a click on the form's button
+    /// after the card. Read on opening since a click on the card's button
     /// already takes it.
     before: isize,
 }
@@ -313,7 +319,7 @@ fn window_size(s: &Inner) -> (f64, f64) {
     match s.style {
         Style::Bubble => OPEN,
         Style::Pill => {
-            let height = if s.naming { PILL_NAMING } else { PILL_OPEN.1 };
+            let height = s.card.unwrap_or(PILL_OPEN.1);
             (PILL_OPEN.0 * pill_size(s), height * pill_size(s))
         }
     }
@@ -354,7 +360,8 @@ fn clamp_pill(m: &Monitor, s: &Inner, cx: i32) -> i32 {
 /// that side of the screen.
 fn anchor(m: &Monitor, s: &Inner, cx: i32) -> &'static str {
     let (mx, _, mw, _) = area(m);
-    let half = (PILL_CARD * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
+    let card = if s.card.is_some() { PILL_FORM } else { PILL_CARD };
+    let half = (card * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
     let margin = pill_margin(m);
     if cx - half < mx + margin {
         "left"
@@ -470,7 +477,7 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
     let (Ok(p), Ok(at)) = (app.cursor_position(), w.outer_position()) else { return };
     let scale = w.scale_factor().unwrap_or(1.0);
     let (px, py) = ((p.x - at.x as f64) / scale, (p.y - at.y as f64) / scale);
-    if s.naming {
+    if s.hold {
         return;
     }
     if s.open {
@@ -541,8 +548,15 @@ fn close_shelf<R: Runtime>(w: &WebviewWindow<R>, s: &mut Inner) {
         return;
     }
     s.open = false;
-    s.naming = false;
+    s.hold = false;
+    if s.keys && w.is_focused().unwrap_or(false) {
+        give_keyboard_to(s.before);
+    }
+    s.keys = false;
     s.edges = None;
+    if s.card.take().is_some() && s.style == Style::Pill {
+        place(w.app_handle(), w, s);
+    }
     let _ = w.set_ignore_cursor_events(true);
     let _ = w.app_handle().emit_to(LABEL, "float-open", Opened { open: false, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 });
     save(w.app_handle(), s);
@@ -819,27 +833,33 @@ pub fn float_pill_size(app: AppHandle, float: State<Float>, size: Option<f64>) -
     size
 }
 
-/// The page says the Next task form opened or closed. While it shows the
-/// timer stays open wherever the pointer goes, the pill's window is taller to
-/// hold it, and the window takes the keyboard. Closing gives the keyboard back
-/// to the app that had it, unless another app was clicked in the meantime.
+/// The page says how the Next task card stands: how tall the window must be
+/// for it (none when it's gone), whether it stays open wherever the pointer
+/// goes, and whether it has the keyboard. Letting go of the keyboard gives it
+/// back to the app that had it, unless another app was clicked in the meantime.
 #[tauri::command]
-pub fn float_naming(app: AppHandle, float: State<Float>, naming: bool) {
+pub fn float_card(app: AppHandle, float: State<Float>, height: Option<f64>, hold: bool, keys: bool) {
     let mut s = float.0.lock().unwrap();
-    if s.naming == naming {
+    // Already closed by the pointer: this is the page catching up.
+    if !s.open {
         return;
     }
-    s.naming = naming;
+    s.hold = hold;
     s.off_ticks = 0;
     let Some(w) = app.get_webview_window(LABEL) else { return };
-    if s.style == Style::Pill {
-        place(&app, &w, &mut s);
+    let height = height.map(|h| h.clamp(PILL_OPEN.1, PILL_FORM_MAX));
+    if s.card != height {
+        s.card = height;
+        if s.style == Style::Pill {
+            place(&app, &w, &mut s);
+        }
     }
-    if naming {
+    if keys && !s.keys {
         let _ = w.set_focus();
-    } else if w.is_focused().unwrap_or(false) {
+    } else if !keys && s.keys && w.is_focused().unwrap_or(false) {
         give_keyboard_to(s.before);
     }
+    s.keys = keys;
 }
 
 /// Forgets where the timer was dragged in the current style and puts it back

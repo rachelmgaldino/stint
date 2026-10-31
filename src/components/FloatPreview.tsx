@@ -9,6 +9,7 @@ import type { Look } from "../look";
 import type { FloatStyle, Theme } from "../store";
 import type { FloatState } from "../float";
 import * as T from "../timer";
+import type { FloatStep } from "./FloatNext";
 import { FloatTimer, type FloatAnchor, type FloatDrag, type FloatEdges } from "./FloatTimer";
 import "./FloatPreview.css";
 
@@ -21,14 +22,15 @@ const base = {
   language: (q.get("lang") ?? "en") as Language,
   long: false,
   style: "bubble" as FloatStyle,
-  intention: "Weekly report",
+  intention: "Ponto: comparar o Relatório Jornada",
   categoryId: 1,
   categories: [
     { id: 1, name: q.get("cat") ?? "Work", color: "#e8594f" },
     { id: 2, name: "Study", color: "#5b8def" },
     { id: 3, name: "Home", color: "#57b894" },
   ],
-  past: ["Review pull request", "Reply to emails", "Plan the sprint", "Weekly report"].map((text, i) => ({
+  done: [{ intention: "Call com o Daniel", categoryId: 1, endedAt: NOW - 6 * 60_000, focusedMs: 12 * 60_000 }],
+  past: ["Design tela 2", "Daily organization", "Dentist forms", "Review pull request"].map((text, i) => ({
     text,
     categoryId: 1,
     uses: 4 - i,
@@ -75,7 +77,7 @@ function Frame({
   edges,
   drag,
   anchor,
-  naming,
+  card,
 }: {
   state: FloatState;
   open: boolean;
@@ -83,12 +85,12 @@ function Frame({
   edges?: FloatEdges;
   drag?: FloatDrag;
   anchor?: FloatAnchor;
-  naming?: boolean;
+  card?: FloatStep;
 }) {
   return (
     <figure className="fpv-fig">
       <div className={state.style === "pill" ? "fpv-frame pill" : "fpv-frame"}>
-        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor, naming }} />
+        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor, card }} />
       </div>
       {label && <figcaption>{label}</figcaption>}
     </figure>
@@ -135,7 +137,7 @@ export function FloatPreview() {
       <Frame state={focus(-5)} open={false} label={pt ? "Passou do tempo" : "Over time"} />
       <Frame state={paused} open={false} label={pt ? "Pausada" : "Paused"} />
       <Frame state={brk} open label={pt ? "Pausa" : "Break"} />
-      <Frame state={focus(18)} open naming label={pt ? "Próxima tarefa" : "Next task"} />
+      <Frame state={focus(18)} open card="current" label={pt ? "Próxima tarefa" : "Next task"} />
       <div className="fpv-row">
         <Frame state={pill(focus(18))} open={false} label={pt ? "Pílula, foco" : "Pill, focus"} />
         <Frame state={pill(focus(18))} open label={pt ? "Com o ponteiro" : "Pointer on it"} />
@@ -153,9 +155,11 @@ export function FloatPreview() {
         />
         <Frame state={pill(focus(18))} open anchor="left" label={pt ? "Na borda esquerda" : "Docked left"} />
         <Frame state={pill(focus(18))} open anchor="right" label={pt ? "Na borda direita" : "Docked right"} />
-        <Frame state={pill(focus(18))} open naming label={pt ? "Próxima tarefa" : "Next task"} />
-        <Frame state={pill(focus(18))} open naming anchor="left" label={pt ? "Próxima tarefa, à esquerda" : "Next task, docked left"} />
-        <Frame state={pill(focus(18))} open naming anchor="right" label={pt ? "Próxima tarefa, à direita" : "Next task, docked right"} />
+        <Frame state={pill(focus(18))} open card="current" label={pt ? "Tarefa atual" : "Current task"} />
+        <Frame state={pill(focus(18))} open card="next" label={pt ? "Próxima tarefa" : "Next task"} />
+        <Frame state={pill(focus(18))} open card="done" label={pt ? "Logo depois de trocar" : "Right after switching"} />
+        <Frame state={pill(focus(18))} open card="current" anchor="left" label={pt ? "Tarefa atual, à esquerda" : "Current task, docked left"} />
+        <Frame state={pill(focus(18))} open card="done" anchor="right" label={pt ? "Depois de trocar, à direita" : "After switching, docked right"} />
       </div>
     </div>
   );
