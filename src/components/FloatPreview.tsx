@@ -137,7 +137,6 @@ export function FloatPreview() {
       <Frame state={focus(-5)} open={false} label={pt ? "Passou do tempo" : "Over time"} />
       <Frame state={paused} open={false} label={pt ? "Pausada" : "Paused"} />
       <Frame state={brk} open label={pt ? "Pausa" : "Break"} />
-      <Frame state={focus(18)} open card="current" label={pt ? "Próxima tarefa" : "Next task"} />
       <div className="fpv-row">
         <Frame state={pill(focus(18))} open={false} label={pt ? "Pílula, foco" : "Pill, focus"} />
         <Frame state={pill(focus(18))} open label={pt ? "Com o ponteiro" : "Pointer on it"} />

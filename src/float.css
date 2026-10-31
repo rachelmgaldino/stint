@@ -402,20 +402,6 @@ html.float-window #root {
   display: none;
 }
 
-/* On the bubble the card covers the bubble, so it stands alone. */
-.float-next-card {
-  position: absolute;
-  width: 230px;
-  border-radius: 20px;
-  overflow: hidden;
-  background: var(--float-bg);
-  box-shadow: var(--float-shadow);
-}
-
-.float.naming .float-bubble {
-  visibility: hidden;
-}
-
 .float-next {
   display: flex;
   flex-direction: column;
