@@ -34,7 +34,7 @@ type Props = {
   onOpen: () => void;
   /** The same buttons as the bubble's shelf, from FloatTimer. */
   buttons: ReactNode;
-  /** The Next task form, which takes the place of the buttons while it shows. */
+  /** The Next task card, which takes the place of the buttons while it shows. */
   form?: ReactNode;
   paused: boolean;
   /** A press on the card's ring: freezes the clock or lets it run again. */

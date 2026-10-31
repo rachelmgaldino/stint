@@ -654,6 +654,7 @@ export default function App() {
       intention: live.intention,
       categoryId: live.categoryId,
       categories,
+      done: live.done ?? [],
       past,
     }),
     [
@@ -668,12 +669,14 @@ export default function App() {
       live.intention,
       live.categoryId,
       categories,
+      live.done,
       past,
     ],
   );
   useFloatTimer(floatState, settings.floatTimer, (action: FloatAction) => {
     if (typeof action === "object") {
-      nextTask(action.next, action.categoryId, action.at);
+      if ("rename" in action) setLive((l) => ({ ...l, intention: action.rename }));
+      else nextTask(action.next, live.categoryId, action.at);
       return;
     }
     // The reflection opens in this window, so bring it back for it.

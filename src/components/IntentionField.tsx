@@ -39,7 +39,7 @@ function when(ms: number, now: number): string {
 }
 
 /** Bolds the part of `text` that matches what was typed. */
-function highlight(text: string, query: string) {
+export function highlight(text: string, query: string) {
   const at = fold(text).indexOf(fold(query));
   if (!query.trim() || at < 0) return text;
   const end = at + query.trim().length;

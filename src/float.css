@@ -370,22 +370,24 @@ html.float-window #root {
   transform: none;
 }
 
-/* The Next task form: 190 wide, still inside the window's 280 when the card
-   opens from a docked side, and as tall as its rows need. float.rs makes the
-   window taller around it (PILL_NAMING). */
+/* The Next task card: 230 wide, or 190 when it opens from a docked side, which
+   still fits the window's 280, and as tall as its step needs. It tells
+   float.rs that height, and float.rs sizes the window to it. */
 .float-pill.open.naming {
-  left: 45px;
-  width: 190px;
+  left: 25px;
+  width: 230px;
   height: auto;
   cursor: default;
 }
 
 .float-pill.from-left.open.naming {
   left: calc(140px - var(--rest-w, 132px) / 2);
+  width: 190px;
 }
 
 .float-pill.from-right.open.naming {
   left: calc(140px + var(--rest-w, 132px) / 2 - 190px);
+  width: 190px;
 }
 
 .float-pill.naming .float-card {
@@ -400,10 +402,10 @@ html.float-window #root {
   display: none;
 }
 
-/* On the bubble the form covers the bubble, so it stands alone. */
+/* On the bubble the card covers the bubble, so it stands alone. */
 .float-next-card {
   position: absolute;
-  width: 190px;
+  width: 230px;
   border-radius: 20px;
   overflow: hidden;
   background: var(--float-bg);
@@ -418,103 +420,155 @@ html.float-window #root {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 8px 9px;
+  padding: 9px 10px 10px;
   cursor: default;
 }
 
-.float-next .field {
-  gap: 4px;
-}
-
-.float-next .field > span {
-  padding-left: 4px;
+.float-next-label {
+  padding-left: 2px;
   font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
 }
 
-.float-next input {
-  height: 32px;
-  padding: 0 10px;
+.float-next-name,
+.float-next-input {
+  width: 100%;
+  margin: 0;
+  padding: 7px 10px;
   border-radius: 12px;
+  background: var(--float-btn);
+  color: inherit;
   font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: left;
+}
+
+.float-next-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+button.float-next-name {
+  cursor: text;
+}
+
+button.float-next-name:hover {
+  box-shadow: 0 0 0 1.5px var(--float-text);
+}
+
+.float-next-input {
+  height: 32px;
+}
+
+.float-next-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 2px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--muted);
 }
 
-.float-next .intention-box.with-recent {
-  border-radius: 12px;
-}
-
-.float-next .recent-rows {
-  padding: 3px;
-}
-
-.float-next .recent-row {
-  gap: 6px;
-  height: 26px;
-  padding: 0 6px;
-  border-radius: 9px;
+.float-next-foot .next-task-button {
+  flex: none;
+  height: 30px;
+  padding: 0 11px;
+  gap: 5px;
+  border-radius: 11px;
   font-size: 12px;
 }
 
-/* The list of matches pushes down the rows under it: the shell clips anything that hangs out of it. */
-.float-next .intention-list {
-  position: static;
-  margin-top: 4px;
-  padding: 0;
-  border-radius: 0;
+.float-next-foot .next-task-button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.float-next-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.float-next-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 4px 7px;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.float-next-row.active,
+.float-next-row:hover {
+  background: var(--float-btn);
+}
+
+.float-next-row mark {
   background: none;
-  box-shadow: none;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--apricot);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
 }
 
-.float-next .intention-row {
-  gap: 6px;
-  min-height: 26px;
-  padding: 0 6px;
-  border-radius: 9px;
-  font-size: 12px;
-}
-
-.float-next .intention-row .dot {
+.float-next .dot {
+  flex: none;
   width: 9px;
   height: 9px;
   border-radius: 50%;
 }
 
-.float-next .intention-row-meta {
-  display: none;
-}
-
-.float-next-cats {
+.float-next-earlier {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 2px;
 }
 
-.float-next-cat {
-  width: 22px;
-  height: 22px;
+.float-next-earlier ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
   padding: 0;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  cursor: pointer;
+  list-style: none;
 }
 
-.float-next-cat[aria-pressed="true"] {
+.float-next-earlier li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 7px;
+  padding: 5px 9px;
+  border-radius: 10px;
   background: var(--float-btn);
 }
 
-.float-next-cat span {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
+.float-next-task {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
 }
 
-.float-next-hint {
-  margin: 0;
-  padding-left: 4px;
+.float-next-time {
+  grid-column: 2;
   font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
   color: var(--muted);
 }
 

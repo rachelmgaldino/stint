@@ -11,7 +11,7 @@ import { dialClock, upClock } from "./TimerPane";
 import { Pip } from "./Pip";
 import { CheckIcon, CoffeeIcon, PlayIcon } from "./icons";
 import { OpenIcon, PinIcon, StopIcon } from "./floatIcons";
-import { FloatNext } from "./FloatNext";
+import { FloatNext, type FloatStep } from "./FloatNext";
 import { FloatPill } from "./FloatPill";
 import "../float.css";
 
@@ -36,8 +36,8 @@ const WIN = { w: 300, h: 340 };
 const BUB = { x: 104, y: 124, size: 92 };
 const GAP = 8;
 const PAD = 4;
-// The Next task form's width, matching .float-next-card in float.css.
-const FORM_W = 190;
+// The Next task card's width, matching .float-next-card in float.css.
+const FORM_W = 230;
 
 /**
  * Where the category and the shelf of buttons go: centred on the bubble,
@@ -66,7 +66,7 @@ function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { ta
   };
 }
 
-/** The Next task form over the bubble: kept on the screen, hanging from the side of the window with more of it showing. */
+/** The Next task card over the bubble: kept on the screen, hanging from the side of the window with more of it showing. */
 function formPlace(e: FloatEdges): CSSProperties {
   const left = Math.max(e.left + PAD, Math.min(BUB.x + BUB.size / 2 - FORM_W / 2, WIN.w - e.right - PAD - FORM_W));
   return e.bottom > e.top ? { left, bottom: e.bottom + PAD } : { left, top: e.top + PAD };
@@ -83,8 +83,8 @@ export type FloatPreviewProps = {
   edges?: FloatEdges;
   drag?: FloatDrag;
   anchor?: FloatAnchor;
-  /** Shows the Next task form from the start. */
-  naming?: boolean;
+  /** Shows the Next task card at this step from the start. */
+  card?: FloatStep;
 };
 
 /**
@@ -101,9 +101,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   const [liveAnchor, setAnchor] = useState<FloatAnchor>("center");
   // The pill's size from the handle under its card, kept by float.rs.
   const [size, setSize] = useState(1);
-  // With the Next task form showing: when its button was pressed, which is
-  // when the task in hand ended, as in the main window.
-  const [naming, setNaming] = useState<number | null>(preview?.naming ? preview.now : null);
+  const [card, setCard] = useState(!!preview?.card);
   // In the preview these come from its props instead. The opened object is
   // kept while its values stay the same, since the bubble's layout effect
   // below runs again whenever it changes.
@@ -149,10 +147,10 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     if (state?.style === "pill" || !open || !tagRef.current || !shelfRef.current) return setPlace(null);
     const ring = parseFloat(getComputedStyle(tagRef.current).getPropertyValue("--float-ring")) || 0;
     setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened, ring));
-  }, [opened, state, naming]);
+  }, [opened, state, card]);
 
   useEffect(() => {
-    if (!open) setNaming(null);
+    if (!open) setCard(false);
   }, [open]);
 
   useEffect(() => {
@@ -202,7 +200,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   const buttons = (
     <>
       {focus && (
-        <button className="float-btn" title={text.timer.nextTask} aria-label={text.timer.nextTask} onClick={() => setNaming(Date.now())}>
+        <button className="float-btn" title={text.timer.nextTask} aria-label={text.timer.nextTask} onClick={() => setCard(true)}>
           <CheckIcon />
         </button>
       )}
@@ -237,19 +235,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
       </button>
     </>
   );
-  const form =
-    naming !== null && focus ? (
-      <FloatNext
-        state={state}
-        now={now}
-        preview={!!preview}
-        onStart={(next, categoryId) => {
-          send({ next, categoryId, at: naming });
-          setNaming(null);
-        }}
-        onCancel={() => setNaming(null)}
-      />
-    ) : null;
+  const form = card && focus ? <FloatNext state={state} now={now} preview={preview?.card} onAction={send} onClose={() => setCard(false)} /> : null;
   const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : "", form ? "naming" : ""].join(" ");
 
   if (state.style === "pill")
