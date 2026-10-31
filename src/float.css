@@ -435,13 +435,13 @@ html.float-window #root {
 .float-next-input {
   width: 100%;
   margin: 0;
-  padding: 7px 10px;
-  border-radius: 12px;
+  padding: 6px 10px;
+  border-radius: 11px;
   background: var(--float-btn);
   color: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 16px;
   text-align: left;
 }
 
@@ -459,7 +459,7 @@ button.float-next-name:hover {
 }
 
 .float-next-input {
-  height: 32px;
+  height: 28px;
 }
 
 .float-next-foot {
@@ -468,23 +468,23 @@ button.float-next-name:hover {
   justify-content: space-between;
   gap: 8px;
   padding-left: 2px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 800;
   color: var(--muted);
 }
 
 .float-next-foot .next-task-button {
   flex: none;
-  height: 30px;
-  padding: 0 11px;
-  gap: 5px;
-  border-radius: 11px;
-  font-size: 12px;
+  height: 25px;
+  padding: 0 9px;
+  gap: 4px;
+  border-radius: 9px;
+  font-size: 11px;
 }
 
 .float-next-foot .next-task-button svg {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 .float-next-list {
@@ -529,23 +529,14 @@ button.float-next-name:hover {
   border-radius: 50%;
 }
 
-.float-next-earlier {
+.float-next-last {
   display: flex;
   flex-direction: column;
   gap: 5px;
   margin-top: 2px;
 }
 
-.float-next-earlier ul {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.float-next-earlier li {
+.float-next-last-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;

@@ -156,6 +156,7 @@ const en = {
     resize: "Drag to resize. Double-click for the normal size",
     working: "Currently working on:",
     taskName: "Name of the task",
+    lastTask: "Last task",
   },
   mini: {
     label: "Timer",
@@ -658,6 +659,7 @@ const ptBR: Strings = {
     resize: "Arraste para mudar o tamanho. Clique duas vezes para o tamanho normal",
     working: "Trabalhando em:",
     taskName: "Nome da tarefa",
+    lastTask: "Última tarefa",
   },
   mini: {
     label: "Timer",

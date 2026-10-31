@@ -12,13 +12,10 @@ import { highlight } from "./IntentionField";
 
 /**
  * The card's steps: the task in hand, naming the next one, the moment right
- * after the switch (with the tasks before it), and fixing the new task's name.
+ * after the switch (with the task before it), and fixing the new task's name.
  */
 export type FloatStep = "current" | "next" | "done" | "fix";
 
-// After a switch the card stays this long, and longer while the pointer is on
-// it, so a wrong pick or a typo can still be fixed.
-const CHECK_MS = 6_000;
 // What the card needs around the part this component draws, at size 1: the
 // 9px gap above it, its top row and bar, and room for its shadow.
 const AROUND = 64;
@@ -111,8 +108,8 @@ function TaskField({ label, placeholder, value, past, color, onChange, onDone }:
 
 /**
  * Next task on the floating timer: shows the task in hand, names the next one
- * without opening Stint, and leaves a few seconds to fix it afterwards. The
- * timer keeps going all along. It tells float_card in float.rs how tall the
+ * without opening Stint, and until the pointer leaves the card a click on the
+ * new name still fixes it. The timer keeps going all along. It tells float_card in float.rs how tall the
  * window must be, whether the card stays open wherever the pointer goes, and
  * whether it has the keyboard.
  */
@@ -122,14 +119,12 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
   const [name, setName] = useState("");
   // When Next task was pressed, which is when the task in hand ended, as in the main window.
   const [at, setAt] = useState(0);
-  // The moments to check the switch have passed, so the pointer can close the card.
-  const [checked, setChecked] = useState(false);
   const [height, setHeight] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
 
-  const hold = step === "next" || step === "fix" || (step === "done" && !checked);
+  const hold = step === "next" || step === "fix";
   const keys = step !== "done";
 
   useLayoutEffect(() => {
@@ -157,13 +152,6 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
     if (preview) return;
     return () => void invoke("float_card", { height: null, hold: false, keys: false }).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (step !== "done") return;
-    setChecked(false);
-    const id = setTimeout(() => setChecked(true), CHECK_MS);
-    return () => clearTimeout(id);
-  }, [step]);
 
   useEffect(() => {
     const back = () => (step === "fix" ? setStep("done") : step === "next" ? setStep("current") : step === "current" && close.current());
@@ -199,7 +187,8 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
     () => state.past.filter((i) => i.categoryId === state.categoryId && fold(i.text) !== fold(named)),
     [state.past, state.categoryId, named],
   );
-  const earlier = done.map((d, i) => ({ ...d, startedAt: i === 0 ? currentTaskStart(timer, []) : done[i - 1].endedAt })).slice(-3);
+  const last = done[done.length - 1];
+  const lastCategory = categories.find((c) => c.id === last?.categoryId);
 
   const openNext = () => {
     setAt(Date.now());
@@ -256,23 +245,16 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
           </button>
         </div>
       ) : (
-        earlier.length > 0 && (
-          <div className="float-next-earlier">
-            <span className="float-next-label">{text.timer.earlierThisSession}</span>
-            <ul>
-              {earlier.map((d) => {
-                const c = categories.find((x) => x.id === d.categoryId);
-                return (
-                  <li key={d.endedAt}>
-                    <span className="dot" style={{ background: soft(c?.color ?? "#f4a988") }} />
-                    <span className="float-next-task">{d.intention || c?.name || text.focus}</span>
-                    <span className="float-next-time">
-                      {timeSpan(d.startedAt, d.endedAt)} · {formatDuration(d.focusedMs)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+        last && (
+          <div className="float-next-last">
+            <span className="float-next-label">{text.float.lastTask}</span>
+            <div className="float-next-last-row">
+              <span className="dot" style={{ background: soft(lastCategory?.color ?? "#f4a988") }} />
+              <span className="float-next-task">{last.intention || lastCategory?.name || text.focus}</span>
+              <span className="float-next-time">
+                {timeSpan(done.length > 1 ? done[done.length - 2].endedAt : currentTaskStart(timer, []), last.endedAt)} · {formatDuration(last.focusedMs)}
+              </span>
+            </div>
           </div>
         )
       )}
