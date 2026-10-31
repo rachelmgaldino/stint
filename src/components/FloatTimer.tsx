@@ -36,8 +36,6 @@ const WIN = { w: 300, h: 340 };
 const BUB = { x: 104, y: 124, size: 92 };
 const GAP = 8;
 const PAD = 4;
-// The Next task card's width, matching .float-next-card in float.css.
-const FORM_W = 230;
 
 /**
  * Where the category and the shelf of buttons go: centred on the bubble,
@@ -64,12 +62,6 @@ function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { ta
     tag: { left: x(tag.width), top: tagTop },
     shelf: { left: x(shelf.width), top: shelfTop },
   };
-}
-
-/** The Next task card over the bubble: kept on the screen, hanging from the side of the window with more of it showing. */
-function formPlace(e: FloatEdges): CSSProperties {
-  const left = Math.max(e.left + PAD, Math.min(BUB.x + BUB.size / 2 - FORM_W / 2, WIN.w - e.right - PAD - FORM_W));
-  return e.bottom > e.top ? { left, bottom: e.bottom + PAD } : { left, top: e.top + PAD };
 }
 
 /**
@@ -147,7 +139,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     if (state?.style === "pill" || !open || !tagRef.current || !shelfRef.current) return setPlace(null);
     const ring = parseFloat(getComputedStyle(tagRef.current).getPropertyValue("--float-ring")) || 0;
     setPlace(layout(tagRef.current.getBoundingClientRect(), shelfRef.current.getBoundingClientRect(), opened, ring));
-  }, [opened, state, card]);
+  }, [opened, state]);
 
   useEffect(() => {
     if (!open) setCard(false);
@@ -196,10 +188,11 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     if (!preview) void invoke("float_pill_size", { size: next }).catch(() => {});
   };
 
-  // The same buttons on the bubble's shelf and in the pill's card.
+  const pill = state.style === "pill";
+  // The same four buttons on the bubble's shelf and in the pill's card, where Next task comes first.
   const buttons = (
     <>
-      {focus && (
+      {focus && pill && (
         <button className="float-btn" title={text.timer.nextTask} aria-label={text.timer.nextTask} onClick={() => setCard(true)}>
           <CheckIcon />
         </button>
@@ -235,10 +228,10 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
       </button>
     </>
   );
-  const form = card && focus ? <FloatNext state={state} now={now} preview={preview?.card} onAction={send} onClose={() => setCard(false)} /> : null;
-  const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : "", form ? "naming" : ""].join(" ");
+  const form = card && focus && pill ? <FloatNext state={state} now={now} preview={preview?.card} onAction={send} onClose={() => setCard(false)} /> : null;
+  const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : ""].join(" ");
 
-  if (state.style === "pill")
+  if (pill)
     return (
       // The whole pill is drawn at its size at once, so every gap and curve
       // keeps its ratio.
@@ -273,7 +266,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
 
   return (
     <div className={className}>
-      {open && !form && (
+      {open && (
         <span className="float-tag" ref={tagRef} style={place?.tag ?? { visibility: "hidden" }}>
           {color && <span className="dot" style={{ background: color }} />}
           <span className="float-tag-name">{tag}</span>
@@ -311,14 +304,9 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
           </span>
         )}
       </div>
-      {open && !form && (
+      {open && (
         <div className="float-shelf" ref={shelfRef} style={place?.shelf ?? { visibility: "hidden" }}>
           {buttons}
-        </div>
-      )}
-      {form && (
-        <div className="float-next-card" style={formPlace(opened)}>
-          {form}
         </div>
       )}
     </div>
