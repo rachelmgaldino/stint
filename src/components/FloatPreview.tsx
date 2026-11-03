@@ -4,6 +4,7 @@
 // against that screen edge, or &edge=stuck for where Windows used to stop it) for one bubble over a pretend desktop.
 // The board shows the pill style below the bubbles.
 
+import floatLayout from "../float-layout.json";
 import type { Language } from "../i18n";
 import type { Look } from "../look";
 import type { FloatStyle, Theme } from "../store";
@@ -87,9 +88,11 @@ function Frame({
   anchor?: FloatAnchor;
   card?: FloatStep;
 }) {
+  // The window's own size, as float.rs makes it.
+  const win = floatLayout[state.style].window;
   return (
     <figure className="fpv-fig">
-      <div className={state.style === "pill" ? "fpv-frame pill" : "fpv-frame"}>
+      <div className="fpv-frame" style={{ width: win[0], height: win[1] }}>
         <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor, card }} />
       </div>
       {label && <figcaption>{label}</figcaption>}

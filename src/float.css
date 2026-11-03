@@ -1,7 +1,8 @@
-/* The floating timer window. Sizes match OPEN, SHIFT and BUBBLE in
-   src-tauri/src/float.rs: in the bubble style the window is always 300 x 340 with the bubble at
-   104, 124, leaving room on either side for the category and the buttons
-   stacked together near a screen edge; FloatTimer.tsx places the category and the buttons around it. */
+/* The floating timer window. The sizes it shares with src-tauri/src/float.rs
+   come from src/float-layout.json, which FloatTimer.tsx hands in as the
+   --bubble-* and --pill-* variables: in the bubble style the window leaves
+   room on either side of the bubble for the category and the buttons stacked
+   together near a screen edge; FloatTimer.tsx places them around it. */
 
 html.float-window,
 html.float-window body,
@@ -65,10 +66,10 @@ html.float-window #root {
 
 .float-bubble {
   position: absolute;
-  left: 104px;
-  top: 124px;
-  width: 92px;
-  height: 92px;
+  left: var(--bubble-x);
+  top: var(--bubble-y);
+  width: var(--bubble-size);
+  height: var(--bubble-size);
   border-radius: 50%;
   background: var(--float-bg);
   box-shadow: var(--float-shadow);
@@ -246,25 +247,24 @@ html.float-window #root {
 }
 
 /* The pill: the other style of floating timer, a short bar at the top of the
-   screen. In this style the window is 280 x 132 with its top at the screen's
-   top (PILL_OPEN in src-tauri/src/float.rs), and only the resting pill's spot
-   opens it: 32 tall, 9 from the top, centred, as wide as FloatPill measures
-   it (sent to float_pill_width). With the pointer on it the pill grows into a
+   screen. In this style the window hangs from the screen's top, and only the
+   resting pill's spot opens it: --pill-height tall, --pill-top from the top,
+   centred, as wide as FloatPill measures it (sent to float_pill_width). With the pointer on it the pill grows into a
    card, down and to both sides, keeping its top row where it was. */
 
 /* One shell for both: it grows from the pill to the card and back, and clips
-   the two rows inside it. Both are centred on the window's middle (140), so
+   the two rows inside it. Both are centred on the window's middle, so
    the shell grows evenly to both sides. It opens and closes at the same
    quick pace. */
-/* The gap above it stays 9px at every size: FloatTimer sets --pill-top to
-   9px divided by the pill's size, since the whole pill is zoomed by it. */
+/* The gap above it stays the same at every size: FloatTimer sets --pill-top
+   to the gap divided by the pill's size, since the whole pill is zoomed by it. */
 .float-pill {
   position: absolute;
-  top: var(--pill-top, 9px);
-  left: calc(140px - var(--rest-w, 132px) / 2);
-  width: var(--rest-w, 132px);
-  height: 32px;
-  border-radius: 16px;
+  top: var(--pill-top);
+  left: calc(var(--pill-mid) - var(--rest-w) / 2);
+  width: var(--rest-w);
+  height: var(--pill-height);
+  border-radius: calc(var(--pill-height) / 2);
   overflow: hidden;
   background: var(--float-bg);
   box-shadow: var(--float-shadow);
@@ -277,10 +277,10 @@ html.float-window #root {
 /* 180 wide so the five 30px buttons leave six gaps of exactly 5px, and
    87 tall: the top row, the bar and the buttons' row (42 + 3 + 42). The
    corner nests around the ring: the ring (radius 15) sits 6 in from the
-   side and the top, and 15 + 6 = 21. PILL_CARD in float.rs matches the width. */
+   side and the top, and 15 + 6 = 21. The width is --pill-card. */
 .float-pill.open {
-  left: 50px;
-  width: 180px;
+  left: calc(var(--pill-mid) - var(--pill-card) / 2);
+  width: var(--pill-card);
   height: 87px;
   border-radius: 21px;
 }
@@ -297,8 +297,8 @@ html.float-window #root {
 /* The same crossfade both ways: the row leaving fades out straight away and
    the one arriving fades in just after. */
 .float-pill-rest {
-  width: var(--rest-w, 132px);
-  height: 32px;
+  width: var(--rest-w);
+  height: var(--pill-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -320,7 +320,7 @@ html.float-window #root {
 }
 
 .float-card {
-  width: 180px;
+  width: var(--pill-card);
   opacity: 0;
   pointer-events: none;
   transition: opacity 80ms ease-out;
@@ -350,11 +350,11 @@ html.float-window #root {
    edge, and both rows hang from that edge too, so nothing slides as it grows.
    The handle stays centred under the card. */
 .float-pill.from-left.open {
-  left: calc(140px - var(--rest-w, 132px) / 2);
+  left: calc(var(--pill-mid) - var(--rest-w) / 2);
 }
 
 .float-pill.from-right.open {
-  left: calc(140px + var(--rest-w, 132px) / 2 - 180px);
+  left: calc(var(--pill-mid) + var(--rest-w) / 2 - var(--pill-card));
 }
 
 .float-pill.from-left .float-pill-rest,
@@ -370,23 +370,23 @@ html.float-window #root {
   transform: none;
 }
 
-/* The Next task card: 230 wide, or 190 when it opens from a docked side, which
+/* The Next task card: --pill-form wide, or 190 when it opens from a docked side, which
    still fits the window's 280, and as tall as its step needs. It tells
    float.rs that height, and float.rs sizes the window to it. */
 .float-pill.open.naming {
-  left: 25px;
-  width: 230px;
+  left: calc(var(--pill-mid) - var(--pill-form) / 2);
+  width: var(--pill-form);
   height: auto;
   cursor: default;
 }
 
 .float-pill.from-left.open.naming {
-  left: calc(140px - var(--rest-w, 132px) / 2);
+  left: calc(var(--pill-mid) - var(--rest-w) / 2);
   width: 190px;
 }
 
 .float-pill.from-right.open.naming {
-  left: calc(140px + var(--rest-w, 132px) / 2 - 190px);
+  left: calc(var(--pill-mid) + var(--rest-w) / 2 - 190px);
   width: 190px;
 }
 
@@ -550,11 +550,11 @@ button.float-next-name:hover {
 }
 
 .float-pill.from-left ~ .float-pill-handle {
-  left: calc(140px - var(--rest-w, 132px) / 2 + 60px);
+  left: calc(var(--pill-mid) - var(--rest-w) / 2 + var(--pill-card) / 2 - 30px);
 }
 
 .float-pill.from-right ~ .float-pill-handle {
-  left: calc(140px + var(--rest-w, 132px) / 2 - 120px);
+  left: calc(var(--pill-mid) + var(--rest-w) / 2 - var(--pill-card) / 2 - 30px);
 }
 
 /* The resize handle under the open card: a 32 x 4 bar 6px below it (the
@@ -563,8 +563,8 @@ button.float-next-name:hover {
    pill's own background keeps it visible on light and dark alike. */
 .float-pill-handle {
   position: absolute;
-  left: 110px;
-  top: calc(var(--pill-top, 9px) + 87px);
+  left: calc(var(--pill-mid) - 30px);
+  top: calc(var(--pill-top) + 87px);
   width: 60px;
   height: 16px;
   padding: 0;
