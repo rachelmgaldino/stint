@@ -559,7 +559,6 @@ fn close_shelf<R: Runtime>(w: &WebviewWindow<R>, s: &mut Inner) {
     }
     let _ = w.set_ignore_cursor_events(true);
     let _ = w.app_handle().emit_to(LABEL, "float-open", Opened { open: false, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 });
-    save(w.app_handle(), s);
 }
 
 /// Tells the page whether the pill is being dragged and snapped to the
@@ -744,21 +743,6 @@ fn follow_pill<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inn
     let opens = anchor(&m, s, cx);
     send_anchor(app, s, opens, false);
     send_cue(app, s, Dragging { dragging: true, snapped: centered || edge.is_some() });
-}
-
-/// Called when the floating window moves: a drag moves the bubble's home.
-/// The pill's spot is kept by its drag loop instead, since a move event only
-/// gives the window's corner, not whether the pill was snapped.
-pub fn moved<R: Runtime>(app: &AppHandle<R>, x: i32, y: i32) {
-    let float = app.state::<Float>();
-    // Busy means this is our own move (placing it), not a drag.
-    let Ok(mut s) = float.0.try_lock() else { return };
-    if s.style == Style::Pill {
-        return;
-    }
-    let Some(w) = app.get_webview_window(LABEL) else { return };
-    let scale = w.scale_factor().unwrap_or(1.0);
-    s.rest = Some((x + (SHIFT.0 * scale) as i32, y + (SHIFT.1 * scale) as i32));
 }
 
 /// The main window says whether a session runs (and the feature is on),
