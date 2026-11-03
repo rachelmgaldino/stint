@@ -4,6 +4,7 @@
 // against that screen edge, or &edge=stuck for where Windows used to stop it) for one bubble over a pretend desktop.
 // The board shows the pill style below the bubbles.
 
+import { useState } from "react";
 import floatLayout from "../float-layout.json";
 import type { Language } from "../i18n";
 import type { Look } from "../look";
@@ -87,12 +88,14 @@ function Frame({
   anchor?: FloatAnchor;
   card?: FloatStep;
 }) {
-  // The window's own size, as float.rs makes it.
-  const win = floatLayout[state.style].window;
+  // The window's own size, as float.rs makes it: taller for the Next task
+  // card, never shorter than the layout's.
+  const [cardHeight, setCardHeight] = useState<number | null>(null);
+  const [width, height] = floatLayout[state.style].window;
   return (
     <figure className="fpv-fig">
-      <div className="fpv-frame" style={{ width: win[0], height: win[1] }}>
-        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor, card }} />
+      <div className="fpv-frame" style={{ width, height: Math.max(height, cardHeight ?? 0) }}>
+        <FloatTimer preview={{ state, open, now: NOW, edges, drag, anchor, card, onCardHeight: setCardHeight }} />
       </div>
       {label && <figcaption>{label}</figcaption>}
     </figure>

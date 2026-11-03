@@ -23,8 +23,11 @@ const AROUND = 64;
 type Props = {
   state: FloatState;
   now: number;
-  /** On the dev preview page there's no window to hold open, and this is the step it shows. */
-  preview?: FloatStep;
+  /**
+   * On the dev preview page there's no window to hold open: the step it
+   * shows, and where the window height float_card would get goes instead.
+   */
+  preview?: { step: FloatStep; onHeight(height: number | null): void };
   onAction(a: FloatAction): void;
   onClose(): void;
 };
@@ -115,7 +118,7 @@ function TaskField({ label, placeholder, value, past, color, onChange, onDone }:
  */
 export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
   const text = t();
-  const [step, setStep] = useState<FloatStep>(preview ?? "current");
+  const [step, setStep] = useState<FloatStep>(preview?.step ?? "current");
   const [name, setName] = useState("");
   // When Next task was pressed, which is when the task in hand ended, as in the main window.
   const [at, setAt] = useState(0);
@@ -138,7 +141,11 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
   }, []);
 
   useEffect(() => {
-    if (preview || height === null) return;
+    if (height === null) return;
+    if (preview) {
+      preview.onHeight(height);
+      return;
+    }
     // The window only takes the keyboard here, after the field has mounted,
     // so autoFocus alone isn't enough.
     invoke("float_card", { height, hold, keys })
@@ -149,7 +156,7 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
   }, [height, hold, keys]);
 
   useEffect(() => {
-    if (preview) return;
+    if (preview) return () => preview.onHeight(null);
     return () => void invoke("float_card", { height: null, hold: false, keys: false }).catch(() => {});
   }, []);
 

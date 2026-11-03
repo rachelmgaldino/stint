@@ -88,6 +88,8 @@ export type FloatPreviewProps = {
   anchor?: FloatAnchor;
   /** Shows the Next task card at this step from the start. */
   card?: FloatStep;
+  /** Gets the window height the Next task card asks float.rs for, or null once it's gone. */
+  onCardHeight(height: number | null): void;
 };
 
 /**
@@ -240,7 +242,8 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
       </button>
     </>
   );
-  const form = card && focus && pill ? <FloatNext state={state} now={now} preview={preview?.card} onAction={send} onClose={() => setCard(false)} /> : null;
+  const cardPreview = preview && { step: preview.card ?? "current", onHeight: preview.onCardHeight };
+  const form = card && focus && pill ? <FloatNext state={state} now={now} preview={cardPreview} onAction={send} onClose={() => setCard(false)} /> : null;
   const className = ["float", focus ? "" : "break", open ? "open" : "", paused ? "paused" : ""].join(" ");
 
   if (pill)
