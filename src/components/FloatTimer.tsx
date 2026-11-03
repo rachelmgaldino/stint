@@ -7,6 +7,7 @@ import { lapAt } from "../dial";
 import { setLanguage, t } from "../i18n";
 import { setLook } from "../look";
 import type { FloatAction, FloatState } from "../float";
+import floatLayout from "../float-layout.json";
 import { dialClock, upClock } from "./TimerPane";
 import { Pip } from "./Pip";
 import { CheckIcon, CoffeeIcon, PlayIcon } from "./icons";
@@ -31,9 +32,19 @@ export type FloatAnchor = "center" | "left" | "right";
 const NOT_DRAGGING: FloatDrag = { dragging: false, snapped: false };
 
 const NO_EDGES: FloatEdges = { left: 0, right: 0, top: 0, bottom: 0 };
-// The window and the bubble inside it, matching OPEN, SHIFT and BUBBLE in float.rs.
-const WIN = { w: 300, h: 340 };
-const BUB = { x: 104, y: 124, size: 92 };
+// The window and the bubble inside it, shared with float.rs.
+const BUB = floatLayout.bubble;
+const [WIN_W, WIN_H] = BUB.window;
+// The same numbers for float.css.
+const SHARED = {
+  "--bubble-x": `${BUB.x}px`,
+  "--bubble-y": `${BUB.y}px`,
+  "--bubble-size": `${BUB.size}px`,
+  "--pill-mid": `${floatLayout.pill.window[0] / 2}px`,
+  "--pill-height": `${floatLayout.pill.height}px`,
+  "--pill-card": `${floatLayout.pill.card}px`,
+  "--pill-form": `${floatLayout.pill.form}px`,
+} as CSSProperties;
 const GAP = 8;
 const PAD = 4;
 
@@ -45,14 +56,14 @@ const PAD = 4;
  */
 function layout(tag: DOMRect, shelf: DOMRect, e: FloatEdges, ring: number): { tag: CSSProperties; shelf: CSSProperties } {
   const cx = BUB.x + BUB.size / 2;
-  const x = (w: number) => Math.max(e.left + PAD, Math.min(cx - w / 2, WIN.w - e.right - PAD - w));
+  const x = (w: number) => Math.max(e.left + PAD, Math.min(cx - w / 2, WIN_W - e.right - PAD - w));
   // The looks' outline ring is drawn outside each part, so the gaps grow by
   // it on both sides and stay as wide as in the plain look.
   const gap = GAP + 2 * ring;
   const near = 6 + 2 * ring;
   let shelfTop = BUB.y + BUB.size + gap;
   let tagTop = BUB.y - gap - tag.height;
-  if (shelfTop + shelf.height + ring > WIN.h - e.bottom - PAD) {
+  if (shelfTop + shelf.height + ring > WIN_H - e.bottom - PAD) {
     shelfTop = BUB.y - gap - shelf.height;
     tagTop = shelfTop - near - tag.height;
   } else if (tagTop - ring < e.top + PAD) {
@@ -235,7 +246,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     return (
       // The whole pill is drawn at its size at once, so every gap and curve
       // keeps its ratio.
-      <div className={`${className} pill`} style={{ zoom: size, "--pill-top": `${9 / size}px` } as CSSProperties}>
+      <div className={`${className} pill`} style={{ ...SHARED, zoom: size, "--pill-top": `${floatLayout.pill.top / size}px` } as CSSProperties}>
         <FloatPill
           open={open}
           clock={clock}
@@ -265,7 +276,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
     );
 
   return (
-    <div className={className}>
+    <div className={className} style={SHARED}>
       {open && (
         <span className="float-tag" ref={tagRef} style={place?.tag ?? { visibility: "hidden" }}>
           {color && <span className="dot" style={{ background: color }} />}

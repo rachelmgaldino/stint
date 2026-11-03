@@ -8,7 +8,7 @@
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition, Runtime, State, WebviewUrl, WebviewWindow,
@@ -17,40 +17,57 @@ use tauri::{
 
 pub const LABEL: &str = "float";
 
-// Logical size of the window, of the resting bubble's old window (the saved
-// spot is that window's top-left corner, the bubble 10px in), and where that
-// resting spot sits inside the window. They match the layout in src/float.css.
-const OPEN: (f64, f64) = (300.0, 340.0);
-const REST: (f64, f64) = (112.0, 112.0);
-const SHIFT: (f64, f64) = (94.0, 114.0);
-// The bubble inside the resting spot.
-const BUBBLE: (f64, f64, f64) = (10.0, 10.0, 92.0);
+/// The window and what sits in it, in logical pixels, from
+/// src/float-layout.json, which the page reads too.
+#[derive(serde::Deserialize)]
+struct Layout {
+    bubble: BubbleLayout,
+    pill: PillLayout,
+}
+
+/// The bubble style: the window, and the bubble's top-left corner and size in it.
+#[derive(serde::Deserialize)]
+struct BubbleLayout {
+    window: (f64, f64),
+    x: f64,
+    y: f64,
+    size: f64,
+}
+
+/// The pill style, at size 1: everything but `top` grows with the size.
+#[derive(serde::Deserialize)]
+struct PillLayout {
+    /// The window, taller while the Next task card shows.
+    window: (f64, f64),
+    /// How far below the window's top the resting pill sits, centred across it.
+    top: f64,
+    /// The resting pill's widest usual width; the page sends the real one
+    /// (float_pill_width), since the pill hugs the time and the pin.
+    width: f64,
+    height: f64,
+    /// The open card's width, which the pill grows into from its centre.
+    card: f64,
+    /// The Next task card's width, wider than the open card when it has the room.
+    form: f64,
+    /// The smallest and largest sizes the handle under the card allows.
+    sizes: (f64, f64),
+}
+
+static LAYOUT: LazyLock<Layout> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../../src/float-layout.json")).expect("src/float-layout.json is invalid")
+});
+
+// The bubble's saved spot is the top-left corner of the small window it used
+// to rest in, which older float.json files hold: the bubble 10px in from it.
+const REST_INSET: f64 = 10.0;
 // Room kept beside and under the resting spot in the default corner, so the
 // category and buttons fit centred on the bubble.
 const ROOM: (f64, f64) = (46.0, 66.0);
-// The pill style: logical size of its window, and the resting pill inside it
-// (x, y, width, height), centred across the window and 9px below its top.
-// The 9px gap stays the same at every size; the rest grows with it.
-// The width is its widest usual size; the page sends the real one
-// (float_pill_width), since the pill hugs the time and the pin.
-// They must match the pill layout in src/float.css.
-const PILL_OPEN: (f64, f64) = (280.0, 132.0);
-const PILL: (f64, f64, f64, f64) = (74.0, 9.0, 132.0, 32.0);
-// The Next task card, wider than the open card when it has the room: its
-// width (.float-pill.open.naming in src/float.css) and the tallest window
-// it may ask for. The window's width stays, so the pill doesn't move.
-const PILL_FORM: f64 = 230.0;
+// The tallest the pill's window may grow for the Next task card.
 const PILL_FORM_MAX: f64 = 460.0;
 // How close (logical px) the pill's centre must come to the middle of the
 // screen while dragged to snap onto it.
 const SNAP: f64 = 24.0;
-// The open card's width (.float-pill.open in src/float.css), which the pill
-// grows into from its centre: keeping all of it on the screen keeps the
-// buttons in reach at either end of a drag.
-const PILL_CARD: f64 = 180.0;
-// The sizes the pill's handle allows (src/components/FloatPill.tsx, SCALE).
-// Every pill number above is at size 1 and grows with it.
-const PILL_SIZES: (f64, f64) = (0.8, 1.5);
 // How often the pointer is checked, and how many checks off the timer close it.
 const TICK: Duration = Duration::from_millis(50);
 const LEAVE_TICKS: u32 = 7;
@@ -156,7 +173,7 @@ struct Inner {
     /// Which way the card last opened from the pill, as sent to the page.
     anchor: Option<&'static str>,
     /// The resting pill's width as the page measured it (logical px), since
-    /// it hugs the time and the pin; none means PILL's width.
+    /// it hugs the time and the pin; none means the layout's width.
     pill_w: Option<f64>,
     /// How big the pill is drawn, from its handle; none means 1.
     pill_size: Option<f64>,
@@ -221,7 +238,7 @@ fn load<R: Runtime>(app: &AppHandle<R>, s: &mut Inner) {
             s.pill = Some(PillSpot { cx: cx as i32, centered, edge });
         }
         if let Some(size) = v["pill"]["size"].as_f64() {
-            s.pill_size = Some(size.clamp(PILL_SIZES.0, PILL_SIZES.1));
+            s.pill_size = Some(size.clamp(LAYOUT.pill.sizes.0, LAYOUT.pill.sizes.1));
         }
     }
 }
@@ -317,32 +334,32 @@ fn pill_size(s: &Inner) -> f64 {
 /// The window's logical size in the current style, the pill's grown with it.
 fn window_size(s: &Inner) -> (f64, f64) {
     match s.style {
-        Style::Bubble => OPEN,
+        Style::Bubble => LAYOUT.bubble.window,
         Style::Pill => {
-            let height = s.card.unwrap_or(PILL_OPEN.1);
-            (PILL_OPEN.0 * pill_size(s), height * pill_size(s))
+            let (width, height) = LAYOUT.pill.window;
+            let height = s.card.unwrap_or(height);
+            (width * pill_size(s), height * pill_size(s))
         }
     }
 }
 
 /// From the window's left edge to the pill's centre, in physical pixels, at
-/// the screen's scaling and the pill's size. Rounded the same way as the
-/// window's width, so with an even width the pill's centre is the window's
-/// exact middle.
+/// the screen's scaling and the pill's size: the window's middle, rounded
+/// the same way as its width.
 fn pill_offset(scale: f64, size: f64) -> i32 {
-    ((PILL.0 + PILL.2 / 2.0) * size * scale).round() as i32
+    (LAYOUT.pill.window.0 / 2.0 * size * scale).round() as i32
 }
 
 /// How far the pill keeps from the sides of the screen, in physical pixels:
 /// the same 9px as from the top, whatever its size.
 fn pill_margin(m: &Monitor) -> i32 {
-    (PILL.1 * m.scale_factor()).round() as i32
+    (LAYOUT.pill.top * m.scale_factor()).round() as i32
 }
 
 /// The pill's centre docked to a side: its resting edge 9px in from it.
 fn docked(m: &Monitor, s: &Inner, edge: Edge) -> i32 {
     let (mx, _, mw, _) = area(m);
-    let half = (s.pill_w.unwrap_or(PILL.2) * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
+    let half = (s.pill_w.unwrap_or(LAYOUT.pill.width) * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
     let inset = pill_margin(m) + half;
     match edge {
         Edge::Left => mx + inset,
@@ -360,7 +377,7 @@ fn clamp_pill(m: &Monitor, s: &Inner, cx: i32) -> i32 {
 /// that side of the screen.
 fn anchor(m: &Monitor, s: &Inner, cx: i32) -> &'static str {
     let (mx, _, mw, _) = area(m);
-    let card = if s.card.is_some() { PILL_FORM } else { PILL_CARD };
+    let card = if s.card.is_some() { LAYOUT.pill.form } else { LAYOUT.pill.card };
     let half = (card * pill_size(s) / 2.0 * m.scale_factor()).round() as i32;
     let margin = pill_margin(m);
     if cx - half < mx + margin {
@@ -387,7 +404,7 @@ fn send_anchor<R: Runtime>(app: &AppHandle<R>, s: &mut Inner, anchor: &'static s
 fn rest_spot<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> {
     if let Some((x, y)) = s.rest {
         let scale = app.primary_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
-        let half = (REST.0 * scale / 2.0) as i32;
+        let half = (rest_size() * scale / 2.0) as i32;
         if monitor_at(app, x + half, y + half).is_some() {
             return Some((x, y));
         }
@@ -395,9 +412,19 @@ fn rest_spot<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32)> {
     let m = app.primary_monitor().ok().flatten()?;
     let scale = m.scale_factor();
     let (mx, my, w, h) = area(&m);
-    let x = mx + w - ((REST.0 + ROOM.0) * scale) as i32;
-    let y = my + h - ((REST.1 + ROOM.1) * scale) as i32;
+    let x = mx + w - ((rest_size() + ROOM.0) * scale) as i32;
+    let y = my + h - ((rest_size() + ROOM.1) * scale) as i32;
     Some((x, y))
+}
+
+/// The resting spot's width and height: the bubble with REST_INSET around it.
+fn rest_size() -> f64 {
+    LAYOUT.bubble.size + 2.0 * REST_INSET
+}
+
+/// Where the resting spot's top-left corner sits in the window.
+fn shift() -> (f64, f64) {
+    (LAYOUT.bubble.x - REST_INSET, LAYOUT.bubble.y - REST_INSET)
 }
 
 /// The pill window's top-left corner, and which way its card opens: on the
@@ -427,7 +454,8 @@ fn pill_window<R: Runtime>(app: &AppHandle<R>, s: &Inner) -> Option<(i32, i32, &
 
 /// The window's top-left corner for a resting spot.
 fn window_at(rest: (i32, i32), scale: f64) -> (i32, i32) {
-    (rest.0 - (SHIFT.0 * scale) as i32, rest.1 - (SHIFT.1 * scale) as i32)
+    let (dx, dy) = shift();
+    (rest.0 - (dx * scale) as i32, rest.1 - (dy * scale) as i32)
 }
 
 /// Makes the (hidden) window when Stint starts, and the loop that watches the
@@ -436,7 +464,7 @@ fn window_at(rest: (i32, i32), scale: f64) -> (i32, i32) {
 pub fn create<R: Runtime>(app: &AppHandle<R>) {
     let _ = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
         .title("Stint")
-        .inner_size(OPEN.0, OPEN.1)
+        .inner_size(LAYOUT.bubble.window.0, LAYOUT.bubble.window.1)
         .decorations(false)
         .transparent(true)
         .shadow(false)
@@ -492,17 +520,18 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
     }
     let on = match s.style {
         Style::Bubble => {
-            let r = BUBBLE.2 / 2.0;
-            let (cx, cy) = (SHIFT.0 + BUBBLE.0 + r, SHIFT.1 + BUBBLE.1 + r);
-            (px - cx).hypot(py - cy) <= r
+            let bubble = &LAYOUT.bubble;
+            let r = bubble.size / 2.0;
+            (px - (bubble.x + r)).hypot(py - (bubble.y + r)) <= r
         }
         Style::Pill => {
             // Centred on the window like the pill, however wide it is now,
             // all grown by the pill's size.
+            let pill = &LAYOUT.pill;
             let k = pill_size(&s);
-            let w = s.pill_w.unwrap_or(PILL.2);
-            let x = PILL.0 + (PILL.2 - w) / 2.0;
-            px >= x * k && py >= PILL.1 && px < (x + w) * k && py < PILL.1 + PILL.3 * k
+            let w = s.pill_w.unwrap_or(pill.width);
+            let x = (pill.window.0 - w) / 2.0;
+            px >= x * k && py >= pill.top && px < (x + w) * k && py < pill.top + pill.height * k
         }
     };
     if on {
@@ -524,11 +553,12 @@ fn send_edges<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>, s: &mut Inne
     let mut opened = Opened { open: true, left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 };
     if let (Style::Bubble, Ok(at)) = (s.style, w.outer_position()) {
         let scale = w.scale_factor().unwrap_or(1.0);
-        let r = ((SHIFT.0 + BUBBLE.0 + BUBBLE.2 / 2.0) * scale) as i32;
-        let b = ((SHIFT.1 + BUBBLE.1 + BUBBLE.2 / 2.0) * scale) as i32;
+        let bubble = &LAYOUT.bubble;
+        let r = ((bubble.x + bubble.size / 2.0) * scale) as i32;
+        let b = ((bubble.y + bubble.size / 2.0) * scale) as i32;
         if let Some(m) = monitor_at(app, at.x + r, at.y + b) {
             let (mx, my, mw, mh) = area(&m);
-            let (ow, oh) = (OPEN.0 * scale, OPEN.1 * scale);
+            let (ow, oh) = (bubble.window.0 * scale, bubble.window.1 * scale);
             let (x, y) = (at.x as f64, at.y as f64);
             opened.left = (mx as f64 - x).max(0.0) / scale;
             opened.top = (my as f64 - y).max(0.0) / scale;
@@ -695,15 +725,17 @@ fn follow<R: Runtime>(app: &AppHandle<R>) {
     let mut y = (p.y - grab.1 * scale).round() as i32;
     if let Some(m) = monitor_at(app, p.x as i32, p.y as i32) {
         let (mx, my, mw, mh) = area(&m);
-        let size = (BUBBLE.2 * scale) as i32;
-        let (bx, by) = (((SHIFT.0 + BUBBLE.0) * scale) as i32, ((SHIFT.1 + BUBBLE.1) * scale) as i32);
+        let bubble = &LAYOUT.bubble;
+        let size = (bubble.size * scale) as i32;
+        let (bx, by) = ((bubble.x * scale) as i32, (bubble.y * scale) as i32);
         x = x.clamp(mx - bx, mx + mw - bx - size);
         y = y.clamp(my - by, my + mh - by - size);
     }
     if w.outer_position().ok().map(|at| (at.x, at.y)) != Some((x, y)) {
         let _ = w.set_position(PhysicalPosition::new(x, y));
     }
-    s.rest = Some((x + (SHIFT.0 * scale) as i32, y + (SHIFT.1 * scale) as i32));
+    let (dx, dy) = shift();
+    s.rest = Some((x + (dx * scale) as i32, y + (dy * scale) as i32));
     if s.open {
         send_edges(app, &w, &mut s);
     }
@@ -777,7 +809,7 @@ pub fn float_config(app: AppHandle, float: State<Float>, active: bool, on_top: b
 #[tauri::command]
 pub fn float_pill_width(app: AppHandle, float: State<Float>, width: f64) {
     let mut s = float.0.lock().unwrap();
-    let width = width.clamp(32.0, PILL_CARD);
+    let width = width.clamp(32.0, LAYOUT.pill.card);
     if s.pill_w == Some(width) {
         return;
     }
@@ -801,7 +833,7 @@ pub fn float_pill_size(app: AppHandle, float: State<Float>, size: Option<f64>) -
     let mut s = float.0.lock().unwrap();
     load(&app, &mut s);
     let Some(size) = size else { return pill_size(&s) };
-    let size = (size.clamp(PILL_SIZES.0, PILL_SIZES.1) * 100.0).round() / 100.0;
+    let size = (size.clamp(LAYOUT.pill.sizes.0, LAYOUT.pill.sizes.1) * 100.0).round() / 100.0;
     if size == pill_size(&s) {
         return size;
     }
@@ -831,7 +863,7 @@ pub fn float_card(app: AppHandle, float: State<Float>, height: Option<f64>, hold
     s.hold = hold;
     s.off_ticks = 0;
     let Some(w) = app.get_webview_window(LABEL) else { return };
-    let height = height.map(|h| h.clamp(PILL_OPEN.1, PILL_FORM_MAX));
+    let height = height.map(|h| h.clamp(LAYOUT.pill.window.1, PILL_FORM_MAX));
     if s.card != height {
         s.card = height;
         if s.style == Style::Pill {

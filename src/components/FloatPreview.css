@@ -40,12 +40,11 @@
   color: rgb(255 255 255 / 0.75);
 }
 
-/* The window's own size, cutting off what spills past it like the real
-   window; the transform makes the bubble's fixed layout sit inside it. */
+/* The window's own size (set from float-layout.json), cutting off what spills
+   past it like the real window; the transform makes the bubble's fixed layout
+   sit inside it. */
 .fpv-frame {
   position: relative;
-  width: 300px;
-  height: 340px;
   transform: translateZ(0);
   overflow: hidden;
 }
@@ -178,12 +177,6 @@
 
 :root[data-theme="dark"] .fpv-taskbar i {
   color: #ddd;
-}
-
-/* The pill's window, 280 x 132 (PILL_OPEN in float.rs), on its own row. */
-.fpv-frame.pill {
-  width: 280px;
-  height: 132px;
 }
 
 .fpv-row {

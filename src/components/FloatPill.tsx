@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import floatLayout from "../float-layout.json";
 import { Pip, type Mood } from "./Pip";
 import { PinIcon } from "./floatIcons";
 import { PauseIcon } from "./icons";
@@ -52,7 +53,7 @@ type Props = {
 };
 
 /** The sizes the handle allows, in steps, and how far apart they are. */
-export const SCALE = { min: 0.8, max: 1.5, step: 0.05 };
+export const SCALE = { min: floatLayout.pill.sizes[0], max: floatLayout.pill.sizes[1], step: 0.05 };
 // From the pill's top to the handle's middle, at size 1: the card is 87 tall
 // and the bar sits 6px under it, 4px tall. The 9px gap above the pill stays
 // the same at every size, so only this part grows.
@@ -188,7 +189,7 @@ export function FloatPill(p: Props) {
   // The resting pill hugs the ring, the time and the pin, so its width
   // follows them; rounded up to even so it stays centred on whole pixels.
   const inner = useRef<HTMLSpanElement>(null);
-  const [restW, setRestW] = useState(132);
+  const [restW, setRestW] = useState(floatLayout.pill.width);
   // Off until the first measure has landed, so the pill doesn't animate from
   // the default width when it first shows.
   const [ready, setReady] = useState(false);
