@@ -640,12 +640,10 @@ export default function App() {
   });
 
   // The floating timer, shown by the desktop shell while this window is away.
-  const floatCategory = categories.find((c) => c.id === live.categoryId);
   const floatState = useMemo<FloatState>(
     () => ({
       timer,
       long: !!live.long,
-      category: floatCategory ? { name: floatCategory.name, color: floatCategory.color } : null,
       look: settings.look,
       theme: settings.theme,
       language: settings.language,
@@ -660,7 +658,6 @@ export default function App() {
     [
       timer,
       live.long,
-      floatCategory,
       settings.look,
       settings.theme,
       settings.language,
@@ -710,7 +707,7 @@ export default function App() {
 
   if (!store) return <div className="loading">{text.loading}</div>;
 
-  const category = floatCategory;
+  const category = categories.find((c) => c.id === live.categoryId);
   const liveBlock: LiveBlock | null =
     timer.status === "idle"
       ? null

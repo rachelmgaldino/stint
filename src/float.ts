@@ -16,13 +16,12 @@ export const FLOAT_LABEL = "float";
 export type FloatState = {
   timer: T.Timer;
   long: boolean;
-  category: { name: string; color: string } | null;
   look: Look;
   theme: Theme;
   language: Language;
   onTop: boolean;
   style: FloatStyle;
-  /** The task in hand, the ones before it, and what Next task suggests. */
+  /** The task in hand and its category, the ones before it, and what Next task suggests. */
   intention: string;
   categoryId: number | null;
   categories: Category[];
