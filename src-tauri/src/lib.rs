@@ -317,7 +317,6 @@ pub fn run() {
                     }
                 }
                 WindowEvent::Focused(true) if main => float::set_away(app, false),
-                WindowEvent::Moved(p) if window.label() == float::LABEL => float::moved(app, p.x, p.y),
                 _ => {}
             }
         })
