@@ -178,8 +178,9 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   const spent = T.elapsed(timer, now);
   const done = flow ? lapAt(spent / 60_000).fraction : over ? 1 : Math.min(1, Math.max(0, 1 - left / Math.max(1, timer.plannedMs)));
   const clock = flow ? upClock(spent) : dialClock(left);
-  const color = focus && state.category ? soft(state.category.color) : undefined;
-  const tag = focus ? (state.category?.name ?? text.focus) : state.long ? text.float.longBreak : text.float.shortBreak;
+  const category = state.categories.find((c) => c.id === state.categoryId);
+  const color = focus && category ? soft(category.color) : undefined;
+  const tag = focus ? (category?.name ?? text.focus) : state.long ? text.float.longBreak : text.float.shortBreak;
   const mood = paused ? "asleep" : focus ? "awake" : "break";
 
   // Stint moves the window itself while the bubble is held (see float_drag
@@ -200,7 +201,7 @@ export function FloatTimer({ preview }: { preview?: FloatPreviewProps }) {
   };
 
   const pill = state.style === "pill";
-  // The same four buttons on the bubble's shelf and in the pill's card, where Next task comes first.
+  // The same buttons on the bubble's shelf and in the pill's card, where Next task comes first in a focus session.
   const buttons = (
     <>
       {focus && pill && (

@@ -17,7 +17,6 @@ import "./FloatPreview.css";
 const q = new URLSearchParams(location.search);
 const NOW = 1_800_000_000_000;
 const base = {
-  category: { name: q.get("cat") ?? "Work", color: "#e8594f" },
   look: (q.get("look") ?? "lavender") as Look,
   theme: (q.get("theme") ?? "light") as Theme,
   language: (q.get("lang") ?? "en") as Language,

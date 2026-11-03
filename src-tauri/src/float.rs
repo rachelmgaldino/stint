@@ -1,10 +1,11 @@
 // The floating timer: a small frameless, see-through window that shows the
-// running session while the main window is minimized or in the tray. The
-// window is always its full open size and never moves on its own, so the
-// bubble stays put; at rest it lets clicks through to the apps underneath,
-// and while the pointer is on the bubble it shows the category and a shelf of
-// buttons around it. In the pill style the window hangs from the top of the
-// screen instead, with a small pill in its top middle, and only slides sideways.
+// running session while the main window is minimized or in the tray. It never
+// moves on its own, and at rest it lets clicks through to the apps underneath.
+// In the bubble style the window is always its full open size, so the bubble
+// stays put while the pointer on it shows the category and a shelf of buttons
+// around it. In the pill style the window hangs from the top of the screen
+// instead, with a small pill in its top middle, only slides sideways, and
+// grows with the pill's size and for the Next task card.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -498,16 +499,14 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) {
 fn watch<R: Runtime>(app: &AppHandle<R>) {
     let float = app.state::<Float>();
     let Ok(mut s) = float.0.try_lock() else { return };
-    if !(s.active && s.away) {
+    // Hidden, or held open by the Next task card wherever the pointer goes.
+    if !(s.active && s.away) || s.hold {
         return;
     }
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let (Ok(p), Ok(at)) = (app.cursor_position(), w.outer_position()) else { return };
     let scale = w.scale_factor().unwrap_or(1.0);
     let (px, py) = ((p.x - at.x as f64) / scale, (p.y - at.y as f64) / scale);
-    if s.hold {
-        return;
-    }
     if s.open {
         let (ow, oh) = window_size(&s);
         let inside = px >= 0.0 && py >= 0.0 && px < ow && py < oh;
