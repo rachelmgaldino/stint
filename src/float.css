@@ -370,9 +370,11 @@ html.float-window #root {
   transform: none;
 }
 
-/* The Next task card: --pill-form wide, or 190 when it opens from a docked side, which
-   still fits the window's 280, and as tall as its step needs. It tells
-   float.rs that height, and float.rs sizes the window to it. */
+/* The Next task card: --pill-form wide, or 190 when it opens from a docked
+   side, and as tall as its step needs. It tells float.rs that height, and
+   float.rs sizes the window to it. The window is wide enough for the docked
+   card and its shadow even from the narrowest resting pill (about 82 wide:
+   unpinned, under ten minutes), since the card starts at the pill's edge. */
 .float-pill.open.naming {
   left: calc(var(--pill-mid) - var(--pill-form) / 2);
   width: var(--pill-form);
