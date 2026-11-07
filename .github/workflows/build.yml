@@ -18,6 +18,13 @@ permissions:
   contents: write
   pull-requests: read
 
+# A new push to a PR cancels that PR's run still in progress, so an older build
+# can't finish last and replace the newer test build. Pushes to main and manual
+# runs get a group of their own (the run ID), so they never wait or get cancelled.
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -80,9 +87,6 @@ jobs:
     # Fork PRs get a read-only token, so they keep the Actions artifact only.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    concurrency:
-      group: release-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
