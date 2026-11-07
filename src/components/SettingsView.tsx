@@ -323,18 +323,19 @@ export function SettingsView(p: Props) {
                 unit={text.min}
                 onChange={(v) => set("focusMinutes", v)}
               />
+              {/* Each break stops short of the other, so the long break stays longer. */}
               <Stepper
                 label={text.breakLength}
                 value={settings.breakMinutes}
                 min={1}
-                max={60}
+                max={settings.longBreakMinutes - 1}
                 unit={text.min}
                 onChange={(v) => set("breakMinutes", v)}
               />
               <Stepper
                 label={text.longBreakLength}
                 value={settings.longBreakMinutes}
-                min={1}
+                min={settings.breakMinutes + 1}
                 max={60}
                 unit={text.min}
                 onChange={(v) => set("longBreakMinutes", v)}

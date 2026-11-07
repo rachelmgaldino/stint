@@ -146,8 +146,11 @@ export const defaultSettings: Settings = {
   calendar: { syncSessions: false, syncBreaks: false, skipCategories: [], targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
 
-function withDefaults(saved: Partial<Settings> | undefined): Settings {
-  return { ...defaultSettings, ...saved, calendar: { ...defaultSettings.calendar, ...saved?.calendar } };
+export function withDefaults(saved: Partial<Settings> | undefined): Settings {
+  const s = { ...defaultSettings, ...saved, calendar: { ...defaultSettings.calendar, ...saved?.calendar } };
+  // A long break is told from a short one by its length (breaks.ts), so it's always
+  // longer. Settings saved before the steppers were tied may have them the other way.
+  return { ...s, longBreakMinutes: Math.max(s.longBreakMinutes, s.breakMinutes + 1) };
 }
 
 export interface Store {
