@@ -9,17 +9,24 @@
 //! test build counts as newer than the release it was built on and older than
 //! the release that ships it.
 
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{ipc::Channel, AppHandle, State};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 const REPO: &str = "rachelmgaldino/stint";
 
-/// The update found by the last check, kept until it is installed, and which
-/// test build that check was for (None for the released version).
+/// How long an update request may wait to connect, or go without receiving
+/// anything, before it fails. Without it a connection that stalls quietly keeps
+/// the card on "Checking" or "Downloading" until Stint restarts; a slow download
+/// that keeps receiving is never cut off.
+const STALL: Duration = Duration::from_secs(30);
+
+/// The update found by the last check, kept until it is installed.
 #[derive(Default)]
-pub struct Pending(Mutex<(Option<Update>, Option<u32>)>);
+pub struct Pending(Mutex<Option<Update>>);
 
 #[derive(Serialize)]
 pub struct Found {
@@ -35,7 +42,10 @@ pub struct Found {
 /// release: newer versions as usual, and from a test build, whatever the
 /// release is, to go back to it.
 async fn find(app: &AppHandle, test: Option<u32>) -> Result<Option<Update>, String> {
-    let mut builder = app.updater_builder();
+    // The update it finds downloads with these settings too.
+    let mut builder = app
+        .updater_builder()
+        .configure_client(|client| client.connect_timeout(STALL).read_timeout(STALL));
     if let Some(pr) = test {
         let url = format!("https://github.com/{REPO}/releases/download/pr-{pr}/latest.json");
         builder = builder
@@ -72,7 +82,7 @@ pub async fn update_check(
         notes: u.body.clone().unwrap_or_default(),
         test,
     });
-    *pending.0.lock().unwrap() = (update, test);
+    *pending.0.lock().unwrap() = update;
     Ok(found)
 }
 
@@ -100,10 +110,18 @@ struct Asset {
 }
 
 /// The open pull requests' test builds that can update Stint, newest first.
-/// Builds from before test builds were signed have no latest.json and are left out.
+/// Builds from before test builds were signed have no latest.json and are left
+/// out, and so are builds older than the newest release: a test build is the
+/// next patch after the release it was built on, so once a later release is out
+/// it sorts below it, and installing it would take Stint back. It is offered
+/// again once its pull request is pushed and rebuilt on the newest release.
 #[tauri::command]
 pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
-    let releases: Vec<Release> = reqwest::Client::new()
+    let releases: Vec<Release> = reqwest::Client::builder()
+        .connect_timeout(STALL)
+        .read_timeout(STALL)
+        .build()
+        .map_err(|e| e.to_string())?
         .get(format!("https://api.github.com/repos/{REPO}/releases?per_page=50"))
         .header("User-Agent", "Stint")
         .header("Accept", "application/vnd.github+json")
@@ -115,6 +133,11 @@ pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
         .json()
         .await
         .map_err(|e| e.to_string())?;
+    let newest = releases
+        .iter()
+        .filter(|r| !r.prerelease)
+        .filter_map(|r| Version::parse(r.tag_name.strip_prefix('v')?).ok())
+        .max();
     let mut builds: Vec<TestBuild> = releases
         .into_iter()
         .filter(|r| r.prerelease && r.assets.iter().any(|a| a.name == "latest.json"))
@@ -126,8 +149,11 @@ pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
             let title = first.split_once(": ").map(|(_, t)| t.trim().to_string()).unwrap_or_default();
             let version = r.assets.iter().find_map(|a| {
                 a.name.strip_suffix("-setup.exe")?.rsplit('_').nth(1).map(str::to_string)
-            });
-            Some(TestBuild { pr, title, version: version.unwrap_or_default(), built: r.published_at? })
+            }).unwrap_or_default();
+            if newest.as_ref().is_some_and(|n| Version::parse(&version).is_ok_and(|v| v < *n)) {
+                return None;
+            }
+            Some(TestBuild { pr, title, version, built: r.published_at? })
         })
         .collect();
     builds.sort_by(|a, b| b.built.cmp(&a.built));
@@ -159,12 +185,8 @@ pub async fn update_install(
     pending: State<'_, Pending>,
     progress: Channel<Progress>,
 ) -> Result<(), String> {
-    let (kept, test) = std::mem::take(&mut *pending.0.lock().unwrap());
-    // A failed install used up the found update, so look again for a retry.
-    let update = match kept {
-        Some(u) => u,
-        None => find(&app, test).await?.ok_or("No update to install")?,
-    };
+    // Used up even if the install fails: the app checks again before a retry.
+    let update = pending.0.lock().unwrap().take().ok_or("No update to install")?;
     let mut done = 0u64;
     let installing = progress.clone();
     update

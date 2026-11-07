@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { openPullRequest, testOf, type Updater } from "../updates";
+import { goesBack, openPullRequest, testOf, type Updater } from "../updates";
 
 /**
  * Beside the name while Stint runs a pull request's test build, so it's never
@@ -26,7 +26,7 @@ export function UpdatePill({ updater }: { updater: Updater }) {
       <button type="button" className="update-pill" title={text.hint} onClick={updater.install}>
         {state.test !== null
           ? text.readyTest(state.test)
-          : testOf(updater.current) !== null
+          : goesBack(state.version, updater.current)
             ? text.back(state.version)
             : text.ready(state.version)}
       </button>
