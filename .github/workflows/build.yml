@@ -1,4 +1,5 @@
 name: Build
+run-name: ${{ inputs.pr && format('Rebuild PR #{0}', inputs.pr) || '' }}
 
 # Tests and builds the Windows installer on every push to main and every PR.
 # Each pull request also gets a "PR #N test" pre-release, replaced on each push
@@ -8,28 +9,65 @@ name: Build
 # and is signed like a release, with a latest.json beside it, so Stint can
 # install it from Settings > Updates when "Test builds" is on.
 # Real versions (Stint vX.Y.Z) are published by release.yml when a PR is merged.
+#
+# That version is the next patch after the main it was built on, so once a
+# release is out the test build sorts below it and Stint stops listing it.
+# After each release, release.yml starts this workflow for every open PR the
+# repository owner opened from this repository, and the run rebuilds that PR's
+# test build on the new main. Such a run is named "Rebuild PR #N", and its
+# checks show on main's commit, not on the PR.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request to rebuild on main as it is now (release.yml does this after each release)
 
 permissions:
   contents: write
   pull-requests: read
 
 # A new push to a PR cancels that PR's run still in progress, so an older build
-# can't finish last and replace the newer test build. Pushes to main and manual
-# runs get a group of their own (the run ID), so they never wait or get cancelled.
+# can't finish last and replace the newer test build. A rebuild shares its PR's
+# group, so a push and a rebuild can't race either, but it waits for a running
+# push build instead of cancelling it, so the PR keeps its checks; a newer run
+# replaces a waiting one. Pushes to main and other manual runs get a group of
+# their own (the run ID), so they never wait or get cancelled.
 concurrency:
-  group: build-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
+  group: build-${{ github.event.pull_request.number || inputs.pr || github.run_id }}
+  cancel-in-progress: ${{ !inputs.pr }}
+
+# The PR whose test build this run publishes: the pushed PR if it is from this
+# repository, or the one a rebuild is for. Empty for main and other manual runs,
+# and for fork PRs, which get a read-only token and keep the Actions artifact only.
+env:
+  PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || inputs.pr }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # A pull_request run builds GitHub's merge of the PR into main as main was
+      # at push time (a re-run reuses it), and GitHub doesn't redo that merge
+      # when main moves on, so a rebuild merges the PR into main itself.
+      - name: Merge the pull request into main
+        if: inputs.pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A rebuild has the secrets, so it only builds the owner's own PRs from
+          # this repository, never a fork's or a bot's. The windows job waits
+          # for this one, so it stops here too.
+          from=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" -q '.head.repo.full_name + " " + .user.login')
+          if [ "$from" != "$GITHUB_REPOSITORY $GITHUB_REPOSITORY_OWNER" ]; then
+            echo "::error::#$PR isn't a pull request by $GITHUB_REPOSITORY_OWNER from this repository, so it can't be rebuilt."
+            exit 1
+          fi
+          git fetch -q --unshallow origin "pull/$PR/head"
+          git -c user.name="Rachel G." -c user.email="rachel.galdino@proton.me" merge -q --no-edit FETCH_HEAD
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -43,6 +81,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+      # The same merge as in the test job.
+      - name: Merge the pull request into main
+        if: inputs.pr
+        shell: bash
+        run: |
+          git fetch -q --unshallow origin "pull/$PR/head"
+          git -c user.name="Rachel G." -c user.email="rachel.galdino@proton.me" merge -q --no-edit FETCH_HEAD
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -51,6 +96,9 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          # A rebuild runs on main, so its cache would be main's, which
+          # release.yml restores: unmerged PR code must not write to it.
+          save-if: ${{ !inputs.pr }}
       # tauri build compiles no tests (#[cfg(test)] is only on under cargo test),
       # so the Rust tests run here first, and a failing one stops the job before
       # the installer is built or a test release published. cargo test builds
@@ -63,13 +111,11 @@ jobs:
       - name: Build the installer
         shell: bash
         env:
-          TEST_BUILD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
-          PR: ${{ github.event.pull_request.number }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ "$TEST_BUILD" != "true" ]; then
+          if [ -z "$PR" ]; then
             npx tauri build
             exit 0
           fi
@@ -92,13 +138,14 @@ jobs:
 
   release:
     needs: windows
-    # Fork PRs get a read-only token, so they keep the Actions artifact only.
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    # Only runs with a PR (the PR env above, which a job's if can't read).
+    if: github.event.pull_request.head.repo.full_name == github.repository || inputs.pr
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PR_TITLE: ${{ github.event.pull_request.title }}
+      SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v8
@@ -111,13 +158,15 @@ jobs:
           version=$(node -p "require('./src-tauri/tauri.conf.json').version")
           exe=$(find installer -name '*.exe' | head -n 1)
 
-          pr=${{ github.event.pull_request.number }}
+          pr=$PR
           tag="pr-$pr"
-          sha=${{ github.event.pull_request.head.sha }}
+          # A rebuild has no pull_request event, so it reads the PR from the API.
+          PR_TITLE=${PR_TITLE:-$(gh api "repos/$GH_REPO/pulls/$pr" -q .title)}
+          sha=${SHA:-$(gh api "repos/$GH_REPO/pulls/$pr" -q .head.sha)}
           title="v$version · PR #$pr test"
           notes=$(printf '%s\n\n%s\n\n%s' \
             "Test build of #$pr: $PR_TITLE" \
-            "Built from commit ${sha:0:7}. This pre-release is replaced on every push to the PR and removed once it is merged or closed." \
+            "Built from commit ${sha:0:7}. This pre-release is replaced on every push to the PR and after every release, and removed once the PR is merged or closed." \
             "Download the .exe below and run it; it upgrades your installed Stint in place.")
           # Recreate so the tag points at the newest commit and the old installer goes away.
           gh release delete "$tag" --cleanup-tag --yes 2>/dev/null || true
