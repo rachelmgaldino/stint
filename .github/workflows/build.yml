@@ -1,5 +1,6 @@
 name: Build
-run-name: ${{ inputs.pr && format('Rebuild PR #{0}', inputs.pr) || '' }}
+# Quoted, or YAML reads " #{0}" as the start of a comment and cuts the expression.
+run-name: "${{ inputs.pr && format('Rebuild PR #{0}', inputs.pr) || '' }}"
 
 # Tests and builds the Windows installer on every push to main and every PR.
 # Each pull request also gets a "PR #N test" pre-release, replaced on each push
