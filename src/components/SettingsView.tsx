@@ -24,7 +24,7 @@ import {
 import { languages, t } from "../i18n";
 import type { Look } from "../look";
 import { Pip } from "./Pip";
-import { openPullRequest, testOf, updatesAvailable, type Updater } from "../updates";
+import { goesBack, openPullRequest, testOf, updatesAvailable, type Updater } from "../updates";
 import { resetFloat } from "../float";
 import { clockTime, dayLabel } from "../dates";
 import { isTauri } from "@tauri-apps/api/core";
@@ -708,8 +708,8 @@ function UpdatesCard({
   }
 
   const pct = state.phase === "downloading" && state.fraction !== null ? Math.round(state.fraction * 100) : null;
-  // Leaving a test build for the release is a step back, not an update.
-  const back = state.phase === "available" && state.test === null && onTest !== null;
+  // Leaving a test build for the release it was made on is a step back, not an update.
+  const back = state.phase === "available" && state.test === null && goesBack(state.version, current);
   const status =
     state.phase === "checking"
       ? text.updateChecking
