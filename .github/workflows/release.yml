@@ -6,7 +6,8 @@ name: Release
 # sets the bump, "minor" gives 1.3.0, "major" gives 2.0.0, and a "no release" PR
 # doesn't count), tags it, builds the Windows installer and publishes "Stint vX.Y.Z"
 # as the latest release, with notes listing the PRs merged since then.
-# A run with nothing new stops without releasing.
+# A run with nothing new stops without releasing. After publishing, it starts a
+# rebuild of the open PRs' test builds on the new main (the rebuild job).
 #
 # The release also carries latest.json, which installed copies of Stint read to
 # update themselves (Settings > Updates). The installer is signed with the key
@@ -207,3 +208,47 @@ jobs:
           # older version must not take it.
           newest=$({ gh release list --exclude-pre-releases --exclude-drafts --limit 20 --json tagName -q '.[].tagName'; echo "$TAG"; } | sort -V | tail -n 1)
           gh release edit "$TAG" --draft=false --latest="$([ "$newest" = "$TAG" ] && echo true || echo false)"
+
+  # A test build's version is the next patch after the main it was built on
+  # (scripts/test-version.mjs), so this release now sorts above every open PR's
+  # test build and Stint stops listing them. Build rebuilds each one on the new
+  # main, started with a workflow_dispatch: unlike a push, that event starts a
+  # run even when this run's token sends it. A rebuild has the secrets, so only
+  # the owner's own PRs from this repository get one (Build checks this too),
+  # and a PR into another branch isn't built on main.
+  rebuild:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Rebuild the open pull requests' test builds
+        run: |
+          set -euo pipefail
+          prs=$(gh pr list --base main --state open --author "$GITHUB_REPOSITORY_OWNER" --limit 100 \
+            --json number,isCrossRepository -q '.[] | select(.isCrossRepository | not) | .number')
+          for pr in $prs; do
+            # Tries the merge Build does, without touching the checkout: exit
+            # code 1 is a conflict. Any other failure skips only this PR, with
+            # a warning, and the rest still get rebuilt.
+            merge=0
+            if git fetch -q origin "pull/$pr/head"; then
+              git merge-tree --write-tree HEAD FETCH_HEAD >/dev/null || merge=$?
+            else
+              merge=fetch
+            fi
+            if [ "$merge" = 1 ]; then
+              echo "::notice::PR #$pr conflicts with main, so its test build isn't rebuilt. It builds again once the conflict is fixed and pushed."
+            elif [ "$merge" != 0 ] || ! gh workflow run build.yml --ref main -f pr="$pr"; then
+              echo "::warning::PR #$pr's test build couldn't be rebuilt; the error is above."
+            fi
+          done
