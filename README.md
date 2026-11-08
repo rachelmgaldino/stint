@@ -17,7 +17,7 @@ I plan my day in focus sessions: say what I'm about to do, run a timer, note how
 - An intention and a category for each session, with recent tasks to pick from and a daily goal drawn in each look's own style
 - Next task switches tasks inside a session, from the app or the floating pill, and Split does it afterwards, so the day shows the real time per task
 - Sessions and breaks keep counting into overtime until you end them, so stopping is always a choice
-- Short and long breaks: the long one comes once enough focus has piled up today
+- Short and long breaks: the long one comes once enough focus has piled up close together, and time away as long as a long break starts the count over
 - Reminders: a heads-up before the end, a presence sound during focus, and nudges when a session, a break or a pause runs too long
 - A floating timer, as a round bubble or a pill at the top of the screen, while Stint is minimized or in the tray
 - A short reflection afterwards (what got done, how it felt), which can be switched off

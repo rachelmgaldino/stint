@@ -1,34 +1,39 @@
 // Short or long break: once enough focus has piled up since the last long
-// break today, the next break is a long one. Pure, so it can be tested.
+// rest, the next break is a long one. Pure, so it can be tested.
 
-import { startOfDay } from "./dates";
 import type { SessionRecord, Settings } from "./store";
 
 const MIN = 60_000;
 
 export type NextBreak = { minutes: number; long: boolean };
 
-/** A break that lasted (or was planned for) the long length counts as long. */
-function wasLong(s: SessionRecord, longMs: number): boolean {
-  return s.kind === "break" && (s.plannedMs >= longMs || s.endedAt - s.startedAt >= longMs);
-}
+/** Saved sessions, and the one just ended before it is saved. */
+type Session = Omit<SessionRecord, "id">;
 
 /**
- * Focus time since the last long break today, plus `extraMs` not saved yet.
- * Sessions from before `now`'s midnight are left out: Stint stays open in the
- * tray overnight, so the list it holds can still be yesterday's.
+ * Focus time since the last long rest. A long rest is a break planned at the
+ * long length, or time away from focus at least that long: breaks and time with
+ * no timer running count together, so a short break that ran long is one, and
+ * so is a night away.
  */
-export function focusSinceLongBreak(sessions: SessionRecord[], settings: Settings, extraMs = 0, now = Date.now()): number {
+export function focusSinceLongBreak(sessions: Session[], settings: Settings, now = Date.now()): number {
   const longMs = settings.longBreakMinutes * MIN;
-  const midnight = startOfDay(now);
-  const today = sessions.filter((s) => s.startedAt >= midnight);
-  const lastLong = today.filter((s) => wasLong(s, longMs)).reduce((t, s) => Math.max(t, s.endedAt), 0);
-  return today
-    .filter((s) => s.kind === "focus" && s.startedAt >= lastLong)
-    .reduce((sum, s) => sum + s.focusedMs, extraMs);
+  let sum = 0;
+  // Newest first. `next` is when the focus after this one started (now for the newest).
+  let next = now;
+  for (const s of [...sessions].sort((a, b) => b.startedAt - a.startedAt)) {
+    if (s.kind === "break") {
+      if (s.plannedMs >= longMs) break;
+      continue;
+    }
+    if (next - s.endedAt >= longMs) break;
+    sum += s.focusedMs;
+    next = s.startedAt;
+  }
+  return sum;
 }
 
-export function nextBreak(today: SessionRecord[], settings: Settings, extraMs = 0, now = Date.now()): NextBreak {
-  const long = focusSinceLongBreak(today, settings, extraMs, now) >= settings.longBreakAfter * MIN;
+export function nextBreak(sessions: Session[], settings: Settings, now = Date.now()): NextBreak {
+  const long = focusSinceLongBreak(sessions, settings, now) >= settings.longBreakAfter * MIN;
   return { minutes: long ? settings.longBreakMinutes : settings.breakMinutes, long };
 }

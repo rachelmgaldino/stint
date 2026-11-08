@@ -114,7 +114,8 @@ export default function App() {
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   const [week, setWeek] = useState<SessionRecord[]>([]);
   const [today, setToday] = useState<SessionRecord[]>([]);
-  // The last 90 days, for the intention suggestions.
+  // The last 90 days, for the intention suggestions and the next break (focus
+  // counts toward a long break across midnight, so `today` isn't enough).
   const [history, setHistory] = useState<SessionRecord[]>([]);
   const [range, setRange] = useState<Range>(() => rangeFor("day", Date.now()));
   const [rangeData, setRangeData] = useState<{ sessions: SessionRecord[]; previous: SessionRecord[]; week: SessionRecord[] }>({
@@ -312,7 +313,7 @@ export default function App() {
 
   const left = T.remaining(timer, now);
   // A break started from the plan card is long when it's set to the long length.
-  const idleLong = idleKind === "break" && settings.longBreakMinutes > settings.breakMinutes && plannedMin >= settings.longBreakMinutes;
+  const idleLong = idleKind === "break" && plannedMin >= settings.longBreakMinutes;
 
   useEffect(() => {
     if (timer.status === "idle") {
@@ -348,9 +349,9 @@ export default function App() {
   const chooseKind = useCallback(
     (k: T.Kind) => {
       setIdleKind(k);
-      setPlannedMin(k === "focus" ? settings.focusMinutes : nextBreak(today, settings).minutes);
+      setPlannedMin(k === "focus" ? settings.focusMinutes : nextBreak(history, settings).minutes);
     },
-    [settings, today],
+    [settings, history],
   );
 
   // `thenBreak` ends a focus session and starts a break straight away, whatever
@@ -373,7 +374,8 @@ export default function App() {
       rating: timer.kind === "focus" ? settings.defaultRating : 0,
     };
     const breakNow = thenBreak && record.kind === "focus";
-    const next = nextBreak(today, settings, record.kind === "focus" ? record.focusedMs : 0);
+    // The session just ended counts too, though it isn't saved yet.
+    const next = nextBreak([record, ...history], settings);
     setLive((l) =>
       breakNow
         ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long, done: [] }
@@ -394,7 +396,7 @@ export default function App() {
     }
     syncPending();
     if (record.kind === "focus" && settings.autoBreak && !breakNow) startTimer("break", next.minutes, next.long);
-  }, [timer, store, live, settings, today, chooseKind, refresh, syncPending]);
+  }, [timer, store, live, settings, history, chooseKind, refresh, syncPending]);
 
   /** Pause on a focus session: save it up to now and go on a break. */
   const takeBreak = () => finish(true);
@@ -457,7 +459,7 @@ export default function App() {
     syncPending();
     // Not when a break (or a new focus session) is already under way.
     if (settings.autoBreak && timer.status === "idle") {
-      const next = nextBreak(today, settings);
+      const next = nextBreak(history, settings);
       startTimer("break", next.minutes, next.long);
     }
   };
