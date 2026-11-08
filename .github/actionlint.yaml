@@ -1,0 +1,8 @@
+# Settings for the actionlint check in workflows/lint.yml.
+paths:
+  .github/workflows/release.yml:
+    ignore:
+      # GitHub documents concurrency's queue key and release.yml needs it, but
+      # actionlint 1.7.12 doesn't know it yet: rhysd/actionlint#657. Remove this
+      # once a release accepts it.
+      - 'unexpected key "queue" for "concurrency" section'

@@ -1,0 +1,28 @@
+name: Lint workflows
+
+# Checks the workflow files with actionlint, which knows GitHub's workflow
+# syntax and ${{ }} expressions, and runs shellcheck on the bash in run: steps.
+# A YAML parse alone isn't enough: #83's unquoted run-name was valid YAML that
+# GitHub couldn't read. The official Docker image pins actionlint and the
+# shellcheck it runs together. actionlint's settings are in
+# .github/actionlint.yaml.
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/**", ".github/actionlint.yaml"]
+  pull_request:
+    paths: [".github/workflows/**", ".github/actionlint.yaml"]
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # actionlint 1.7.12, by digest: a tag can be pushed again, and this step
+      # runs with the Actions cache token that main's runs share with release.yml.
+      - uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color
