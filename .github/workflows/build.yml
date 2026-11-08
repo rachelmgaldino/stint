@@ -100,6 +100,14 @@ jobs:
           # A rebuild runs on main, so its cache would be main's, which
           # release.yml restores: unmerged PR code must not write to it.
           save-if: ${{ !inputs.pr }}
+      # tauri build compiles no tests (#[cfg(test)] is only on under cargo test),
+      # so the Rust tests run here first, and a failing one stops the job before
+      # the installer is built or a test release published. cargo test builds
+      # without Tauri's custom-protocol feature, so it embeds no frontend and
+      # needs no dist.
+      - name: Run the Rust tests
+        working-directory: src-tauri
+        run: cargo test
       - run: npm ci
       - name: Build the installer
         shell: bash
