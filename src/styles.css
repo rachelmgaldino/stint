@@ -4010,13 +4010,18 @@ select.select-pill {
   transform: rotate(45deg);
 }
 
-/* The open PRs' test builds, under the Test builds switch. */
+/*
+ * The open PRs' test builds, under the Test builds switch. The space around
+ * each build looks about as wide as the sides: less padding on top, since the
+ * title's line height already leaves room above its letters, and the same
+ * spacing at each divider as at the edges.
+ */
 .test-builds {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 11px;
   margin: 0 0 10px;
-  padding: 10px 12px;
+  padding: 8px 12px 11px;
   border-radius: 16px;
   background: var(--sunken);
 }
@@ -4025,8 +4030,9 @@ select.select-pill {
   background: var(--surface);
 }
 
+/* Evens out the padding for a one-line message. */
 .test-builds > p {
-  margin: 4px 0;
+  margin: 4px 0 1px;
 }
 
 .test-build {
@@ -4034,13 +4040,12 @@ select.select-pill {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 46px;
   font-weight: 700;
 }
 
 .test-build + .test-build {
   border-top: 1px dashed var(--line);
-  padding-top: 6px;
+  padding-top: 8px;
 }
 
 .test-build > span {
