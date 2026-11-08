@@ -51,6 +51,14 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # tauri build compiles no tests (#[cfg(test)] is only on under cargo test),
+      # so the Rust tests run here first, and a failing one stops the job before
+      # the installer is built or a test release published. cargo test builds
+      # without Tauri's custom-protocol feature, so it embeds no frontend and
+      # needs no dist.
+      - name: Run the Rust tests
+        working-directory: src-tauri
+        run: cargo test
       - run: npm ci
       - name: Build the installer
         shell: bash
