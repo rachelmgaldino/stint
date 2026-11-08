@@ -92,6 +92,8 @@ pub enum Callback {
 }
 
 /// Reads the code from a request line like `GET /?code=…&state=… HTTP/1.1`.
+/// A request without this sign-in's `state` is `Other`, so no other program or
+/// web page that finds the port can end the sign-in.
 pub fn parse_callback(request_line: &str, expected_state: &str) -> Callback {
     let Some(target) = request_line.split_whitespace().nth(1) else {
         return Callback::Other;
@@ -113,14 +115,13 @@ pub fn parse_callback(request_line: &str, expected_state: &str) -> Callback {
             _ => {}
         }
     }
+    if state.as_deref() != Some(expected_state) {
+        return Callback::Other;
+    }
     if let Some(e) = error {
         return Callback::Error(e);
     }
-    match (code, state) {
-        (Some(c), Some(s)) if s == expected_state => Callback::Code(c),
-        (Some(_), _) => Callback::Error("the sign-in response didn't match this request".into()),
-        _ => Callback::Other,
-    }
+    code.map_or(Callback::Other, Callback::Code)
 }
 
 fn respond(mut stream: TcpStream, message: &str) {
@@ -281,8 +282,31 @@ async fn access_token(google: &Google, force_refresh: bool) -> Result<String, St
     Ok(token)
 }
 
+/// The Calendar calls the UI may make (every request in `src/google.ts`): a
+/// method and the path after the v3 base, where `*` is one id.
+const ENDPOINTS: &[(&str, &str)] = &[
+    ("GET", "users/me/calendarList"),
+    ("GET", "calendars/*/events"),
+    ("POST", "calendars/*/events"),
+    ("PUT", "calendars/*/events/*"),
+    ("DELETE", "calendars/*/events/*"),
+];
+
+/// The URL for a call from the UI, if it is one of `ENDPOINTS`. The check runs
+/// on the parsed URL, since parsing resolves dot segments, `%2e%2e` included.
+fn api_url(method: &str, path: &str) -> Option<url::Url> {
+    let u = url::Url::parse(&format!("{API_BASE}{path}")).ok()?;
+    let rest = u.path().strip_prefix("/calendar/v3/")?;
+    let fits = |shape: &str| {
+        shape.matches('/').count() == rest.matches('/').count()
+            && shape.split('/').zip(rest.split('/')).all(|(s, r)| s == r || (s == "*" && !r.is_empty()))
+    };
+    let allowed = ENDPOINTS.iter().any(|&(m, shape)| m == method && fits(shape));
+    allowed.then_some(u)
+}
+
 /// Calls the Calendar API. `path` is relative to the v3 base, query included,
-/// so the UI can only reach the calendar endpoints.
+/// and must be one of `ENDPOINTS`.
 #[tauri::command]
 pub async fn google_request(
     google: State<'_, Google>,
@@ -290,15 +314,13 @@ pub async fn google_request(
     path: String,
     body: Option<Value>,
 ) -> Result<Value, String> {
-    if !path.starts_with('/') || path.contains("..") {
-        return Err("bad path".into());
-    }
+    let url = api_url(&method, &path).ok_or_else(|| format!("{method} {path} isn't a Calendar call Stint makes"))?;
     let method = reqwest::Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
     let client = reqwest::Client::new();
     let mut retried = false;
     loop {
         let token = access_token(&google, retried).await?;
-        let mut req = client.request(method.clone(), format!("{API_BASE}{path}")).bearer_auth(token);
+        let mut req = client.request(method.clone(), url.clone()).bearer_auth(token);
         if let Some(b) = &body {
             req = req.json(b);
         }
@@ -342,7 +364,44 @@ mod tests {
     fn parses_the_redirect() {
         assert_eq!(parse_callback("GET /?state=s1&code=4%2Fabc HTTP/1.1", "s1"), Callback::Code("4/abc".into()));
         assert_eq!(parse_callback("GET /?error=access_denied&state=s1 HTTP/1.1", "s1"), Callback::Error("access_denied".into()));
-        assert!(matches!(parse_callback("GET /?code=x&state=other HTTP/1.1", "s1"), Callback::Error(_)));
         assert_eq!(parse_callback("GET /favicon.ico HTTP/1.1", "s1"), Callback::Other);
+    }
+
+    #[test]
+    fn ignores_a_redirect_without_this_state() {
+        // Any program, or a page that finds the port, could send these.
+        assert_eq!(parse_callback("GET /?error=x HTTP/1.1", "s1"), Callback::Other);
+        assert_eq!(parse_callback("GET /?error=access_denied&state=other HTTP/1.1", "s1"), Callback::Other);
+        assert_eq!(parse_callback("GET /?code=x&state=other HTTP/1.1", "s1"), Callback::Other);
+    }
+
+    #[test]
+    fn allows_the_calendar_calls_stint_makes() {
+        // One of each request in src/google.ts, sent as it is.
+        for (method, path) in [
+            ("GET", "/users/me/calendarList?maxResults=250"),
+            ("GET", "/calendars/pt-br.brazilian%23holiday%40group.v.calendar.google.com/events?timeMin=2026-11-08T03%3A00%3A00.000Z&singleEvents=true"),
+            ("POST", "/calendars/me%40gmail.com/events"),
+            ("PUT", "/calendars/me%40gmail.com/events/abc123"),
+            ("DELETE", "/calendars/me%40gmail.com/events/abc123"),
+        ] {
+            assert_eq!(api_url(method, path).map(String::from), Some(format!("{API_BASE}{path}")), "{method} {path}");
+        }
+    }
+
+    #[test]
+    fn blocks_every_other_call() {
+        // Encoded dot segments: parsing turns this one into /oauth2/v3/tokeninfo.
+        assert_eq!(api_url("GET", "/%2e%2e/%2e%2e/oauth2/v3/tokeninfo"), None);
+        assert_eq!(api_url("GET", "/calendars/x/events/.%2E/.%2E/.%2E/.%2E/oauth2/v3/tokeninfo"), None);
+        assert_eq!(api_url("GET", "/../../oauth2/v3/tokeninfo"), None);
+        // A method or an endpoint Stint doesn't use.
+        assert_eq!(api_url("PATCH", "/calendars/x/events/y"), None);
+        assert_eq!(api_url("DELETE", "/calendars/x"), None);
+        assert_eq!(api_url("GET", "/calendars/x/events/y"), None);
+        assert_eq!(api_url("GET", "//evil.com/calendars/x/events"), None);
+        // An empty id.
+        assert_eq!(api_url("PUT", "/calendars/x/events/"), None);
+        assert_eq!(api_url("GET", "/calendars//events"), None);
     }
 }
