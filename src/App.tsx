@@ -29,12 +29,13 @@ import { setLook } from "./look";
 import { DEMO, demoEvents } from "./demo";
 import { nextBreak } from "./breaks";
 import { pastIntentions } from "./intentions";
-import { closeTask, countSessions, partsOf, sessionKey, taskRecords, type DoneTask } from "./tasks";
+import { closeTask, countSessions, partsOf, sessionKey, taskRecords } from "./tasks";
 import { SIZE_STEP, cleanSize, setUiSize } from "./fit";
 import { DemoBanner } from "./components/DemoBanner";
 import { TestTag, UpdatePill } from "./components/UpdatePill";
 import { useUpdater } from "./updates";
 import { openMain, useFloatTimer, type FloatAction, type FloatState } from "./float";
+import { isLive, type Live } from "./live";
 
 type View = "timer" | "analytics" | "settings";
 
@@ -44,17 +45,13 @@ function unconverted(events: G.CalendarEvent[], sessions: SessionRecord[]): G.Ca
   return done.size ? events.filter((e) => !done.has(G.eventKey(e))) : events;
 }
 
-// The running timer and what it's for, kept in localStorage so a restart of
-// the app doesn't lose a session in progress.
-// `long` marks a break that is a long one. `done` holds the tasks finished
-// earlier in the running focus session with Next task; `intention` is the one now.
-type Live = { timer: T.Timer; intention: string; categoryId: number | null; long?: boolean; done?: DoneTask[] };
 const liveKey = "stint-live";
 
 function loadLive(): Live {
   try {
     const raw = localStorage.getItem(liveKey);
-    if (raw) return JSON.parse(raw);
+    const live: unknown = raw ? JSON.parse(raw) : null;
+    if (isLive(live)) return live;
   } catch {
     // Start fresh.
   }
@@ -100,6 +97,10 @@ function useEvents(
 
 export default function App() {
   const [store, setStore] = useState<Store | null>(null);
+  // Why the saved data couldn't be opened.
+  const [openError, setOpenError] = useState<string | null>(null);
+  // The line under the header: the running session couldn't be saved, or the settings were reset.
+  const [notice, setNotice] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [categories, setCategories] = useState<Category[]>([]);
   const [view, setView] = useState<View>("timer");
@@ -131,6 +132,8 @@ export default function App() {
   const [openEvent, setOpenEvent] = useState<G.CalendarEvent | null>(null);
   const [counting, setCounting] = useState<G.CalendarEvent[] | null>(null);
   const syncing = useRef(false);
+  // The start of the session being saved, so ending it again meanwhile doesn't save it twice.
+  const finishing = useRef<number | null>(null);
   const shell = useRef<HTMLDivElement>(null);
   // Waits for the saved settings, so a switched-off automatic check never runs.
   const updater = useUpdater(store !== null && settings.checkUpdates, settings.testBuilds);
@@ -145,7 +148,8 @@ export default function App() {
 
   useEffect(() => {
     openStore().then(async (s) => {
-      const [st, cats] = await Promise.all([s.settings(), s.categories()]);
+      const [{ settings: st, unreadable }, cats] = await Promise.all([s.settings(), s.categories()]);
+      if (unreadable) setNotice(t().settingsReset);
       setSettings(st);
       setPlannedMin(st.focusMinutes);
       setCategories(cats);
@@ -153,6 +157,9 @@ export default function App() {
         cats[0] && !cats.some((c) => c.id === l.categoryId) ? { ...l, categoryId: cats[0].id } : l,
       );
       setStore(s);
+    }).catch((e) => {
+      console.warn("opening the store failed", e);
+      setOpenError(String(e));
     });
     loadGoogle();
   }, []);
@@ -357,8 +364,10 @@ export default function App() {
   // the auto-break setting says. The reflection, if asked for, opens over the break.
   // The intention is cleared once you're back at the plan card, and kept when
   // the session goes on: through a break taken with Break, and Back to focus.
+  // Resolves false when nothing was saved; a session that failed to save keeps running.
   const finish = useCallback(async (thenBreak = false, goingOn = false) => {
-    if (timer.status === "idle" || !store) return;
+    if (timer.status === "idle" || !store || finishing.current === timer.startedAt) return false;
+    finishing.current = timer.startedAt;
     const end = Date.now();
     const asking = timer.kind === "focus" && settings.askReflection;
     const record = {
@@ -372,18 +381,25 @@ export default function App() {
       reflection: "",
       rating: timer.kind === "focus" ? settings.defaultRating : 0,
     };
+    // One record per task when Next task was used, all saved before the timer moves on.
+    const records = taskRecords(record, live.done ?? []);
+    const ids = await store.addSessions(records).catch((e) => {
+      console.warn("saving the session failed", e);
+      finishing.current = null;
+      setNotice(t().saveFailed(String(e)));
+    });
+    if (!ids) return false;
+    setNotice(null);
+    const parts: SessionRecord[] = records.map((r, i) => ({ ...r, id: ids[i] }));
+    const id = parts[0].id;
     const breakNow = thenBreak && record.kind === "focus";
-    // The session just ended counts too, though it isn't saved yet.
+    // The session just ended counts too, though `history` doesn't have it yet.
     const next = nextBreak([record, ...history], settings);
     setLive((l) =>
       breakNow
         ? { ...l, timer: T.start("break", next.minutes * 60_000, end), long: next.long, done: [] }
         : { ...l, timer: T.idle, intention: goingOn ? l.intention : "", done: [] },
     );
-    // One record per task when Next task was used.
-    const parts: SessionRecord[] = [];
-    for (const r of taskRecords(record, live.done ?? [])) parts.push({ ...r, id: await store.addSession(r) });
-    const id = parts[0].id;
     // Back at the plan card it's Focus again: a break only comes from Break (or the auto-break setting).
     chooseKind("focus");
     setDay(startOfDay(end));
@@ -391,17 +407,18 @@ export default function App() {
     if (asking) {
       // Synced once the reflection is saved, so the event carries it.
       setPending(parts.length > 1 ? { ...record, id, partOf: record.startedAt, parts } : { ...record, id });
-      return;
+      return true;
     }
     syncPending();
     if (record.kind === "focus" && settings.autoBreak && !breakNow) startTimer("break", next.minutes, next.long);
+    return true;
   }, [timer, store, live, settings, history, chooseKind, refresh, syncPending]);
 
   /** Pause on a focus session: save it up to now and go on a break. */
   const takeBreak = () => finish(true);
 
   const backToFocus = async () => {
-    await finish(false, true);
+    if (!(await finish(false, true))) return;
     setIdleKind("focus");
     setPlannedMin(settings.focusMinutes);
     startTimer("focus", settings.focusMinutes, false, settings.flow);
@@ -435,19 +452,18 @@ export default function App() {
     if (update && pending.parts) {
       // Each task keeps its own name and times; the session's rating goes on all, the note on the last.
       const parts = update.parts ?? pending.parts;
-      for (const [i, p] of parts.entries()) {
-        const isLast = i === parts.length - 1;
-        await store.updateSession({
+      await store.updateSessions(
+        parts.map((p, i) => ({
           ...p,
           rating: update.rating ?? p.rating,
-          reflection: isLast ? (update.reflection ?? p.reflection) : p.reflection,
-        });
-      }
+          reflection: i === parts.length - 1 ? (update.reflection ?? p.reflection) : p.reflection,
+        })),
+      );
       const end = parts[parts.length - 1];
       last = { ...update, intention: end.intention, categoryId: end.categoryId };
     } else if (update) {
       const { parts: _none, ...rest } = update;
-      await store.updateSession({ ...pending, ...rest });
+      await store.updateSessions([{ ...pending, ...rest }]);
     }
     // On a break taken with Break, Back to focus carries on with what was just named.
     if (last?.intention !== undefined && timer.status !== "idle" && timer.kind === "break") {
@@ -467,9 +483,9 @@ export default function App() {
     if (!store) return;
     if (s.id === 0) {
       const { id: _new, ...rest } = s;
-      await store.addSession(rest);
+      await store.addSessions([rest]);
     } else {
-      await store.updateSession(s);
+      await store.updateSessions([s]);
       syncEdit(s);
     }
     if (s.id === 0 && keepAdding && !s.fromEvent) {
@@ -488,9 +504,9 @@ export default function App() {
   /** A focus session cut in two tasks from the edit dialog: one event on the calendar still covers both. */
   const splitSession = async (first: SessionRecord, second: SessionRecord) => {
     if (!store) return;
-    await store.updateSession(first);
+    await store.updateSessions([first]);
     const { id: _new, ...rest } = second;
-    const id = await store.addSession(rest);
+    const [id] = await store.addSessions([rest]);
     if (first.googleEventId && first.googleCalendarId) await store.setGoogleEvent(id, first.googleCalendarId, first.googleEventId);
     setEditing(null);
     refresh();
@@ -544,10 +560,12 @@ export default function App() {
 
   const countEvents = async (list: G.CalendarEvent[], categoryId: number | null) => {
     if (!store) return;
-    for (const e of list) {
-      const { id: _new, ...rest } = eventSession(e, categoryId);
-      await store.addSession(rest);
-    }
+    await store.addSessions(
+      list.map((e) => {
+        const { id: _new, ...rest } = eventSession(e, categoryId);
+        return rest;
+      }),
+    );
     setCounting(null);
     refresh();
   };
@@ -706,7 +724,14 @@ export default function App() {
     }
   });
 
-  if (!store) return <div className="loading">{text.loading}</div>;
+  if (!store)
+    return openError ? (
+      <div className="loading error" role="alert">
+        {text.openFailed(openError)}
+      </div>
+    ) : (
+      <div className="loading">{text.loading}</div>
+    );
 
   const category = categories.find((c) => c.id === live.categoryId);
   const liveBlock: LiveBlock | null =
@@ -771,6 +796,12 @@ export default function App() {
         )}
       </header>
 
+      {notice && (
+        <p className="error" role="alert">
+          {notice}
+        </p>
+      )}
+
       {view === "timer" ? (
         <main className="timer-page">
           <TimerPane
@@ -809,7 +840,10 @@ export default function App() {
             onTakeBreak={takeBreak}
             onFinish={() => finish()}
             onBackToFocus={backToFocus}
-            onDiscard={() => setLive((l) => ({ ...l, timer: T.idle, done: [] }))}
+            onDiscard={() => {
+              setLive((l) => ({ ...l, timer: T.idle, done: [] }));
+              setNotice(null);
+            }}
             done={live.done ?? []}
             onNextTask={nextTask}
           />

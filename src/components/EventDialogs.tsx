@@ -55,12 +55,14 @@ export function CountEventsDialog({
   events: CalendarEvent[];
   categories: Category[];
   categoryId: number | null;
-  onAdd(list: CalendarEvent[], categoryId: number | null): void;
+  onAdd(list: CalendarEvent[], categoryId: number | null): Promise<void>;
   onClose(): void;
 }) {
   const text = t().events;
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [category, setCategory] = useState(categoryId);
+  // Adding that fails keeps the dialog open and says why, to try again.
+  const [error, setError] = useState<string | null>(null);
   const all = picked.size === events.length;
   const toggle = (key: string) =>
     setPicked((p) => {
@@ -76,7 +78,11 @@ export function CountEventsDialog({
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (picked.size) onAdd(events.filter((x) => picked.has(eventKey(x))), category);
+          if (!picked.size) return;
+          onAdd(events.filter((x) => picked.has(eventKey(x))), category).catch((e) => {
+            console.warn("counting events failed", e);
+            setError(String(e));
+          });
         }}
       >
         <div className="sheet-head">
@@ -114,6 +120,11 @@ export function CountEventsDialog({
             </option>
           ))}
         </select>
+        {error && (
+          <p className="error" role="alert">
+            {t().notSaved(error)}
+          </p>
+        )}
         <div className="sheet-actions">
           <span className="spacer" />
           <button type="button" className="secondary" onClick={onClose}>

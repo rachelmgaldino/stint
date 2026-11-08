@@ -59,10 +59,17 @@ export function Reflection({
   past: PastIntention[];
   sessionNumber: number;
   dailyGoal: number;
-  onSave(update: ReflectionUpdate): void;
+  onSave(update: ReflectionUpdate): Promise<void>;
   /** Skips the reflection; a changed intention (or task) is still kept. */
-  onSkip(update: ReflectionUpdate): void;
+  onSkip(update: ReflectionUpdate): Promise<void>;
 }) {
+  // A save that fails keeps the dialog open and says why, to try again.
+  const [error, setError] = useState<string | null>(null);
+  const send = (saving: Promise<void>) =>
+    saving.catch((e) => {
+      console.warn("saving the reflection failed", e);
+      setError(String(e));
+    });
   const [text, setText] = useState("");
   const [rating, setRating] = useState(pending.rating);
   // Started without knowing what it'd be? Say it here.
@@ -82,7 +89,7 @@ export function Reflection({
         aria-labelledby="reflect-title"
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ ...what, reflection: text.trim(), rating });
+          send(onSave({ ...what, reflection: text.trim(), rating }));
         }}
       >
         <div className="drawer-head">
@@ -132,8 +139,13 @@ export function Reflection({
           <RatingPicker value={rating} onChange={setRating} />
         </div>
         <span className="grow" />
+        {error && (
+          <p className="error" role="alert">
+            {t().notSaved(error)}
+          </p>
+        )}
         <div className="drawer-actions">
-          <button type="button" className="quiet-link" onClick={() => onSkip(what)}>
+          <button type="button" className="quiet-link" onClick={() => send(onSkip(what))}>
             {words.skip}
           </button>
           <button type="submit" className="squishy apricot big grow">
