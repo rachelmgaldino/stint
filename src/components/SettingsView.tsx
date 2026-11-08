@@ -697,7 +697,7 @@ function UpdatesCard({
   onTestBuilds(v: boolean): void;
 }) {
   const text = t().settings;
-  const { state, current, tests } = updater;
+  const { state, current, tests, checked } = updater;
   const onTest = testOf(current);
   if (!updatesAvailable()) {
     return (
@@ -734,6 +734,8 @@ function UpdatesCard({
                 : text.updateIdle;
   const working = state.phase === "downloading" || state.phase === "installing";
   const ready = state.phase === "available" || (state.phase === "failed" && state.during === "install");
+  // When the answer on the card is from; not while looking again, nor beside a failed check.
+  const since = checked !== null && (state.phase === "idle" || state.phase === "latest" || ready);
 
   return (
     <Panel title={text.updates}>
@@ -742,15 +744,14 @@ function UpdatesCard({
           {versionName(current)}
           <span className="hint" role="status">
             {state.phase === "latest" && <span className="update-tick" aria-hidden />}
-            {status}
+            <span>
+              {status}
+              {since && ` ${text.checkedAt(clockTime(checked))}`}
+            </span>
           </span>
         </span>
-        {ready ? (
-          <button className="squishy small peri" onClick={updater.install}>
-            {state.phase === "failed" ? text.tryAgain : back ? text.goBack : text.updateNow}
-          </button>
-        ) : (
-          !working && (
+        {!working && (
+          <span className="update-actions">
             <button
               className="soft-button small"
               disabled={state.phase === "checking"}
@@ -758,13 +759,18 @@ function UpdatesCard({
             >
               {state.phase === "checking"
                 ? text.checking
-                : state.phase === "latest"
-                  ? text.checkAgain
-                  : state.phase === "failed"
+                : state.phase === "idle"
+                  ? text.checkForUpdates
+                  : state.phase === "failed" && state.during === "check"
                     ? text.tryAgain
-                    : text.checkForUpdates}
+                    : text.checkAgain}
             </button>
-          )
+            {ready && (
+              <button className="squishy small peri" onClick={updater.install}>
+                {state.phase === "failed" ? text.tryAgain : back ? text.goBack : text.updateNow}
+              </button>
+            )}
+          </span>
         )}
       </div>
       {working && (

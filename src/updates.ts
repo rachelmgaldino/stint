@@ -42,6 +42,18 @@ export function goesBack(version: string, current: string): boolean {
   return i !== -1 && a[i] < b[i];
 }
 
+/**
+ * The pull request whose test build a check offers with Test builds on, or null
+ * for the release. On a test build, its own pull request while `tests` still
+ * lists a build of it (a newer one, if any), and the release once it does not
+ * (merged, closed, or built before the newest release). On a release, the
+ * release: other test builds are installed from the list.
+ */
+export function testToOffer(current: string, tests: TestBuild[]): number | null {
+  const pr = testOf(current);
+  return tests.some((b) => b.pr === pr) ? pr : null;
+}
+
 /** Opens a pull request's page on GitHub, to review or merge it. */
 export function openPullRequest(pr: number) {
   if (isTauri()) invoke("open_pull_request", { pr }).catch(() => {});
@@ -59,7 +71,12 @@ export type Updater = {
    * Test builds is on (null until fetched).
    */
   tests: TestBuild[] | null;
-  /** Looks for an update and says what it found; installing waits for a click. */
+  /** When a check last got an answer, null before the first. */
+  checked: number | null;
+  /**
+   * Looks for an update and says what it found, listing the test builds again
+   * while Test builds is on; installing waits for a click.
+   */
   checkNow(): void;
   install(): void;
   /** Installs one particular test build. */
@@ -71,15 +88,16 @@ export type Updater = {
  * every few hours, and only reports what it found: installing restarts Stint,
  * so that waits for a click.
  *
- * With `testBuilds` on, a check offers the newest open test build (the PR
- * pushed most recently) that is newer than the newest release, or the release
- * when there is none. With it off, a Stint on a test build is offered the
- * release, to go back to it.
+ * With `testBuilds` on, a check follows the build Stint is on (`testToOffer`):
+ * a newer build of the same pull request, the release once that pull request
+ * has no build any more, and only newer releases from a release. With it off,
+ * a Stint on a test build is offered the release, to go back to it.
  */
 export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
   const [state, setState] = useState<UpdateState>({ phase: "idle" });
   const [current, setCurrent] = useState("");
   const [tests, setTests] = useState<TestBuild[] | null>(null);
+  const [checked, setChecked] = useState<number | null>(null);
   const busy = useRef(false);
   // Read by a running check, so a switch while it looks is not lost.
   const withTests = useRef(testBuilds);
@@ -114,9 +132,9 @@ export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
   }, []);
 
   /**
-   * `quiet` checks leave the card as it was when the check fails, and when
-   * nothing is found they only drop an earlier offer. `pr` asks for that test
-   * build and null for the release; otherwise Test builds decides.
+   * `quiet` checks don't show "Checking" and leave the card as it was when the
+   * check fails; what they find shows as usual. `pr` asks for that test build
+   * and null for the release; otherwise Test builds decides.
    */
   const check = useCallback(
     async (quiet: boolean, thenInstall: boolean, pr?: number | null) => {
@@ -133,22 +151,23 @@ export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
           if (asked && pr === undefined) {
             const list = await invoke<TestBuild[]>("update_test_builds");
             if (withTests.current) setTests(list);
-            test = list[0]?.pr ?? null;
+            test = testToOffer(current, list);
           }
           found = await invoke<Found | null>("update_check", { test });
         } while (pr === undefined && asked !== withTests.current);
         busy.current = false;
+        setChecked(Date.now());
         if (found && thenInstall) install(found.version, found.test);
         else if (found) setState({ phase: "available", version: found.version, test: found.test });
-        else if (!quiet) setState({ phase: "latest" });
-        // The shell no longer holds what an earlier check offered (its build may be gone).
-        else setState((s) => (s.phase === "available" || s.phase === "failed" ? { phase: "idle" } : s));
+        // This drops an earlier offer too: the shell no longer holds it (its build may be gone).
+        // A download started from that offer while a quiet check ran keeps its card.
+        else setState((s) => (s.phase === "downloading" || s.phase === "installing" ? s : { phase: "latest" }));
       } catch {
         busy.current = false;
         if (!quiet) setState({ phase: "failed", during: "check" });
       }
     },
-    [install],
+    [install, current],
   );
 
   // Turning Test builds on lists them straight away; off forgets them, and
@@ -170,17 +189,19 @@ export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
   }, [testBuilds]);
 
   // Switching Test builds changes what a check finds, so it looks again then too.
+  // What it offers depends on the build Stint is on, so it waits for the version.
   useEffect(() => {
-    if (!auto) return;
+    if (!auto || !current) return;
     void check(true, false);
     const id = setInterval(() => void check(true, false), RECHECK_MS);
     return () => clearInterval(id);
-  }, [auto, testBuilds, check]);
+  }, [auto, testBuilds, current, check]);
 
   return {
     state,
     current,
     tests,
+    checked,
     checkNow: () => void check(false, false),
     install: () => {
       if (state.phase === "available") install(state.version, state.test);

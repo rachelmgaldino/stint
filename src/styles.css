@@ -3980,6 +3980,13 @@ select.select-pill {
   gap: 6px;
 }
 
+/* "Check again" stays beside "Update now". */
+.update-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .update-tick {
   flex: 0 0 auto;
   width: 14px;

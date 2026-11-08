@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { goesBack, testOf } from "./updates";
+import { goesBack, testOf, testToOffer, type TestBuild } from "./updates";
 
 describe("testOf", () => {
   it("reads the pull request from a test build's version", () => {
@@ -28,5 +28,24 @@ describe("goesBack", () => {
 
   it("is false for a newer release from a release", () => {
     expect(goesBack("1.10.4", "1.10.3")).toBe(false);
+  });
+});
+
+describe("testToOffer", () => {
+  const build = (pr: number, version: string): TestBuild => ({ pr, title: "", version, built: "" });
+  // Newest first, as update_test_builds lists them: #82 was pushed after #81.
+  const tests = [build(82, "1.10.7-pr.82.1"), build(81, "1.10.7-pr.81.4")];
+
+  it("follows the pull request of the test build Stint is on, not the newest one", () => {
+    expect(testToOffer("1.10.7-pr.81.3", tests)).toBe(81);
+  });
+
+  it("is the release once that pull request has no build listed", () => {
+    expect(testToOffer("1.10.7-pr.80.2", tests)).toBeNull();
+    expect(testToOffer("1.10.7-pr.81.3", [])).toBeNull();
+  });
+
+  it("is the release on a release, whatever is listed", () => {
+    expect(testToOffer("1.10.6", tests)).toBeNull();
   });
 });
