@@ -164,6 +164,8 @@ export interface Store {
   updateSession(s: SessionRecord): Promise<void>;
   deleteSession(id: number): Promise<void>;
   sessionsBetween(from: number, to: number): Promise<SessionRecord[]>;
+  /** The records whose `partOf` is this: every task of one session, first task first. */
+  sessionsPartOf(partOf: number): Promise<SessionRecord[]>;
   /** Sessions started since `since` that have no calendar event yet, leaving out ones made from an event. */
   unsynced(since: number): Promise<SessionRecord[]>;
   setGoogleEvent(id: number, calendarId: string | null, eventId: string | null): Promise<void>;
@@ -276,6 +278,13 @@ async function sqliteStore(): Promise<Store> {
       const rows = await db.select<SessionRow[]>(
         "SELECT * FROM sessions WHERE started_at >= $1 AND started_at < $2 ORDER BY started_at DESC",
         [from, to],
+      );
+      return rows.map(fromRow);
+    },
+    async sessionsPartOf(partOf) {
+      const rows = await db.select<SessionRow[]>(
+        "SELECT * FROM sessions WHERE part_of = $1 ORDER BY started_at",
+        [partOf],
       );
       return rows.map(fromRow);
     },
@@ -392,6 +401,11 @@ function browserStore(): Store {
       return load()
         .sessions.filter((s) => s.startedAt >= from && s.startedAt < to)
         .sort((a, b) => b.startedAt - a.startedAt);
+    },
+    async sessionsPartOf(partOf) {
+      return load()
+        .sessions.filter((s) => s.partOf === partOf)
+        .sort((a, b) => a.startedAt - b.startedAt);
     },
     async unsynced(since) {
       return load()

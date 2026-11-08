@@ -198,8 +198,7 @@ export default function App() {
   /** The other tasks of the session `s` belongs to, with `s` as it is now (or left out when `gone`). */
   const sessionParts = async (s: SessionRecord, gone = false): Promise<SessionRecord[]> => {
     if (!store || s.partOf == null) return gone ? [] : [s];
-    const around = await store.sessionsBetween(s.partOf, addDays(s.partOf, 1));
-    const others = around.filter((o) => o.id !== s.id);
+    const others = (await store.sessionsPartOf(s.partOf)).filter((o) => o.id !== s.id);
     return partsOf(s, gone ? others : [...others, s]).filter((o) => !gone || o.id !== s.id);
   };
 
