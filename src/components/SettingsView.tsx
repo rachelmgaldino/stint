@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
-import type { CalendarSettings, Category, Settings, Store, Theme } from "../store";
+import { themes, type CalendarSettings, type Category, type Settings, type Store } from "../store";
 import { SIZE_MAX, SIZE_MIN, SIZE_STEP, cleanSize } from "../fit";
 import * as G from "../google";
 import { playSound, testNotification } from "../platform";
@@ -22,7 +22,7 @@ import {
   XIcon,
 } from "./icons";
 import { languages, t } from "../i18n";
-import type { Look } from "../look";
+import { looks } from "../look";
 import { Pip } from "./Pip";
 import { goesBack, openPullRequest, testOf, updatesAvailable, type Updater } from "../updates";
 import { resetFloat } from "../float";
@@ -39,9 +39,6 @@ type Props = {
   onCategoriesChanged(): void;
   updater: Updater;
 };
-
-const themes: Theme[] = ["system", "light", "dark"];
-const looks: Look[] = ["lavender", "mochi", "notebook", "riso"];
 
 function Stepper({
   label,
@@ -1076,7 +1073,8 @@ function Categories({ categories, store, onCategoriesChanged }: Props) {
   };
   const saveOrder = async (list: Category[]) => {
     setOrder(list);
-    await store.reorderCategories(list.map((c) => c.id));
+    // Reloaded either way, so a failed save puts back the order that is saved.
+    await store.reorderCategories(list.map((c) => c.id)).catch((e) => console.warn("reordering categories failed", e));
     onCategoriesChanged();
   };
   const move = (from: number, to: number) => {

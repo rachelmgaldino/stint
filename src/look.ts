@@ -1,7 +1,8 @@
 // Stint's looks. Lavender is Pip's, Mochi is the ginger cat's, Notebook is Memo the
 // sticky note's, and Riso is the mushroom's by day and the ghost's by night.
 
-export type Look = "lavender" | "mochi" | "notebook" | "riso";
+export const looks = ["lavender", "mochi", "notebook", "riso"] as const;
+export type Look = (typeof looks)[number];
 
 let current: Look = "lavender";
 

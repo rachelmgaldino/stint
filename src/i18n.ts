@@ -11,6 +11,10 @@ export const languages: { id: Language; name: string }[] = [
 
 const en = {
   loading: "Loading…",
+  openFailed: (why: string) => `Stint couldn't open its saved data. (${why})`,
+  saveFailed: (why: string) => `Stint couldn't save this session, so it's still running. Try again. (${why})`,
+  notSaved: (why: string) => `Stint couldn't save this. Try again. (${why})`,
+  settingsReset: "Stint couldn't read your saved settings, so it started with the defaults.",
   tabs: { timer: "Timer", analytics: "Analytics", settings: "Settings", main: "Main" },
   sessionOf: (n: number, total: number) => `Session ${n} of ${total}`,
   onABreak: "On a break",
@@ -517,6 +521,10 @@ export type Strings = typeof en;
 
 const ptBR: Strings = {
   loading: "Carregando…",
+  openFailed: (why) => `O Stint não conseguiu abrir os dados salvos. (${why})`,
+  saveFailed: (why) => `O Stint não conseguiu salvar esta sessão, então ela continua. Tente de novo. (${why})`,
+  notSaved: (why) => `O Stint não conseguiu salvar. Tente de novo. (${why})`,
+  settingsReset: "O Stint não conseguiu ler os ajustes salvos, então começou com os padrões.",
   tabs: { timer: "Timer", analytics: "Análises", settings: "Ajustes", main: "Principal" },
   sessionOf: (n, total) => `Sessão ${n} de ${total}`,
   onABreak: "Em pausa",

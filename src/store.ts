@@ -1,7 +1,8 @@
 import { isTauri } from "@tauri-apps/api/core";
 import type { Kind } from "./timer";
-import type { Language } from "./i18n";
-import type { Look } from "./look";
+import { languages, type Language } from "./i18n";
+import { looks, type Look } from "./look";
+import { SIZE_MAX, SIZE_MIN } from "./fit";
 import { DEMO, DEMO_KEY, demoData } from "./demo";
 
 export type Category = { id: number; name: string; color: string };
@@ -31,7 +32,8 @@ export type SessionRecord = {
   partOf?: number | null;
 };
 
-export type Theme = "system" | "light" | "dark";
+export const themes = ["system", "light", "dark"] as const;
+export type Theme = (typeof themes)[number];
 
 export type Settings = {
   focusMinutes: number;
@@ -89,7 +91,8 @@ export type Settings = {
   floatStyle: FloatStyle;
 };
 
-export type FloatStyle = "bubble" | "pill";
+const floatStyles = ["bubble", "pill"] as const;
+export type FloatStyle = (typeof floatStyles)[number];
 
 export type CalendarSettings = {
   /** Add each finished session to Google Calendar. */
@@ -146,11 +149,74 @@ export const defaultSettings: Settings = {
   calendar: { syncSessions: false, syncBreaks: false, skipCategories: [], targetId: null, syncSince: 0, showEvents: false, hidden: [] },
 };
 
-export function withDefaults(saved: Partial<Settings> | undefined): Settings {
-  const s = { ...defaultSettings, ...saved, calendar: { ...defaultSettings.calendar, ...saved?.calendar } };
+// The ranges of the Settings steppers (SettingsView.tsx), so a setting edited by
+// hand, or saved by another version, can't load out of bounds.
+const ranges = {
+  focusMinutes: [1, 180],
+  breakMinutes: [1, 59],
+  longBreakMinutes: [2, 60],
+  longBreakAfter: [15, 300],
+  dailyGoal: [1, 20],
+  defaultRating: [0, 3],
+  soonMinutes: [1, 15],
+  presenceMinutes: [1, 30],
+  overflowFocusMinutes: [1, 60],
+  overflowPauseMinutes: [1, 60],
+  overflowBreakMinutes: [1, 60],
+  size: [SIZE_MIN, SIZE_MAX],
+} satisfies { [K in keyof Settings]?: [min: number, max: number] };
+
+// Settings that pick from a list. A value off it has nothing to draw: an unknown look blanks Settings.
+const choices = {
+  focusAction: ["break", "end"],
+  breakAction: ["focus", "end"],
+  theme: themes,
+  look: looks,
+  language: languages.map((l) => l.id),
+  floatStyle: floatStyles,
+} satisfies { [K in keyof Settings]?: readonly Settings[K][] };
+
+/** `saved` with each value that doesn't have its default's type put back to the default. Keys it doesn't know are kept. */
+function typed<T extends object>(defaults: T, saved: unknown): T {
+  const s: Record<string, unknown> = saved && typeof saved === "object" ? { ...saved } : {};
+  for (const [k, d] of Object.entries(defaults)) {
+    const v = s[k];
+    // A null default (the calendar id) stands for a string.
+    const ok = Array.isArray(d)
+      ? Array.isArray(v)
+      : d === null
+        ? v === null || typeof v === "string"
+        : typeof v === typeof d && (typeof v !== "number" || Number.isFinite(v));
+    if (!ok) s[k] = d;
+  }
+  return s as T;
+}
+
+export function withDefaults(saved: unknown): Settings {
+  const v: Record<string, unknown> = typed(defaultSettings, saved);
+  for (const [k, [min, max]] of Object.entries(ranges)) v[k] = Math.min(max, Math.max(min, Math.round(v[k] as number)));
+  for (const [k, list] of Object.entries(choices)) {
+    if (!(list as readonly unknown[]).includes(v[k])) v[k] = defaultSettings[k as keyof Settings];
+  }
+  const s = v as Settings;
   // A long break is told from a short one by its length (breaks.ts), so it's always
   // longer. Settings saved before the steppers were tied may have them the other way.
-  return { ...s, longBreakMinutes: Math.max(s.longBreakMinutes, s.breakMinutes + 1) };
+  return { ...s, calendar: typed(defaultSettings.calendar, s.calendar), longBreakMinutes: Math.max(s.longBreakMinutes, s.breakMinutes + 1) };
+}
+
+type LoadedSettings = { settings: Settings; unreadable: boolean };
+
+/**
+ * The saved settings, checked by withDefaults. Settings that can't be read at all
+ * (bad JSON, or not an object) give the defaults instead, saved over them at once
+ * so Stint still opens and says so on this start only.
+ */
+async function readSettings(saved: unknown, save: (s: Settings) => Promise<void>): Promise<LoadedSettings> {
+  if (saved === undefined || (typeof saved === "object" && saved !== null && !Array.isArray(saved))) {
+    return { settings: withDefaults(saved), unreadable: false };
+  }
+  await save(defaultSettings);
+  return { settings: defaultSettings, unreadable: true };
 }
 
 export interface Store {
@@ -158,10 +224,12 @@ export interface Store {
   addCategory(name: string, color: string): Promise<Category>;
   updateCategory(c: Category): Promise<void>;
   removeCategory(id: number): Promise<void>;
-  /** Saves the order categories are listed in everywhere, first to last. */
+  /** Saves the order categories are listed in everywhere, first to last, in one write. */
   reorderCategories(ids: number[]): Promise<void>;
-  addSession(s: Omit<SessionRecord, "id">): Promise<number>;
-  updateSession(s: SessionRecord): Promise<void>;
+  /** Saves the records in one write, so all of them or none; returns their ids in the same order. */
+  addSessions(list: Omit<SessionRecord, "id">[]): Promise<number[]>;
+  /** Saves changes to the records in one write, so all of them or none. */
+  updateSessions(list: SessionRecord[]): Promise<void>;
   deleteSession(id: number): Promise<void>;
   sessionsBetween(from: number, to: number): Promise<SessionRecord[]>;
   /** The records whose `partOf` is this: every task of one session, first task first. */
@@ -169,7 +237,8 @@ export interface Store {
   /** Sessions started since `since` that have no calendar event yet, leaving out ones made from an event. */
   unsynced(since: number): Promise<SessionRecord[]>;
   setGoogleEvent(id: number, calendarId: string | null, eventId: string | null): Promise<void>;
-  settings(): Promise<Settings>;
+  /** `unreadable`: the saved settings couldn't be read at all, so the defaults were saved over them. */
+  settings(): Promise<LoadedSettings>;
   saveSettings(s: Settings): Promise<void>;
 }
 
@@ -209,11 +278,20 @@ function fromRow(r: SessionRow): SessionRecord {
   };
 }
 
+/** One VALUES list for several rows and its parameters, numbered from $1: "($1, $2), ($3, $4)". */
+function valuesOf(rows: unknown[][]): [string, unknown[]] {
+  let n = 0;
+  return [rows.map((r) => `(${r.map(() => `$${++n}`).join(", ")})`).join(", "), rows.flat()];
+}
+
 // The tables are created by the migrations in src-tauri/src/lib.rs.
+// The plugin runs each call on any free connection of a pool, so a BEGIN and a
+// COMMIT sent as separate calls may not share one: a write that must save several
+// rows together is a single statement instead.
 async function sqliteStore(): Promise<Store> {
   const { default: Database } = await import("@tauri-apps/plugin-sql");
   const db = await Database.load("sqlite:stint.db");
-  return {
+  const store: Store = {
     categories: () =>
       db.select<Category[]>(
         "SELECT id, name, color FROM categories WHERE archived = 0 ORDER BY position, id",
@@ -238,16 +316,18 @@ async function sqliteStore(): Promise<Store> {
       await db.execute("UPDATE categories SET archived = 1 WHERE id = $1", [id]);
     },
     async reorderCategories(ids) {
-      for (const [i, id] of ids.entries()) {
-        await db.execute("UPDATE categories SET position = $1 WHERE id = $2", [i + 1, id]);
-      }
+      if (!ids.length) return;
+      const [rows, values] = valuesOf(ids.map((id, i) => [id, i + 1]));
+      await db.execute(
+        `WITH v (id, position) AS (VALUES ${rows})
+         UPDATE categories SET position = v.position FROM v WHERE categories.id = v.id`,
+        values,
+      );
     },
-    async addSession(s) {
-      const r = await db.execute(
-        `INSERT INTO sessions
-           (kind, intention, category_id, started_at, ended_at, planned_ms, focused_ms, reflection, rating, from_event, part_of)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [
+    async addSessions(list) {
+      if (!list.length) return [];
+      const [rows, values] = valuesOf(
+        list.map((s) => [
           s.kind,
           s.intention,
           s.categoryId,
@@ -259,16 +339,28 @@ async function sqliteStore(): Promise<Store> {
           s.rating,
           s.fromEvent ?? null,
           s.partOf ?? null,
-        ],
+        ]),
       );
-      return r.lastInsertId ?? 0;
+      const added = await db.select<{ id: number }[]>(
+        `INSERT INTO sessions
+           (kind, intention, category_id, started_at, ended_at, planned_ms, focused_ms, reflection, rating, from_event, part_of)
+         VALUES ${rows} RETURNING id`,
+        values,
+      );
+      // RETURNING gives the rows in no set order; AUTOINCREMENT ids grow in the order of VALUES.
+      return added.map((r) => r.id).sort((a, b) => a - b);
     },
-    async updateSession(s) {
+    async updateSessions(list) {
+      if (!list.length) return;
+      const [rows, values] = valuesOf(
+        list.map((s) => [s.id, s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.partOf ?? null]),
+      );
       await db.execute(
-        `UPDATE sessions SET intention = $1, category_id = $2, started_at = $3, ended_at = $4,
-           focused_ms = $5, reflection = $6, rating = $7, part_of = $8
-         WHERE id = $9`,
-        [s.intention, s.categoryId, s.startedAt, s.endedAt, s.focusedMs, s.reflection, s.rating, s.partOf ?? null, s.id],
+        `WITH v (id, intention, category_id, started_at, ended_at, focused_ms, reflection, rating, part_of) AS (VALUES ${rows})
+         UPDATE sessions SET intention = v.intention, category_id = v.category_id, started_at = v.started_at,
+           ended_at = v.ended_at, focused_ms = v.focused_ms, reflection = v.reflection, rating = v.rating, part_of = v.part_of
+         FROM v WHERE sessions.id = v.id`,
+        values,
       );
     },
     async deleteSession(id) {
@@ -307,7 +399,14 @@ async function sqliteStore(): Promise<Store> {
       const rows = await db.select<{ value: string }[]>(
         "SELECT value FROM settings WHERE key = 'app'",
       );
-      return withDefaults(rows[0] ? JSON.parse(rows[0].value) : undefined);
+      let saved: unknown;
+      try {
+        saved = rows[0] && JSON.parse(rows[0].value);
+      } catch {
+        // Unreadable, like any saved value that isn't an object.
+        saved = null;
+      }
+      return readSettings(saved, store.saveSettings);
     },
     async saveSettings(s) {
       await db.execute(
@@ -316,6 +415,7 @@ async function sqliteStore(): Promise<Store> {
       );
     },
   };
+  return store;
 }
 
 type Saved = { categories: (Category & { archived?: boolean })[]; sessions: SessionRecord[]; settings: Settings };
@@ -330,7 +430,11 @@ const seedCategories: Category[] = [
 // the app can be tried without the desktop shell.
 function browserStore(): Store {
   const key = DEMO ? DEMO_KEY : "stint-data";
+  // What this visit saved when localStorage couldn't take it (blocked site data,
+  // some private modes, full storage), read back instead so the app still works.
+  let kept: Saved | null = null;
   const load = (): Saved => {
+    if (kept) return kept;
     try {
       const raw = localStorage.getItem(key);
       if (raw) return JSON.parse(raw);
@@ -342,17 +446,18 @@ function browserStore(): Store {
       save(fresh);
       return fresh;
     }
-    return { categories: seedCategories, sessions: [], settings: defaultSettings };
+    return { categories: [...seedCategories], sessions: [], settings: defaultSettings };
   };
   const save = (d: Saved) => {
     try {
       localStorage.setItem(key, JSON.stringify(d));
+      kept = null;
     } catch {
-      // Storage can be unavailable; the app still works for this visit.
+      kept = d;
     }
   };
   const nextId = (items: { id: number }[]) => items.reduce((m, i) => Math.max(m, i.id), 0) + 1;
-  return {
+  const store: Store = {
     async categories() {
       return load().categories.filter((c) => !c.archived);
     },
@@ -380,16 +485,20 @@ function browserStore(): Store {
       d.categories = [...d.categories].sort((a, b) => rank(a) - rank(b));
       save(d);
     },
-    async addSession(s) {
+    async addSessions(list) {
       const d = load();
-      const id = nextId(d.sessions);
-      d.sessions.push({ ...s, id });
+      const ids = list.map((s) => {
+        const id = nextId(d.sessions);
+        d.sessions.push({ ...s, id });
+        return id;
+      });
       save(d);
-      return id;
+      return ids;
     },
-    async updateSession(s) {
+    async updateSessions(list) {
       const d = load();
-      d.sessions = d.sessions.map((x) => (x.id === s.id ? { ...x, ...s } : x));
+      const changed = new Map(list.map((s) => [s.id, s]));
+      d.sessions = d.sessions.map((x) => ({ ...x, ...changed.get(x.id) }));
       save(d);
     },
     async deleteSession(id) {
@@ -418,7 +527,7 @@ function browserStore(): Store {
       save(d);
     },
     async settings() {
-      return withDefaults(load().settings);
+      return readSettings(load().settings, store.saveSettings);
     },
     async saveSettings(s) {
       const d = load();
@@ -426,6 +535,7 @@ function browserStore(): Store {
       save(d);
     },
   };
+  return store;
 }
 
 export function openStore(): Promise<Store> {
