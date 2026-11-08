@@ -2681,6 +2681,15 @@ select.select-pill {
   margin: 0 0 4px;
 }
 
+/* A panel's title with a button in the top-right corner ("Check again" in Updates). */
+.settings-panel > .card-head {
+  margin-bottom: 4px;
+}
+
+.settings-panel > .card-head h3 {
+  margin: 0;
+}
+
 .settings-panel > h3 + .row-group,
 .settings-panel > .row-group:first-child {
   border-top: none;
@@ -3978,13 +3987,6 @@ select.select-pill {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-/* "Check again" stays beside "Update now". */
-.update-actions {
-  display: flex;
-  gap: 8px;
-  flex: 0 0 auto;
 }
 
 .update-tick {
