@@ -24,7 +24,7 @@ import {
 import { languages, t } from "../i18n";
 import { looks } from "../look";
 import { Pip } from "./Pip";
-import { goesBack, openPullRequest, testOf, updatesAvailable, type Updater } from "../updates";
+import { offerText, openPullRequest, testOf, updatesAvailable, type Updater } from "../updates";
 import { resetFloat } from "../float";
 import { clockTime, dayLabel } from "../dates";
 import { isTauri } from "@tauri-apps/api/core";
@@ -151,11 +151,21 @@ function Choice<V extends string>({
 
 type Tone = "apricot" | "lemon" | "bubblegum" | "peri" | "sky" | "matcha";
 
-/** A rounded box of settings inside a section, with an optional small heading. */
-function Panel({ title, children }: { title?: string; children: ReactNode }) {
+/**
+ * A rounded box of settings inside a section, with an optional small heading
+ * and an optional `action` in the top-right corner, beside it.
+ */
+function Panel({ title, action, children }: { title?: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="card settings-panel" aria-label={title}>
-      {title && <h3>{title}</h3>}
+      {action ? (
+        <div className="card-head">
+          {title && <h3>{title}</h3>}
+          {action}
+        </div>
+      ) : (
+        title && <h3>{title}</h3>
+      )}
       {children}
     </section>
   );
@@ -694,7 +704,7 @@ function UpdatesCard({
   onTestBuilds(v: boolean): void;
 }) {
   const text = t().settings;
-  const { state, current, tests } = updater;
+  const { state, current, tests, checked } = updater;
   const onTest = testOf(current);
   if (!updatesAvailable()) {
     return (
@@ -705,35 +715,42 @@ function UpdatesCard({
   }
 
   const pct = state.phase === "downloading" && state.fraction !== null ? Math.round(state.fraction * 100) : null;
-  // Leaving a test build for the release it was made on is a step back, not an update.
-  const back = state.phase === "available" && state.test === null && goesBack(state.version, current);
   const status =
     state.phase === "checking"
       ? text.updateChecking
       : state.phase === "latest"
         ? onTest !== null && testBuilds
-          ? text.updateLatestTest
+          ? text.updateLatestTest(onTest)
           : text.updateLatest
         : state.phase === "available"
-          ? state.test !== null
-            ? text.updateAvailableTest(state.test)
-            : back
-              ? text.updateBack(state.version)
-              : text.updateAvailable(state.version)
-          : state.phase === "downloading"
-            ? text.updateDownloading(state.test !== null ? `PR #${state.test}` : state.version, pct)
-            : state.phase === "installing"
-              ? text.updateInstalling
-              : state.phase === "failed"
-                ? state.during === "check"
-                  ? text.updateCheckFailed
-                  : text.updateInstallFailed
-                : text.updateIdle;
+          ? offerText(state, current)
+          : state.phase === "waiting"
+            ? text.updateWaiting(state.pr, state.release)
+            : state.phase === "merged"
+              ? text.updateMerged(state.pr)
+              : state.phase === "downloading"
+                ? text.updateDownloading(state.test !== null ? `PR #${state.test}` : state.version, pct)
+                : state.phase === "installing"
+                  ? text.updateInstalling
+                  : state.phase === "failed"
+                    ? state.during === "check"
+                      ? text.updateCheckFailed
+                      : text.updateInstallFailed
+                    : text.updateIdle;
   const working = state.phase === "downloading" || state.phase === "installing";
-  const ready = state.phase === "available" || (state.phase === "failed" && state.during === "install");
+  const failedCheck = state.phase === "failed" && state.during === "check";
+  // When the answer on the card is from; not while looking again, nor under a failed check.
+  const since = checked !== null && !working && state.phase !== "checking" && !failedCheck;
 
   return (
-    <Panel title={text.updates}>
+    <Panel
+      title={text.updates}
+      action={
+        <button className="soft-button small" disabled={working || updater.checking} onClick={updater.checkNow}>
+          {updater.checking ? text.checking : text.checkAgain}
+        </button>
+      }
+    >
       <div className="row update-row" data-phase={state.phase}>
         <span>
           {versionName(current)}
@@ -741,27 +758,12 @@ function UpdatesCard({
             {state.phase === "latest" && <span className="update-tick" aria-hidden />}
             {status}
           </span>
+          {since && <span className="hint">{text.checkedAt(clockTime(checked))}</span>}
         </span>
-        {ready ? (
+        {(state.phase === "available" || (state.phase === "failed" && state.during === "install")) && (
           <button className="squishy small peri" onClick={updater.install}>
-            {state.phase === "failed" ? text.tryAgain : back ? text.goBack : text.updateNow}
+            {state.phase === "failed" ? text.tryAgain : state.back ? text.goBack : text.updateNow}
           </button>
-        ) : (
-          !working && (
-            <button
-              className="soft-button small"
-              disabled={state.phase === "checking"}
-              onClick={updater.checkNow}
-            >
-              {state.phase === "checking"
-                ? text.checking
-                : state.phase === "latest"
-                  ? text.checkAgain
-                  : state.phase === "failed"
-                    ? text.tryAgain
-                    : text.checkForUpdates}
-            </button>
-          )
         )}
       </div>
       {working && (
@@ -801,8 +803,10 @@ function UpdatesCard({
                       {b.title}
                     </span>
                     <span className="hint">
-                      {i === 0 && <span className="test-build-newest">{text.newest}</span>}
-                      {text.testBuilt(`${dayLabel(when)}, ${clockTime(when)}`)}
+                      {i === 0 && b.before === null && <span className="test-build-newest">{text.newest}</span>}
+                      {b.before !== null
+                        ? text.testOutdated(b.before)
+                        : text.testBuilt(`${dayLabel(when)}, ${clockTime(when)}`)}
                     </span>
                   </span>
                   {b.version === current ? (
@@ -810,7 +814,7 @@ function UpdatesCard({
                   ) : (
                     <button
                       className="soft-button small"
-                      disabled={working || state.phase === "checking"}
+                      disabled={working || updater.checking}
                       onClick={() => updater.installTest(b.pr)}
                     >
                       {text.installTest}

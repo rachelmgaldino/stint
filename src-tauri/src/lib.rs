@@ -261,6 +261,7 @@ pub fn run() {
             updates::update_check,
             updates::update_install,
             updates::update_test_builds,
+            updates::update_pull_state,
             updates::open_pull_request,
             float::float_config,
             float::float_reset,

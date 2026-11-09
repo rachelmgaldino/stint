@@ -10,7 +10,7 @@
 //! the release that ships it.
 
 use semver::Version;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{ipc::Channel, AppHandle, State};
@@ -86,6 +86,17 @@ pub async fn update_check(
     Ok(found)
 }
 
+/// What the Test builds list shows, and what a check needs from the same request.
+#[derive(Serialize)]
+pub struct TestBuilds {
+    /// The newest release, None before the first.
+    release: Option<String>,
+    /// Newest first.
+    builds: Vec<TestBuild>,
+    /// Whether a release's notes list the pull request of the installed test build.
+    released: bool,
+}
+
 #[derive(Serialize)]
 pub struct TestBuild {
     pr: u32,
@@ -93,6 +104,8 @@ pub struct TestBuild {
     version: String,
     /// When it was published, as an RFC 3339 time.
     built: String,
+    /// The newest release, when this build was made before it.
+    before: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -109,20 +122,14 @@ struct Asset {
     name: String,
 }
 
-/// The open pull requests' test builds that can update Stint, newest first.
-/// Builds from before test builds were signed have no latest.json and are left
-/// out, and so are builds older than the newest release: a test build is the
-/// next patch after the release it was built on, so once a later release is out
-/// it sorts below it, and installing it would take Stint back. It is offered
-/// again once its pull request is pushed and rebuilt on the newest release.
-#[tauri::command]
-pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
-    let releases: Vec<Release> = reqwest::Client::builder()
+/// Reads `path` from the repository's GitHub API, with the same timeouts as the updater.
+async fn github<T: DeserializeOwned>(path: &str) -> Result<T, String> {
+    reqwest::Client::builder()
         .connect_timeout(STALL)
         .read_timeout(STALL)
         .build()
         .map_err(|e| e.to_string())?
-        .get(format!("https://api.github.com/repos/{REPO}/releases?per_page=50"))
+        .get(format!("https://api.github.com/repos/{REPO}/{path}"))
         .header("User-Agent", "Stint")
         .header("Accept", "application/vnd.github+json")
         .send()
@@ -132,7 +139,53 @@ pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
         .map_err(|e| e.to_string())?
         .json()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())
+}
+
+/// Whether release notes link pull request `pr`: ".../pull/87", not ".../pull/870".
+fn links(notes: &str, pr: u32) -> bool {
+    let link = format!("github.com/{REPO}/pull/{pr}");
+    notes
+        .match_indices(&link)
+        .any(|(i, _)| !notes[i + link.len()..].starts_with(|c: char| c.is_ascii_digit()))
+}
+
+/// Whether the list shows a test build of `version`: None leaves it out,
+/// Some holds its `before`. A build made before the newest release is left
+/// out unless it is the installed one, which shows with that release.
+fn listed(version: &str, newest: Option<&Version>, installed: &Version) -> Option<Option<String>> {
+    let parsed = Version::parse(version).ok();
+    match newest.filter(|n| parsed.as_ref().is_some_and(|v| v < *n)) {
+        None => Some(None),
+        Some(n) if parsed.as_ref() == Some(installed) => Some(Some(n.to_string())),
+        Some(_) => None,
+    }
+}
+
+/// The open pull requests' test builds that can update Stint, newest first.
+/// Builds from before test builds were signed have no latest.json and are left
+/// out, and so are builds older than the newest release: a test build is the
+/// next patch after the release it was built on, so once a later release is out
+/// it sorts below it, and installing it would take Stint back. It is offered
+/// again once its pull request is pushed and rebuilt on the newest release.
+/// The installed build stays listed even then, marked with that release, so
+/// the list can say it waits for a new build.
+#[tauri::command]
+pub async fn update_test_builds(app: AppHandle) -> Result<TestBuilds, String> {
+    let releases: Vec<Release> = github("releases?per_page=50").await?;
+    let installed = &app.package_info().version;
+    // A test build's version (1.10.7-pr.87.3) carries its pull request.
+    let own: Option<u32> = installed
+        .pre
+        .as_str()
+        .strip_prefix("pr.")
+        .and_then(|p| p.split('.').next()?.parse().ok());
+    // Release notes link the pull requests they ship (GitHub's generated notes).
+    let released = own.is_some_and(|pr| {
+        releases
+            .iter()
+            .any(|r| !r.prerelease && r.body.as_deref().is_some_and(|b| links(b, pr)))
+    });
     let newest = releases
         .iter()
         .filter(|r| !r.prerelease)
@@ -150,14 +203,30 @@ pub async fn update_test_builds() -> Result<Vec<TestBuild>, String> {
             let version = r.assets.iter().find_map(|a| {
                 a.name.strip_suffix("-setup.exe")?.rsplit('_').nth(1).map(str::to_string)
             }).unwrap_or_default();
-            if newest.as_ref().is_some_and(|n| Version::parse(&version).is_ok_and(|v| v < *n)) {
-                return None;
-            }
-            Some(TestBuild { pr, title, version, built: r.published_at? })
+            let before = listed(&version, newest.as_ref(), installed)?;
+            Some(TestBuild { pr, title, version, built: r.published_at?, before })
         })
         .collect();
     builds.sort_by(|a, b| b.built.cmp(&a.built));
-    Ok(builds)
+    Ok(TestBuilds { release: newest.map(|n| n.to_string()), builds, released })
+}
+
+#[derive(Deserialize)]
+struct Pull {
+    state: String,
+    merged_at: Option<String>,
+}
+
+/// How pull request `pr` stands on GitHub: "open", "merged", or "closed"
+/// without merging. Asked only when its test build can't tell.
+#[tauri::command]
+pub async fn update_pull_state(pr: u32) -> Result<&'static str, String> {
+    let pull: Pull = github(&format!("pulls/{pr}")).await?;
+    Ok(match (pull.merged_at, pull.state.as_str()) {
+        (Some(_), _) => "merged",
+        (None, "open") => "open",
+        _ => "closed",
+    })
 }
 
 /// Opens a pull request's page on GitHub, from the test tag beside the name.
@@ -203,4 +272,34 @@ pub async fn update_install(
         .map_err(|e| e.to_string())?;
     // Other systems install without quitting, so start the new version.
     app.restart();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn links_match_the_whole_pull_request_number() {
+        // From v1.10.7's notes.
+        let notes = "* fix(store): save sessions safely by @rachelmgaldino in https://github.com/rachelmgaldino/stint/pull/86\n";
+        assert!(links(notes, 86));
+        assert!(!links(notes, 8));
+        assert!(!links("in https://github.com/rachelmgaldino/stint/pull/870\n", 87));
+        assert!(!links("in https://github.com/someone/else/pull/86", 86));
+    }
+
+    #[test]
+    fn lists_builds_on_the_newest_release_and_the_installed_one() {
+        let newest = Version::parse("1.10.7").unwrap();
+        let installed = Version::parse("1.10.7-pr.87.2").unwrap();
+        // Made on 1.10.7: listed as usual.
+        assert_eq!(listed("1.10.8-pr.88.1", Some(&newest), &installed), Some(None));
+        // Made before 1.10.7 and installed: listed, waiting for a new build.
+        assert_eq!(listed("1.10.7-pr.87.2", Some(&newest), &installed), Some(Some("1.10.7".to_string())));
+        // Made before 1.10.7, not installed: left out.
+        assert_eq!(listed("1.10.7-pr.86.1", Some(&newest), &installed), None);
+        // No release yet, or no version to compare: listed.
+        assert_eq!(listed("1.10.7-pr.86.1", None, &installed), Some(None));
+        assert_eq!(listed("", Some(&newest), &installed), Some(None));
+    }
 }

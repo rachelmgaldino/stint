@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import { t } from "./i18n";
 
 // Updates for the desktop app, through the shell (src-tauri/src/updates.rs).
 // Published "Stint vX.Y.Z" releases, plus the "PR #N test" builds of open pull
@@ -14,14 +15,43 @@ export type UpdateState =
   | { phase: "idle" }
   | { phase: "checking" }
   | { phase: "latest" }
-  | { phase: "available"; version: string; test: number | null }
+  /**
+   * `back`: installing the release takes a test build back to the release it
+   * was made on. `why` says why a test build with Test builds on is offered
+   * the release: its pull request is in it, or was closed without merging.
+   */
+  | { phase: "available"; version: string; test: number | null; back: boolean; why?: "released" | "closed" }
+  /** On a test build of `pr`, still open, with no build on the newest release yet. */
+  | { phase: "waiting"; pr: number; release: string | null }
+  /** On a test build of `pr`, merged, before the release that ships it is out. */
+  | { phase: "merged"; pr: number }
   /** `fraction` is null while the size is unknown. */
   | { phase: "downloading"; version: string; test: number | null; fraction: number | null }
   | { phase: "installing"; version: string; test: number | null }
   | { phase: "failed"; during: "check" | "install"; version?: string; test?: number | null };
 
-/** The "PR #N test" pre-release of an open pull request. */
-export type TestBuild = { pr: number; title: string; version: string; built: string };
+/**
+ * The "PR #N test" pre-release of an open pull request. `before` is the newest
+ * release when the build was made before it: only the installed build is
+ * listed then.
+ */
+export type TestBuild = { pr: number; title: string; version: string; built: string; before: string | null };
+
+/** What update_test_builds reads from the releases. */
+export type TestBuilds = {
+  /** The newest release, null before the first. */
+  release: string | null;
+  /** Newest first. */
+  builds: TestBuild[];
+  /** Whether a release's notes list the pull request of the installed test build. */
+  released: boolean;
+};
+
+/** How a pull request stands on GitHub (update_pull_state). */
+export type PullState = "open" | "merged" | "closed";
+
+/** What update_check found. */
+export type Found = { version: string; notes: string; test: number | null };
 
 /** The pull request a test build's version (1.4.4-pr.49.120) came from, or null for a release. */
 export function testOf(version: string): number | null {
@@ -42,12 +72,70 @@ export function goesBack(version: string, current: string): boolean {
   return i !== -1 && a[i] < b[i];
 }
 
+/**
+ * What a check asks once it has the list. `test` is the pull request whose
+ * build update_check looks at, null for the release: with Test builds on and
+ * on a test build, its own pull request while it has a build on the newest
+ * release (a newer one, if any). On a release, the release: other test builds
+ * are installed from the list. `pull` is the pull request to ask GitHub about,
+ * with Test builds on, only when its build can't tell (gone, or made before
+ * the newest release) and no release lists it.
+ */
+export function whatToAsk(
+  current: string,
+  list: TestBuilds,
+  testBuilds: boolean,
+): { test: number | null; pull: number | null } {
+  const pr = testOf(current);
+  if (!testBuilds || pr === null) return { test: null, pull: null };
+  const fresh = list.builds.some((b) => b.pr === pr && b.before === null);
+  return { test: fresh ? pr : null, pull: !fresh && !list.released ? pr : null };
+}
+
+/**
+ * Where a check leaves the card, from what it learned: what update_check found
+ * (null when nothing, or not asked), and on a test build, the list and how its
+ * pull request stands (when `whatToAsk` asked).
+ */
+export function outcome(current: string, found: Found | null, list?: TestBuilds, pull?: PullState): UpdateState {
+  const pr = testOf(current);
+  if (pr !== null && pull === "open") return { phase: "waiting", pr, release: list?.release ?? null };
+  if (pr !== null && pull === "merged") return { phase: "merged", pr };
+  if (!found) return { phase: "latest" };
+  const offer = { phase: "available", version: found.version, test: found.test } as const;
+  if (pr === null || found.test !== null) return { ...offer, back: false };
+  // The release that ships the pull request is never a step back.
+  if (list?.released) return { ...offer, back: false, why: "released" };
+  const back = goesBack(found.version, current);
+  return pull === "closed" ? { ...offer, back, why: "closed" } : { ...offer, back };
+}
+
+/** Something to install, as the card and the pill show it. */
+export type Offer = Extract<UpdateState, { phase: "available" }>;
+
+/** The card's words for an offer; on a test build they say what installing the release does to it. */
+export function offerText(offer: Offer, current: string): string {
+  const text = t().settings;
+  const pr = testOf(current);
+  if (offer.test !== null) return text.updateAvailableTest(offer.test);
+  if (pr === null) return text.updateAvailable(offer.version);
+  if (offer.why === "released") return text.updateInRelease(pr, offer.version);
+  const release = offer.back ? text.updateBack(offer.version) : text.updateLeave(offer.version, pr);
+  return offer.why === "closed" ? `${text.updateClosed(pr)} ${release}` : release;
+}
+
+/** The title bar pill's words for an offer. */
+export function pillText(offer: Offer): string {
+  const text = t().updatePill;
+  if (offer.test !== null) return text.readyTest(offer.test);
+  return offer.back ? text.back(offer.version) : text.ready(offer.version);
+}
+
 /** Opens a pull request's page on GitHub, to review or merge it. */
 export function openPullRequest(pr: number) {
   if (isTauri()) invoke("open_pull_request", { pr }).catch(() => {});
 }
 
-type Found = { version: string; notes: string; test: number | null };
 type Progress = { event: "downloading"; data: { done: number; total: number | null } } | { event: "installing" };
 
 export type Updater = {
@@ -55,11 +143,18 @@ export type Updater = {
   /** Stint's own version, once known. */
   current: string;
   /**
-   * The open test builds newer than the newest release, newest first, while
-   * Test builds is on (null until fetched).
+   * The open test builds made on the newest release, plus the installed one,
+   * newest first, while Test builds is on (null until fetched).
    */
   tests: TestBuild[] | null;
-  /** Looks for an update and says what it found; installing waits for a click. */
+  /** When a check last got an answer, null before the first. */
+  checked: number | null;
+  /** Whether a check is running, quiet ones too (the status says so only for the others). */
+  checking: boolean;
+  /**
+   * Looks for an update and says what it found, listing the test builds again
+   * while Test builds is on; installing waits for a click.
+   */
   checkNow(): void;
   install(): void;
   /** Installs one particular test build. */
@@ -71,15 +166,20 @@ export type Updater = {
  * every few hours, and only reports what it found: installing restarts Stint,
  * so that waits for a click.
  *
- * With `testBuilds` on, a check offers the newest open test build (the PR
- * pushed most recently) that is newer than the newest release, or the release
- * when there is none. With it off, a Stint on a test build is offered the
- * release, to go back to it.
+ * With `testBuilds` on, a check follows the build Stint is on (`whatToAsk`,
+ * `outcome`): a newer build of the same pull request; once it has none on the
+ * newest release, it waits for one while the pull request is open, waits for
+ * the release once merged, and offers the release once that is out or the
+ * pull request was closed. From a release, only newer releases. With it off,
+ * a Stint on a test build is offered the release; the release notes still say
+ * whether that release ships its pull request.
  */
 export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
   const [state, setState] = useState<UpdateState>({ phase: "idle" });
   const [current, setCurrent] = useState("");
   const [tests, setTests] = useState<TestBuild[] | null>(null);
+  const [checked, setChecked] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
   const busy = useRef(false);
   // Read by a running check, so a switch while it looks is not lost.
   const withTests = useRef(testBuilds);
@@ -114,41 +214,53 @@ export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
   }, []);
 
   /**
-   * `quiet` checks leave the card as it was when the check fails, and when
-   * nothing is found they only drop an earlier offer. `pr` asks for that test
-   * build and null for the release; otherwise Test builds decides.
+   * `quiet` checks don't show "Checking" and leave the card as it was when the
+   * check fails; what they find shows as usual. `pr` asks for that test build
+   * and null for the release; otherwise Test builds decides.
    */
   const check = useCallback(
     async (quiet: boolean, thenInstall: boolean, pr?: number | null) => {
       if (!isTauri() || busy.current) return;
       busy.current = true;
+      setChecking(true);
       if (!quiet) setState({ phase: "checking" });
       try {
         let found: Found | null;
+        let list: TestBuilds | undefined;
+        let pull: PullState | undefined;
         let asked: boolean;
         // Looks again if Test builds was switched meanwhile: what it found was for the other setting.
         do {
           asked = withTests.current;
           let test = pr ?? null;
-          if (asked && pr === undefined) {
-            const list = await invoke<TestBuild[]>("update_test_builds");
-            if (withTests.current) setTests(list);
-            test = list[0]?.pr ?? null;
+          list = undefined;
+          pull = undefined;
+          // On a test build the release notes say whether its pull request shipped, whatever Test builds says.
+          if (pr === undefined && (asked || testOf(current) !== null)) {
+            list = await invoke<TestBuilds>("update_test_builds");
+            if (asked && withTests.current) setTests(list.builds);
+            const ask = whatToAsk(current, list, asked);
+            test = ask.test;
+            if (ask.pull !== null) pull = await invoke<PullState>("update_pull_state", { pr: ask.pull });
           }
-          found = await invoke<Found | null>("update_check", { test });
+          // An open or merged pull request has nothing to install yet.
+          found = pull === "open" || pull === "merged" ? null : await invoke<Found | null>("update_check", { test });
         } while (pr === undefined && asked !== withTests.current);
         busy.current = false;
+        setChecked(Date.now());
+        const next = outcome(current, found, list, pull);
         if (found && thenInstall) install(found.version, found.test);
-        else if (found) setState({ phase: "available", version: found.version, test: found.test });
-        else if (!quiet) setState({ phase: "latest" });
-        // The shell no longer holds what an earlier check offered (its build may be gone).
-        else setState((s) => (s.phase === "available" || s.phase === "failed" ? { phase: "idle" } : s));
+        // This replaces an earlier offer too: the shell no longer holds it (its build may be gone).
+        // A download started from that offer while a quiet check ran keeps its card.
+        else setState((s) => (s.phase === "downloading" || s.phase === "installing" ? s : next));
       } catch {
         busy.current = false;
         if (!quiet) setState({ phase: "failed", during: "check" });
+      } finally {
+        setChecking(false);
       }
     },
-    [install],
+    [install, current],
   );
 
   // Turning Test builds on lists them straight away; off forgets them, and
@@ -164,23 +276,26 @@ export function useUpdater(auto: boolean, testBuilds: boolean): Updater {
       setTests(null);
       return;
     }
-    invoke<TestBuild[]>("update_test_builds")
-      .then(setTests)
+    invoke<TestBuilds>("update_test_builds")
+      .then((l) => setTests(l.builds))
       .catch(() => setTests([]));
   }, [testBuilds]);
 
   // Switching Test builds changes what a check finds, so it looks again then too.
+  // What it offers depends on the build Stint is on, so it waits for the version.
   useEffect(() => {
-    if (!auto) return;
+    if (!auto || !current) return;
     void check(true, false);
     const id = setInterval(() => void check(true, false), RECHECK_MS);
     return () => clearInterval(id);
-  }, [auto, testBuilds, check]);
+  }, [auto, testBuilds, current, check]);
 
   return {
     state,
     current,
     tests,
+    checked,
+    checking,
     checkNow: () => void check(false, false),
     install: () => {
       if (state.phase === "available") install(state.version, state.test);
