@@ -1020,6 +1020,11 @@
     min-height: 48px;
     font-size: 16px;
   }
+
+  /* The category menu keeps its small text, with rows tall enough for a finger. */
+  .cat-menu-row {
+    height: 44px;
+  }
 }
 
 @media (max-width: 640px) {

@@ -4363,6 +4363,77 @@ select.select-pill {
   background: var(--sunken);
 }
 
+/* The category is a button: the chevron says it opens the chips that change it. */
+.task-card .cat-pill svg {
+  margin-left: -2px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.task-card .cat-pill:hover svg,
+.task-card .cat-pill[aria-expanded="true"] svg {
+  color: var(--text);
+}
+
+.task-card .cat-pill[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* The category's menu floats under the pill, over the card, so the card keeps
+   its size. Same surface, ring and shadow as the task suggestions, smaller rows. */
+.cat-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.cat-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 190px;
+  padding: 5px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1.5px var(--line), 0 16px 36px rgb(var(--shade) / 0.22);
+}
+
+.cat-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cat-menu-row:hover,
+.cat-menu-row[aria-selected="true"] {
+  background: var(--sunken);
+}
+
+.cat-menu-row .dot {
+  width: 10px;
+  height: 10px;
+}
+
+.cat-menu-name {
+  flex: 1 1 auto;
+}
+
+.cat-menu-row svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+
 .task-pen {
   flex: 0 0 auto;
   width: 34px;

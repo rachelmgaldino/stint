@@ -150,6 +150,7 @@ const en = {
       task ? `“${task}” keeps its ${d}. The timer keeps going.` : `The ${d} so far are saved. The timer keeps going.`,
     startNext: "Start next task",
     renameTask: "Rename this task",
+    changeCategory: "Change this task's category",
   },
   float: {
     shortBreak: "Short break",
@@ -664,6 +665,7 @@ const ptBR: Strings = {
       task ? `“${task}” fica com ${d}. O timer continua.` : `Os ${d} até agora ficam salvos. O timer continua.`,
     startNext: "Começar a próxima",
     renameTask: "Mudar o nome desta tarefa",
+    changeCategory: "Mudar a categoria desta tarefa",
   },
   float: {
     shortBreak: "Pausa curta",

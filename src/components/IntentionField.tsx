@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Category } from "../store";
 import { soft } from "../colors";
 import { addDays, startOfDay } from "../dates";
-import { fold, matching, recentFor, type PastIntention } from "../intentions";
+import { categoryFor, fold, matching, recentFor, type PastIntention } from "../intentions";
 import { t } from "../i18n";
 import { ClockIcon } from "./icons";
 
@@ -67,10 +67,12 @@ export function IntentionField(p: Props) {
   const showList = open && rows.length > 0;
   // While the field is empty, the recent ones sit under it inside the same box.
   const inline = empty && recent.length > 0 && p.chips !== false;
-  const catOf = (i: PastIntention) => p.categories.find((c) => c.id === i.categoryId);
+  // The category a pick goes to (the one selected, when the task was ever done
+  // there), as long as it still exists. Its row shows it before the click.
+  const catOf = (i: PastIntention) => p.categories.find((c) => c.id === categoryFor(i, p.categoryId));
 
   const pick = (i: PastIntention) => {
-    p.onPick(i.text, catOf(i) ? i.categoryId : p.categoryId);
+    p.onPick(i.text, catOf(i)?.id ?? p.categoryId);
     setOpen(false);
   };
 

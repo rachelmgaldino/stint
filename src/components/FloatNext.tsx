@@ -4,7 +4,7 @@ import { soft } from "../colors";
 import { timeSpan } from "../dates";
 import type { FloatAction, FloatState } from "../float";
 import { t } from "../i18n";
-import { fold, matching, type PastIntention } from "../intentions";
+import { doneIn, fold, matching, type PastIntention } from "../intentions";
 import { currentTaskMs, currentTaskStart } from "../tasks";
 import { formatDuration } from "../timer";
 import { CheckIcon } from "./icons";
@@ -189,9 +189,10 @@ export function FloatNext({ state, now, preview, onAction, onClose }: Props) {
   const category = categories.find((c) => c.id === state.categoryId);
   const color = category ? soft(category.color) : undefined;
   const named = state.intention.trim();
-  // Only this category's tasks: a task never changes category from here. The task in hand isn't offered.
+  // Only tasks done in this category, even if last done in another: a task never
+  // changes category from here. The task in hand isn't offered.
   const past = useMemo(
-    () => state.past.filter((i) => i.categoryId === state.categoryId && fold(i.text) !== fold(named)),
+    () => state.past.filter((i) => doneIn(i, state.categoryId) && fold(i.text) !== fold(named)),
     [state.past, state.categoryId, named],
   );
   const last = done[done.length - 1];
