@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { Category } from "../store";
 import type { CalendarEvent } from "../google";
 import { clockTime, timeRange, timeSpan } from "../dates";
@@ -437,18 +437,40 @@ function TaskCard(p: TaskCardProps) {
   const taskMs = currentTaskMs(timer, p.done, now);
   const minutes = formatDuration(taskMs);
   const named = p.intention.trim();
-  const card = useRef<HTMLDivElement>(null);
+  const picker = useRef<HTMLSpanElement>(null);
   const choosing = editing === "category";
 
-  // A click outside the card closes the category chips without a change.
+  // A click anywhere outside the pill and its menu closes the menu without a change.
   useEffect(() => {
     if (!choosing) return;
     const away = (e: PointerEvent) => {
-      if (!card.current?.contains(e.target as Node)) onEditing(false);
+      if (!picker.current?.contains(e.target as Node)) onEditing(false);
     };
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [choosing, onEditing]);
+
+  /** Closes the category menu and gives the keyboard back to the pill. */
+  const closeMenu = () => {
+    onEditing(false);
+    picker.current?.querySelector<HTMLButtonElement>(".cat-pill")?.focus();
+  };
+
+  /** Escape closes the menu; the arrows move between its rows. */
+  const menuKeys = (e: KeyboardEvent<HTMLSpanElement>) => {
+    if (!choosing) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeMenu();
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const rows = [...e.currentTarget.querySelectorAll<HTMLButtonElement>(".cat-menu-row")];
+    const at = rows.indexOf(document.activeElement as HTMLButtonElement);
+    const down = e.key === "ArrowDown";
+    rows[at < 0 ? (down ? 0 : rows.length - 1) : (at + (down ? 1 : rows.length - 1)) % rows.length]?.focus();
+  };
 
   const openNext = () => {
     p.onNext({ at: Date.now(), name: "", categoryId: p.categoryId });
@@ -510,19 +532,45 @@ function TaskCard(p: TaskCardProps) {
   }
 
   return (
-    <div className="stage-what task-card" ref={card}>
+    <div className="stage-what task-card">
       <div className="task-card-top">
         {category ? (
-          <button
-            className="cat-pill"
-            title={text.changeCategory}
-            aria-expanded={choosing}
-            onClick={() => onEditing(choosing ? false : "category")}
-          >
-            <span className="dot" style={{ background: soft(category.color) }} />
-            {category.name}
-            <ChevronDownIcon />
-          </button>
+          <span className="cat-picker" ref={picker} onKeyDown={menuKeys}>
+            <button
+              className="cat-pill"
+              title={text.changeCategory}
+              aria-haspopup="listbox"
+              aria-expanded={choosing}
+              onClick={() => onEditing(choosing ? false : "category")}
+            >
+              <span className="dot" style={{ background: soft(category.color) }} />
+              {category.name}
+              <ChevronDownIcon />
+            </button>
+            {choosing && (
+              // Floats over the card, so the card keeps its size. Only the task
+              // in hand changes: the ones before it keep their own category.
+              <div className="cat-menu" role="listbox" aria-label={text.changeCategory}>
+                {p.categories.map((c) => (
+                  <button
+                    key={c.id}
+                    role="option"
+                    aria-selected={c.id === p.categoryId}
+                    className="cat-menu-row"
+                    autoFocus={c.id === p.categoryId}
+                    onClick={() => {
+                      p.onCategory(c.id);
+                      closeMenu();
+                    }}
+                  >
+                    <span className="dot" style={{ background: soft(c.color) }} />
+                    <span className="cat-menu-name">{c.name}</span>
+                    {c.id === p.categoryId && <CheckIcon />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
         ) : (
           <span />
         )}
@@ -549,33 +597,6 @@ function TaskCard(p: TaskCardProps) {
           </button>
         </span>
       </div>
-      {choosing && (
-        // Only the task in hand changes: the ones before it keep their own category.
-        <div
-          className="chips task-categories"
-          role="group"
-          aria-label={text.changeCategory}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onEditing(false);
-          }}
-        >
-          {p.categories.map((c) => (
-            <button
-              key={c.id}
-              className="chip"
-              aria-pressed={c.id === p.categoryId}
-              autoFocus={c.id === p.categoryId}
-              onClick={() => {
-                p.onCategory(c.id);
-                onEditing(false);
-              }}
-            >
-              <span className="dot" style={{ background: soft(c.color) }} />
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
       {editing === "rename" ? (
         <div className="stage-intention">
           <IntentionField
