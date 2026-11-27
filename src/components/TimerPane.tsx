@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Category } from "../store";
 import type { CalendarEvent } from "../google";
 import { clockTime, timeRange, timeSpan } from "../dates";
@@ -8,7 +8,7 @@ import { formatDuration } from "../timer";
 import { lapAt } from "../dial";
 import { Dial, type Lap } from "./Dial";
 import { Pip } from "./Pip";
-import { CalendarIcon, CheckIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
+import { CalendarIcon, CheckIcon, ChevronDownIcon, ClockIcon, CoffeeIcon, InfinityIcon, PencilIcon, PlayIcon, StopIcon } from "./icons";
 import { StartEditor } from "./StartEditor";
 import { IntentionField } from "./IntentionField";
 import { fold, type PastIntention } from "../intentions";
@@ -104,8 +104,8 @@ export function TimerPane(p: Props) {
   const plannedEnd = timer.status === "running" ? timer.endsAt : now + Math.max(0, left);
   const text = t().timer;
   const [editingStart, setEditingStart] = useState(false);
-  // Renaming the task being worked on, or naming the next one.
-  const [editing, setEditing] = useState<false | "rename" | "next">(false);
+  // Renaming the task being worked on, changing its category, or naming the next one.
+  const [editing, setEditing] = useState<Editing>(false);
   const [next, setNext] = useState<{ at: number; name: string; categoryId: number | null }>({ at: 0, name: "", categoryId: null });
 
   const subline = flow
@@ -413,27 +413,42 @@ function NextEvent({ event }: { event: CalendarEvent }) {
   );
 }
 
+/** What the task card is editing: nothing, the task's name, its category, or the next task. */
+type Editing = false | "rename" | "category" | "next";
+
 type TaskCardProps = Props & {
   category: Category | undefined;
-  editing: false | "rename" | "next";
+  editing: Editing;
   next: { at: number; name: string; categoryId: number | null };
-  onEditing(e: false | "rename" | "next"): void;
+  onEditing(e: Editing): void;
   onNext(n: { at: number; name: string; categoryId: number | null }): void;
   /** In flow, the session's start shows on the card and opens the start editor. */
   start?: { at: number; edit(): void };
 };
 
 /**
- * The task being worked on in a focus session: its category, its name (the
- * pencil renames it), the time spent on it, and Next task, which names the
- * next one while the timer keeps going.
+ * The task being worked on in a focus session: its category (a click changes
+ * it), its name (the pencil renames it), the time spent on it, and Next task,
+ * which names the next one while the timer keeps going.
  */
 function TaskCard(p: TaskCardProps) {
-  const { timer, now, category, editing, next } = p;
+  const { timer, now, category, editing, next, onEditing } = p;
   const text = t().timer;
   const taskMs = currentTaskMs(timer, p.done, now);
   const minutes = formatDuration(taskMs);
   const named = p.intention.trim();
+  const card = useRef<HTMLDivElement>(null);
+  const choosing = editing === "category";
+
+  // A click outside the card closes the category chips without a change.
+  useEffect(() => {
+    if (!choosing) return;
+    const away = (e: PointerEvent) => {
+      if (!card.current?.contains(e.target as Node)) onEditing(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [choosing, onEditing]);
 
   const openNext = () => {
     p.onNext({ at: Date.now(), name: "", categoryId: p.categoryId });
@@ -495,13 +510,19 @@ function TaskCard(p: TaskCardProps) {
   }
 
   return (
-    <div className="stage-what task-card">
+    <div className="stage-what task-card" ref={card}>
       <div className="task-card-top">
         {category ? (
-          <span className="cat-pill">
+          <button
+            className="cat-pill"
+            title={text.changeCategory}
+            aria-expanded={choosing}
+            onClick={() => onEditing(choosing ? false : "category")}
+          >
             <span className="dot" style={{ background: soft(category.color) }} />
             {category.name}
-          </span>
+            <ChevronDownIcon />
+          </button>
         ) : (
           <span />
         )}
@@ -528,6 +549,33 @@ function TaskCard(p: TaskCardProps) {
           </button>
         </span>
       </div>
+      {choosing && (
+        // Only the task in hand changes: the ones before it keep their own category.
+        <div
+          className="chips task-categories"
+          role="group"
+          aria-label={text.changeCategory}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onEditing(false);
+          }}
+        >
+          {p.categories.map((c) => (
+            <button
+              key={c.id}
+              className="chip"
+              aria-pressed={c.id === p.categoryId}
+              autoFocus={c.id === p.categoryId}
+              onClick={() => {
+                p.onCategory(c.id);
+                onEditing(false);
+              }}
+            >
+              <span className="dot" style={{ background: soft(c.color) }} />
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
       {editing === "rename" ? (
         <div className="stage-intention">
           <IntentionField

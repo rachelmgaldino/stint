@@ -4363,6 +4363,22 @@ select.select-pill {
   background: var(--sunken);
 }
 
+/* The category is a button: the chevron says it opens the chips that change it. */
+.task-card .cat-pill svg {
+  margin-left: -2px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.task-card .cat-pill:hover svg,
+.task-card .cat-pill[aria-expanded="true"] svg {
+  color: var(--text);
+}
+
+.task-card .cat-pill[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
 .task-pen {
   flex: 0 0 auto;
   width: 34px;
