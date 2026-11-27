@@ -36,6 +36,7 @@ const base = {
     categoryId: 1,
     uses: 4 - i,
     lastAt: NOW - i * 86_400_000,
+    byCategory: [{ categoryId: 1, uses: 4 - i, lastAt: NOW - i * 86_400_000 }],
   })),
 };
 

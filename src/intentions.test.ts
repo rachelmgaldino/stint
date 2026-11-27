@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matching, pastIntentions, recentFor } from "./intentions";
+import { categoryFor, matching, pastIntentions, recentFor } from "./intentions";
 import type { SessionRecord } from "./store";
 
 const DAY = 86_400_000;
@@ -54,6 +54,31 @@ describe("pastIntentions", () => {
     const all = pastIntentions([s("Read", 1, 3), s("Read", 2, 1)], NOW);
     expect(all[0].categoryId).toBe(2);
   });
+
+  it("remembers every category it was used in, each with its own count and last use", () => {
+    // The older sessions in category 1 come after the newest one, so its last use must stay at 3 days ago.
+    const all = pastIntentions([s("Read", 1, 3), s("Read", 2, 1), s("Read", 1, 40), s("Read", 1, 5)], NOW);
+    expect(all[0].byCategory).toEqual([
+      { categoryId: 1, uses: 2, lastAt: NOW - 3 * DAY },
+      { categoryId: 2, uses: 1, lastAt: NOW - 1 * DAY },
+    ]);
+    expect(all[0].uses).toBe(3);
+  });
+});
+
+describe("categoryFor", () => {
+  // Done in categories 1 and 2, last in 2.
+  const [read] = pastIntentions([s("Read", 1, 3), s("Read", 2, 1)], NOW);
+
+  it("keeps the selected category when the task was done there, though it was last done in another", () => {
+    expect(categoryFor(read, 1)).toBe(1);
+    expect(categoryFor(read, 2)).toBe(2);
+  });
+
+  it("uses the category it was last done in when it was never done in the selected one", () => {
+    expect(categoryFor(read, 3)).toBe(2);
+    expect(categoryFor(read, null)).toBe(2);
+  });
 });
 
 describe("recentFor", () => {
@@ -66,6 +91,31 @@ describe("recentFor", () => {
   it("only lists the picked category", () => {
     expect(recentFor(all, 2).map((i) => i.text)).toEqual(["Spanish lesson", "Statistics"]);
     expect(recentFor(all, 3)).toEqual([]);
+  });
+
+  it("lists a task in every category it was done in, not only the last one", () => {
+    const both = pastIntentions([s("Read", 1, 3), s("Read", 2, 1)], NOW);
+    expect(recentFor(both, 1).map((i) => i.text)).toEqual(["Read"]);
+    expect(recentFor(both, 2).map((i) => i.text)).toEqual(["Read"]);
+  });
+
+  it("ranks by use in the category, not in all of them", () => {
+    const mixed = pastIntentions(
+      [
+        // Read: the newest and most used overall, but in category 2 only once, 5 days ago.
+        s("Read", 2, 5),
+        s("Read", 1, 0.1),
+        s("Read", 1, 0.2),
+        s("Read", 1, 0.3),
+        // Write: the last one done in category 2.
+        s("Write", 2, 2),
+        // Draw: the most used in category 2.
+        s("Draw", 2, 3),
+        s("Draw", 2, 4),
+      ],
+      NOW,
+    );
+    expect(recentFor(mixed, 2).map((i) => i.text)).toEqual(["Write", "Draw", "Read"]);
   });
 });
 
